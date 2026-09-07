@@ -1,0 +1,15 @@
+# dsh-ultra-mode bundle patch: mounts the plugin into a profile layer stack.
+# Runtime defaults live at the plugin's config boundary. Users override them in
+# their profile patch row with the same id.
+- insert:
+    - id: ultra-mode
+      name: '@dsh-external/dsh-ultra-mode'
+      config:
+        # subagent provider 名（留空自动探测：spawn → 首个可用）
+        provider: ''
+        # 模型可见工具名
+        toolName: ultra_task
+        # 默认并发路数 2-5
+        concurrency: 3
+        # 提示词段插入顺序
+        sectionOrder: 117.5

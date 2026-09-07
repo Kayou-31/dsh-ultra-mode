@@ -1,0 +1,76 @@
+{
+  "name": "@dsh-external/dsh-ultra-mode",
+  "version": "0.1.0",
+  "description": "ULTRA 并发模式：N 路并发 agent + 合并（self-consistency），composer 辐射滑块开关（燃烧光效），/ultra 命令，动态提示词引导",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "ultra",
+    "concurrency",
+    "self-consistency",
+    "subagent",
+    "slider",
+    "ui"
+  ],
+  "author": "Kayou",
+  "type": "module",
+  "private": false,
+  "packageManager": "pnpm@11.7.0",
+  "main": "./lib/index.js",
+  "types": "./lib/types/index.d.ts",
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "bash scripts/build.sh && pnpm run build:client",
+    "build:client": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "@deepseek-ai/cordis": ">=4.0.0-rc <5",
+    "@deepseek-ai/schemastery": "^3.18.0",
+    "@deepseek-ai/dsh-tools": ">=0.0.1-rc <2",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.0.1-rc <2",
+    "@deepseek-ai/dsh-client-connection": ">=0.0.1-rc <2",
+    "@deepseek-ai/dsh-client-runtime": ">=0.0.1-rc <2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "typescript": "^5.9.0",
+    "tsdown": "^0.22.14"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "license": "BSD-3-Clause"
+}
