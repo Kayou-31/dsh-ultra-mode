@@ -95,6 +95,7 @@ pnpm add @dsh-external/dsh-ultra-mode
 | 用户取消 / 超时 | 通过 `exec.signal` 传播到所有 worker 与 merger；`activeRuns` 归零后 UI 光效熄灭 |
 | 重叠调用（同会话两次 ULTRA） | `activeRuns` 计数，先结束的一次不会让光效提前熄灭；`lastRun` 只在全部归零后写入 |
 | 服务缺失 | `tools`/`subagents` 缺失 → 插件等待；`commands`/`systemPrompt`/`connection` 缺失 → 命令 / 提示词段 / 滑块分别自动裁剪 |
+| 无 Web 前端 | `dsh.client.inject` 是**静态声明**（不支持条件注入），因此 web 前端不存在时 client 半不会被加载；host 半（工具 + 命令 + 提示词）仍完整可用 |
 | 浏览器能力缺失 | canvas / ResizeObserver / MutationObserver / matchMedia 不可用时滑块退化为纯 CSS 静态呈现 |
 | RPC 被拒（如缺少 `sessionId`） | 滑块立刻回滚到上一次已提交档位，不保留假状态 |
 
