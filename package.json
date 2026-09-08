@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-ultra-mode",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ULTRA 并发模式：N 路并发 agent + 合并（self-consistency），composer 辐射滑块开关（燃烧光效），/ultra 命令，动态提示词引导",
   "keywords": [
     "deepseek",
