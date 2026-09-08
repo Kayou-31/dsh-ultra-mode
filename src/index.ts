@@ -167,10 +167,16 @@ export function apply(
   }
 
   // ── Client RPC（sessionId 必填，缺失即拒绝） ──────────────────────
-  const connection = ctx.get('connection') as ConnectionService | undefined
-  if (connection?.rpc !== undefined) {
+  // `connection` 只由 Web 载体提供，且晚于 tools/subagents 就绪：在 apply
+  // 时刻用 `ctx.get('connection')` 一次性读取通常拿到 undefined，通道就永远
+  // 不会注册——滑块 get/set 全部失败，松手后回落到已提交位。优先用 ctx.inject
+  // 等服务出现再挂通道；没有 inject 的老版本/极简 ctx 退回一次性读取（服务
+  // 已经就绪的场合仍然可用），两者都不命中时其余能力不受影响。
+  const mountRpc = (owner: Context): void => {
+    const connection = owner.get('connection') as ConnectionService | undefined
+    if (connection?.rpc === undefined) return
     const rpc = connection.rpc
-    ctx.effect(() =>
+    owner.effect(() =>
       rpc.handle(
         RPC_CHANNEL,
         (endpoint, payload) => {
@@ -206,6 +212,11 @@ export function apply(
       ),
     )
   }
+  const injectService = ctx.inject as unknown as
+    | ((names: string[], callback: (injected: Context) => void) => unknown)
+    | undefined
+  if (typeof injectService === 'function') injectService.call(ctx, ['connection'], mountRpc)
+  else mountRpc(ctx)
 
   // ── ultra_task 工具 ────────────────────────────────────────────
   ctx.tools.register(

@@ -20,7 +20,7 @@ const CONFIG = {
 }
 
 /** Minimal fake context recording every registration. */
-function makeCtx({ subagents } = {}) {
+function makeCtx({ subagents, inject = true } = {}) {
   const record = {
     tools: [],
     commands: [],
@@ -52,6 +52,12 @@ function makeCtx({ subagents } = {}) {
       record.effects.push(disposer)
       return typeof disposer === 'function' ? disposer : () => {}
     },
+  }
+  // Cordis `ctx.inject(deps, cb)`: the fake context has every service ready, so
+  // the callback fires synchronously. `inject: false` covers the minimal/older
+  // context that has no such API at all.
+  if (inject) {
+    ctx.inject = (_names, callback) => { callback(ctx) }
   }
   return { ctx, record }
 }
@@ -255,4 +261,11 @@ test('/ultra set and RPC read the same state', () => {
   record.commands[0].handler({ rawInput: '4', agent: { id: 'session-a' } })
   const value = rpc('get', { sessionId: 'session-a' }).value
   assert.deepEqual({ enabled: value.enabled, concurrency: value.concurrency }, { enabled: true, concurrency: 4 })
+})
+
+test('mounts the RPC channel without ctx.inject too (minimal/older context)', () => {
+  const { rpc } = boot({ subagents: makeSubagents([]), inject: false })
+  assert.equal(typeof rpc, 'function', 'fallback mount must still register the channel')
+  rpc('set', { sessionId: 'session-a', enabled: true, concurrency: 2 })
+  assert.equal(rpc('get', { sessionId: 'session-a' }).value.concurrency, 2)
 })
