@@ -5,12 +5,15 @@
  * 视觉同款"推理强度"滑块：渐变轨道 + canvas 辐射波 + 呼吸辉光，
  * ultra_task 执行期间进入"燃烧态"（金橙光带 + 白热 knob）。
  *
- * 兼容性：
+ * 兼容性与正确性：
  * - `slots` 缺失则不挂载；`connection` 缺失则不渲染（降级为无 UI，
  *   host 工具/命令仍可用）。
- * - canvas / ResizeObserver / MutationObserver / matchMedia 缺失时降级
- *   为纯 CSS，不抛错。
- * - 状态按会话隔离：通过输入区 props.sessionId 定位 host 状态。
+ * - 状态按会话隔离：只使用 props.sessionId；缺失时滑块进入禁用态，
+ *   绝不回落到共享 bucket。
+ * - 能力降级：canvas / ResizeObserver / MutationObserver / matchMedia
+ *   缺失时退化为纯 CSS，不抛错。
+ * - 4/5 路档位首次使用弹一次成本确认（可记住，见 `ack` 开关）。
+ * - 燃烧态只表示"有 ULTRA 正在执行"，不是实际额度计量。
  */
 import React from 'react'
 import type { SlotsService } from '@deepseek-ai/dsh-client-ui-slots'
@@ -34,6 +37,7 @@ interface UltraStateSnapshot {
   enabled: boolean
   concurrency: number
   running: boolean
+  activeRuns: number
   lastRun: { at: number; ms: number } | null
 }
 
@@ -43,12 +47,13 @@ interface UltraProps {
 
 const RPC_CHANNEL = '/dsh-ultra-mode'
 const LEVELS = [0, 2, 3, 4, 5]
+const RISK_ACK_KEY = 'dsh-ultra-mode.risk-ack'
 
 const indexOf = (s: UltraStateSnapshot): number =>
   s.enabled ? Math.max(1, Math.min(4, (s.concurrency || 3) - 1)) : 0
 
 const ULTRA_CSS: string = [
-  '.ult-shell{display:flex;align-items:center;width:132px;height:32px;color:var(--dsw-alias-label-secondary,#686c75);user-select:none;box-sizing:border-box}',
+  '.ult-shell{position:relative;display:flex;align-items:center;width:132px;height:32px;color:var(--dsw-alias-label-secondary,#686c75);user-select:none;box-sizing:border-box}',
   '.ult-slider{--ult-progress:50%;position:relative;width:100%;height:30px;border-radius:999px;isolation:isolate;transition:filter 180ms ease}',
   '.ult-track{position:absolute;inset:0;overflow:hidden;border-radius:inherit;background:linear-gradient(100deg,#03040a 0%,#071126 22%,#101d4c 45%,#302262 70%,#5d35a0 100%);box-shadow:inset 0 1px 0 rgba(189,199,255,.15),inset 0 -1px 0 rgba(0,0,0,.55),0 3px 10px rgba(12,17,55,.34)}',
   '.ult-track::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% 45%,rgba(82,130,255,.12),transparent 24%),linear-gradient(90deg,rgba(0,0,0,.28),transparent 42%,rgba(168,113,255,.12));pointer-events:none}',
@@ -68,11 +73,18 @@ const ULTRA_CSS: string = [
   '.ult-slider[data-top] .ult-track{animation:ult-dark-breathe 1.9s ease-in-out infinite}',
   '.ult-slider[data-top] .ult-knob{box-shadow:0 0 0 3px rgba(119,99,255,.18),0 0 22px rgba(135,78,255,.76),0 0 34px rgba(53,121,255,.34),0 3px 8px rgba(0,0,0,.3)}',
   '.ult-shell.is-busy{opacity:.72}',
+  '.ult-shell.is-disabled{opacity:.4;pointer-events:none}',
   '.ult-shell.is-burning .ult-track::before{content:"";position:absolute;z-index:0;inset:0;border-radius:inherit;background:linear-gradient(90deg,transparent 0%,rgba(255,140,60,.14) 30%,rgba(255,196,96,.34) 50%,rgba(255,140,60,.14) 70%,transparent 100%);background-size:240% 100%;animation:ult-burn-flow 1.05s linear infinite;mix-blend-mode:screen;pointer-events:none}',
   '.ult-shell.is-burning .ult-knob{background:linear-gradient(120deg,#fff 0%,#ffeecb 34%,#ffdc9e 68%,#ffbe62 100%);box-shadow:0 0 0 3px rgba(255,168,60,.24),0 0 26px rgba(255,152,48,.9),0 0 46px rgba(255,84,24,.48),0 0 8px rgba(255,220,150,.8),0 3px 10px rgba(0,0,0,.34)}',
   '.ult-shell.is-burning .ult-canvas{filter:saturate(1.9) brightness(1.34) contrast(1.1) hue-rotate(-10deg)}',
   '.ult-shell.is-burning .ult-flare{filter:blur(2px) saturate(1.9) brightness(1.46)}',
   '@keyframes ult-burn-flow{0%{background-position:130% 0}100%{background-position:-130% 0}}',
+  '.ult-confirm{position:absolute;right:0;bottom:calc(100% + 10px);z-index:40;width:264px;padding:10px 12px;border:1px solid var(--dsw-alias-stroke-secondary,rgba(121,126,145,.28));border-radius:12px;background:var(--dsw-alias-bg-elevated,#fff);box-shadow:0 12px 32px rgba(18,24,42,.22);font-size:12px;line-height:1.6;color:var(--dsw-alias-label-primary,#15171b)}',
+  'body[data-ds-dark-theme] .ult-confirm{background:var(--dsw-alias-bg-elevated,#202126);color:var(--dsw-alias-label-primary,#f2f4f8);box-shadow:0 14px 36px rgba(0,0,0,.5)}',
+  '.ult-confirm-actions{display:flex;gap:8px;margin-top:9px}',
+  '.ult-confirm-ok,.ult-confirm-cancel{padding:4px 10px;border:0;border-radius:8px;font-size:12px;cursor:pointer}',
+  '.ult-confirm-ok{color:#fff;background:var(--dsw-static-deepseek-500,#4d70ff)}',
+  '.ult-confirm-cancel{color:var(--dsw-alias-label-secondary,#686c75);background:var(--dsw-alias-fill-tertiary,rgba(120,125,140,.12))}',
   'body:not([data-ds-dark-theme]) .ult-slider{filter:none}',
   'body:not([data-ds-dark-theme]) .ult-track{background:var(--dsw-static-blue-75,#e5f0ff);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(80,133,194,.14),0 3px 10px rgba(48,101,165,.13)}',
   'body:not([data-ds-dark-theme]) .ult-track::before{content:"";position:absolute;z-index:0;inset:0 auto 0 0;width:var(--ult-progress);border-radius:inherit;background:linear-gradient(90deg,#fff 0%,#e2f0ff 20%,#a8d0fb 57%,#438fdf 100%);transition:width 190ms cubic-bezier(.22,1,.36,1)}',
@@ -94,7 +106,7 @@ const ULTRA_CSS: string = [
   '@media (prefers-reduced-motion:reduce){.ult-slider[data-top] .ult-track{animation:none}.ult-knob,.ult-flare,body:not([data-ds-dark-theme]) .ult-track::before{transition:none}.ult-shell.is-burning .ult-track::before{animation:none}}',
 ].join('')
 
-/** 画布辐射波：能力缺失时由调用方降级（返回 false 即不绘制）。 */
+/** 画布辐射波：能力缺失时由调用方降级（不绘制也不报错）。 */
 function drawRadiation(
   context: CanvasRenderingContext2D,
   width: number,
@@ -166,11 +178,34 @@ function drawRadiation(
   context.restore()
 }
 
+function readRiskAck(): boolean {
+  try {
+    return window.localStorage.getItem(RISK_ACK_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function writeRiskAck(): void {
+  try {
+    window.localStorage.setItem(RISK_ACK_KEY, 'true')
+  } catch {
+    // 存储不可用时本次仍按已确认处理。
+  }
+}
+
 function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): React.ReactElement {
-  const [state, setState] = React.useState<UltraStateSnapshot>({ enabled: false, concurrency: 3, running: false, lastRun: null })
+  const [state, setState] = React.useState<UltraStateSnapshot>({
+    enabled: false,
+    concurrency: 3,
+    running: false,
+    activeRuns: 0,
+    lastRun: null,
+  })
   const [preview, setPreview] = React.useState(0)
   const [dragging, setDragging] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
+  const [pendingRisk, setPendingRisk] = React.useState<number | null>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const committedRef = React.useRef(0)
@@ -178,30 +213,41 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
   const draggingRef = React.useRef(false)
   const radRef = React.useRef({ progress: 0, dragging: false, burning: false })
   const redrawRef = React.useRef<(() => void) | null>(null)
+  const enabled = typeof sessionId === 'string' && sessionId.trim() !== ''
 
   React.useEffect(() => {
+    if (!enabled) return
     let alive = true
     const sync = (): void => {
-      rpc.call(RPC_CHANNEL, 'get', { sessionId })
+      rpc
+        .call(RPC_CHANNEL, 'get', { sessionId })
         .then((raw) => {
           if (!alive) return
           const result = raw as ReRpcResult<UltraStateSnapshot>
-          if (result && result.ok) setState(result.value)
+          if (result === null || result === undefined || !result.ok) return
+          setState(result.value)
+          const idx = indexOf(result.value)
+          // 远端状态是权威的：非拖动、非提交中时同步本地已提交位与预览。
+          if (!draggingRef.current && !busy) {
+            committedRef.current = idx
+            if (Math.round(previewRef.current) !== idx) {
+              previewRef.current = idx
+              setPreview(idx)
+            }
+          }
         })
         .catch(() => undefined)
     }
     sync()
     const timer = window.setInterval(sync, 800)
-    return () => { alive = false; window.clearInterval(timer) }
-  }, [rpc, sessionId])
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+    }
+  }, [rpc, sessionId, enabled, busy])
 
   React.useEffect(() => {
     radRef.current.burning = state.running === true
-    const idx = indexOf(state)
-    if (!draggingRef.current && Math.round(previewRef.current) !== idx) {
-      previewRef.current = idx
-      setPreview(idx)
-    }
     if (redrawRef.current) redrawRef.current()
   }, [state])
 
@@ -227,11 +273,17 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
     let reducedMotion = false
     try {
       reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    } catch { reducedMotion = false }
+    } catch {
+      reducedMotion = false
+    }
     const resize = (): void => {
       const bounds = canvas.getBoundingClientRect()
       let ratio = 1
-      try { ratio = Math.min(window.devicePixelRatio || 1, 2) } catch { ratio = 1 }
+      try {
+        ratio = Math.min(window.devicePixelRatio || 1, 2)
+      } catch {
+        ratio = 1
+      }
       width = Math.max(1, bounds.width)
       height = Math.max(1, bounds.height)
       canvas.width = Math.max(1, Math.round(width * ratio))
@@ -239,22 +291,39 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
     }
     const draw = (time = 0): void =>
-      drawRadiation(context, width, height, time, radRef.current.progress, radRef.current.dragging, radRef.current.burning)
+      drawRadiation(
+        context,
+        width,
+        height,
+        time,
+        radRef.current.progress,
+        radRef.current.dragging,
+        radRef.current.burning,
+      )
     const loop = (time: number): void => {
       draw(time)
       frame = window.requestAnimationFrame(loop)
     }
-    const redraw = (): void => { if (reducedMotion) draw() }
+    const redraw = (): void => {
+      if (reducedMotion) draw()
+    }
     let resizeObserver: ResizeObserver | null = null
     let themeObserver: MutationObserver | null = null
     try {
-      resizeObserver = new ResizeObserver(() => { resize(); draw() })
+      resizeObserver = new ResizeObserver(() => {
+        resize()
+        draw()
+      })
       resizeObserver.observe(canvas)
-    } catch { resizeObserver = null }
+    } catch {
+      resizeObserver = null
+    }
     try {
       themeObserver = new MutationObserver(() => draw())
       themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
-    } catch { themeObserver = null }
+    } catch {
+      themeObserver = null
+    }
     redrawRef.current = redraw
     resize()
     draw()
@@ -267,29 +336,54 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
     }
   }, [])
 
-  const commit = async (raw: number): Promise<void> => {
-    if (busy) return
+  const rollback = (): void => {
     const previous = committedRef.current
+    previewRef.current = previous
+    setPreview(previous)
+  }
+
+  const commit = async (raw: number): Promise<void> => {
+    if (busy || !enabled) return
     const idx = Math.max(0, Math.min(4, Math.round(raw)))
+    // 首次进入 4/5 路（更高成本）先要一次确认。
+    if (idx >= 3 && !readRiskAck()) {
+      setPendingRisk(idx)
+      return
+    }
     setBusy(true)
     previewRef.current = idx
     setPreview(idx)
-    const next = idx === 0
-      ? { enabled: false, concurrency: state.concurrency || 3 }
-      : { enabled: true, concurrency: LEVELS[idx] }
+    const next =
+      idx === 0
+        ? { enabled: false, concurrency: state.concurrency || 3 }
+        : { enabled: true, concurrency: LEVELS[idx] }
     try {
-      const saved = await rpc.call(RPC_CHANNEL, 'set', { sessionId, ...next }) as ReRpcResult<UltraStateSnapshot>
-      if (saved && saved.ok) {
-        setState(saved.value)
-        committedRef.current = idx
+      const saved = (await rpc.call(RPC_CHANNEL, 'set', { sessionId, ...next })) as
+        | ReRpcResult<UltraStateSnapshot>
+        | undefined
+      if (saved === undefined || saved.ok !== true) {
+        // 服务端拒绝（含 missing-session-id）：立刻回滚，不留假状态。
+        rollback()
+        return
       }
+      setState(saved.value)
+      committedRef.current = idx
     } catch {
-      setPreview(previous)
-      previewRef.current = previous
-      committedRef.current = previous
+      rollback()
     } finally {
       setBusy(false)
     }
+  }
+
+  const confirmRisk = (accepted: boolean): void => {
+    const idx = pendingRisk
+    setPendingRisk(null)
+    if (!accepted || idx === null) {
+      rollback()
+      return
+    }
+    writeRiskAck()
+    void commit(idx)
   }
 
   const rawFromPointer = (input: HTMLInputElement, clientX: number): number => {
@@ -307,7 +401,11 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
     const raw = rawFromPointer(input, event.clientX)
     previewRef.current = raw
     setPreview(raw)
-    try { if (!input.hasPointerCapture(event.pointerId)) input.setPointerCapture(event.pointerId) } catch { /* 忽略 */ }
+    try {
+      if (!input.hasPointerCapture(event.pointerId)) input.setPointerCapture(event.pointerId)
+    } catch {
+      /* 指针捕获不可用时仍可拖动 */
+    }
   }
   const onPointerMove = (event: React.PointerEvent<HTMLInputElement>): void => {
     if (!draggingRef.current) return
@@ -321,7 +419,11 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
     draggingRef.current = false
     setDragging(false)
     const input = event.currentTarget
-    try { if (input.hasPointerCapture(event.pointerId)) input.releasePointerCapture(event.pointerId) } catch { /* 忽略 */ }
+    try {
+      if (input.hasPointerCapture(event.pointerId)) input.releasePointerCapture(event.pointerId)
+    } catch {
+      /* 忽略 */
+    }
     const raw = rawFromPointer(input, event.clientX)
     previewRef.current = raw
     setPreview(raw)
@@ -344,16 +446,54 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
   const idx = Math.round(preview)
   const label = idx === 0 ? 'ULTRA 关' : `ULTRA ${LEVELS[idx]}路`
   const burning = state.running === true
+  const className = [
+    'ult-shell',
+    dragging ? 'is-dragging' : '',
+    busy ? 'is-busy' : '',
+    burning ? 'is-burning' : '',
+    enabled ? '' : 'is-disabled',
+  ]
+    .filter((part) => part !== '')
+    .join(' ')
+
   return React.createElement(
     'div',
     {
-      className: `ult-shell${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}${burning ? ' is-burning' : ''}`,
-      title: 'ULTRA 并发模式：拖到最左=关，2/3/4/5 路并发；执行中滑块进入烧钱状态\n（也可 /ultra on|off|<2-5>）',
+      className,
+      title: enabled
+        ? 'ULTRA 并发模式：拖到最左=关，2/3/4/5 路并发；执行中滑块进入运行态光效（不代表实际额度计量）\n（也可 /ultra on|off|<2-5>）'
+        : 'ULTRA 滑块不可用：当前会话缺少 sessionId',
     },
+    pendingRisk === null
+      ? null
+      : React.createElement(
+          'div',
+          { className: 'ult-confirm', role: 'dialog', 'aria-label': 'ULTRA 成本确认' },
+          React.createElement(
+            'div',
+            null,
+            `${LEVELS[pendingRisk]} 路 ULTRA 每条请求最多额外启动 ${LEVELS[pendingRisk] + 1} 个 agent；实际消耗取决于各分支输出与合并输入，部分失败或取消也可能已经产生消耗。确认开启？`,
+          ),
+          React.createElement(
+            'div',
+            { className: 'ult-confirm-actions' },
+            React.createElement(
+              'button',
+              { type: 'button', className: 'ult-confirm-ok', onClick: () => confirmRisk(true) },
+              '确认开启',
+            ),
+            React.createElement(
+              'button',
+              { type: 'button', className: 'ult-confirm-cancel', onClick: () => confirmRisk(false) },
+              '取消',
+            ),
+          ),
+        ),
     React.createElement(
       'div',
       {
-        className: `ult-slider${idx === 4 ? ' data-top' : ''}`,
+        className: 'ult-slider',
+        'data-top': idx === 4 ? 'true' : undefined,
         style: { '--ult-progress': `${(idx / 4) * 100}%` } as React.CSSProperties,
       },
       React.createElement('span', { className: 'ult-track', 'aria-hidden': true }),
@@ -371,7 +511,7 @@ function UltraSlider({ sessionId, rpc }: { sessionId?: string; rpc: HostRpc }): 
         max: '4',
         step: '1',
         value: idx,
-        disabled: busy,
+        disabled: busy || !enabled,
         'aria-label': 'ULTRA 并发模式',
         'aria-valuetext': label,
         onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,15 +555,12 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() =>
     ctx.slots.inject('conversation.input.right', () =>
-      ctx.slots.register(
-        {
-          name: 'conversation.input.right',
-          id: 'ultra-mode',
-          order: 30,
-          label: 'ULTRA',
-        },
-        (props: UltraProps) => React.createElement(UltraSlider, { sessionId: props.sessionId, rpc }),
-      ),
+      ctx.slots.register({
+        name: 'conversation.input.right',
+        id: 'ultra-mode',
+        order: 30,
+        label: 'ULTRA',
+      }, (props: UltraProps) => React.createElement(UltraSlider, { sessionId: props.sessionId, rpc })),
     ),
     'dsh-ultra-mode: slider',
   )

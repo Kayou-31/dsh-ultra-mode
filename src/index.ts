@@ -1,19 +1,38 @@
 /**
- * @dsh-external/dsh-ultra-mode — ULTRA 并发模式。
+ * @dsh-external/dsh-ultra-mode — ULTRA 并发模式（host 半）。
  *
  * 一次处理一件事时并发 N 个独立 agent（self-consistency），全部完成后由
  * 第 N+1 个 agent 交叉核对并合并成一份最终答案。附带 composer 滑块开关
- * （辐射光效 + 燃烧态）、/ultra 命令、动态提示词引导。
+ * （辐射光效 + 运行态"燃烧"光效）、/ultra 命令、按会话动态注入的提示词引导。
  *
- * 兼容性设计：
- * - `tools` / `subagents` 为核心依赖（缺失则整体等待）；`commands` /
- *   `systemPrompt` / `connection` 全部软依赖，缺席时对应功能自动裁剪。
- * - 状态按会话（agent.id）隔离，多会话互不串扰；全局装配安全。
- * - provider 可通过 config 指定；留空则自动探测（spawn → 首个可用）。
+ * 兼容性与正确性要点：
+ * - `tools` / `subagents` 为核心依赖；`commands` / `systemPrompt` /
+ *   `connection` 为软依赖，缺席时对应功能自动裁剪。
+ * - 状态按会话（agent.id）隔离，读取不创建条目，Map 有上限与 LRU 淘汰。
+ * - 提示词段在**每次装配时**读取当前会话开关状态（`context.agent`），
+ *   模型因此始终知道开关的真实位置，而不是从静态文案里猜。
+ * - 每个 run（worker 与 merger）都进入统一 `finally` 清理；重叠调用用
+ *   `activeRuns` 计数，UI 的"燃烧态"不会因先结束的一次而提前熄灭。
+ * - 成功样本 < 2 时不再"静默降级"；2..N-1 时降级合并并明确告知
+ *   merger 与用户本次只成功了几路。
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import {
+  buildMergePrompt,
+  buildWorkerBrief,
+  clampConcurrency,
+  fallbackJoin,
+  isRunning,
+  planMerge,
+  renderUltraSection,
+  resolveSessionKey,
+  runBanner,
+  snapshotOf,
+  type UltraState,
+  type WorkerOutcome,
+} from './ultra.js'
 
 // ── 最小化本地类型（避免引入源包类型依赖，宽版本兼容） ──────────────
 interface ContentBlockLike {
@@ -49,11 +68,22 @@ interface ToolsService {
   register(definition: unknown): () => void
 }
 
-interface UltraState {
-  enabled: boolean
-  concurrency: number
-  running: boolean
-  lastRun: { at: number; ms: number } | null
+interface CommandsService {
+  register(definition: unknown): () => void
+}
+
+interface SystemPromptService {
+  section(section: unknown): () => void
+}
+
+interface ConnectionService {
+  rpc?: {
+    handle(
+      channel: string,
+      handler: (endpoint: string, payload?: unknown) => unknown,
+      opts?: { authority?: string },
+    ): () => void
+  }
 }
 
 export const name = '@dsh-external/dsh-ultra-mode'
@@ -68,28 +98,24 @@ export const Config = z.object({
   concurrency: z.number().step(1).min(2).max(5).default(3),
   /** 提示词段插入顺序。 */
   sectionOrder: z.number().default(117.5),
+  /** 会话状态条目上限（超出按最久未用淘汰）。 */
+  maxSessions: z.number().step(1).min(1).default(64),
 })
 export type Config = {
-  /** subagent provider 名；留空自动探测。 */
   provider: string
-  /** 模型可见工具名。 */
   toolName: string
-  /** 默认并发路数 2-5。 */
   concurrency: number
-  /** 提示词段插入顺序。 */
   sectionOrder: number
+  maxSessions: number
 }
 
 /** Client→Host 私有 RPC 通道（与 client 半共享）。 */
 const RPC_CHANNEL = '/dsh-ultra-mode'
 
-export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentService }, config: Config): void {
-  const clampN = (v: unknown): number => {
-    const num = Number(v)
-    if (!Number.isInteger(num)) return 3
-    return Math.max(2, Math.min(5, num))
-  }
-
+export function apply(
+  ctx: Context & { tools: ToolsService; subagents: SubagentService },
+  config: Config,
+): void {
   const textOf = (result: { output?: unknown }): string =>
     Array.isArray(result.output)
       ? result.output
@@ -111,41 +137,70 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
     return names[0]
   }
 
-  // ── 会话隔离状态 ────────────────────────────────────────────────
+  // ── 会话隔离状态（读取不创建；LRU 上限） ─────────────────────────
   const sessions = new Map<string, UltraState>()
-  const stateOf = (sessionKey: string): UltraState => {
-    let s = sessions.get(sessionKey)
-    if (s === undefined) {
-      s = { enabled: false, concurrency: config.concurrency, running: false, lastRun: null }
-      sessions.set(sessionKey, s)
+
+  const touch = (key: string, state: UltraState): UltraState => {
+    sessions.delete(key)
+    sessions.set(key, state)
+    while (sessions.size > config.maxSessions) {
+      const oldest = sessions.keys().next()
+      if (oldest.done === true) break
+      sessions.delete(oldest.value)
     }
-    return s
-  }
-  const keyOfAgent = (agent: unknown): string => {
-    if (agent && typeof agent === 'object' && 'id' in agent) return String((agent as { id: unknown }).id)
-    return 'unknown'
+    return state
   }
 
-  // ── Client RPC ─────────────────────────────────────────────────
-  const connection = ctx.get('connection') as { rpc?: { handle(channel: string, handler: (endpoint: string, payload?: unknown) => unknown, opts?: { authority?: string }): () => void } } | undefined
-  if (connection?.rpc) {
+  /** Read-only lookup: an unknown session reports "no state", not a new entry. */
+  const peek = (key: string | undefined): UltraState | undefined => {
+    if (key === undefined) return undefined
+    const found = sessions.get(key)
+    if (found !== undefined) touch(key, found)
+    return found
+  }
+
+  /** Mutating lookup used only by explicit user actions (UI / command / tool). */
+  const ensure = (key: string): UltraState => {
+    const found = sessions.get(key)
+    if (found !== undefined) return touch(key, found)
+    return touch(key, { enabled: false, concurrency: config.concurrency, activeRuns: 0, lastRun: null })
+  }
+
+  // ── Client RPC（sessionId 必填，缺失即拒绝） ──────────────────────
+  const connection = ctx.get('connection') as ConnectionService | undefined
+  if (connection?.rpc !== undefined) {
     const rpc = connection.rpc
     ctx.effect(() =>
       rpc.handle(
         RPC_CHANNEL,
         (endpoint, payload) => {
-          const req = (payload ?? {}) as { sessionId?: string; enabled?: boolean; concurrency?: number }
-          const key = typeof req.sessionId === 'string' ? req.sessionId : 'default'
-          const state = stateOf(key)
+          const request = (payload ?? {}) as { sessionId?: unknown; enabled?: unknown; concurrency?: unknown }
+          const key = resolveSessionKey(request.sessionId)
+          if (key === undefined) {
+            return { ok: false as const, error: { code: 'missing-session-id', message: 'sessionId is required' } }
+          }
           if (endpoint === 'get') {
-            return { ok: true as const, value: { enabled: state.enabled, concurrency: state.concurrency, running: state.running, lastRun: state.lastRun } }
+            const state = peek(key)
+            return {
+              ok: true as const,
+              value:
+                state === undefined
+                  ? { enabled: false, concurrency: config.concurrency, running: false, activeRuns: 0, lastRun: null }
+                  : snapshotOf(state),
+            }
           }
           if (endpoint === 'set') {
-            if (typeof req.enabled === 'boolean') state.enabled = req.enabled
-            if (Number.isInteger(req.concurrency)) state.concurrency = clampN(req.concurrency)
-            return { ok: true as const, value: { enabled: state.enabled, concurrency: state.concurrency, running: state.running, lastRun: state.lastRun } }
+            const state = ensure(key)
+            if (typeof request.enabled === 'boolean') state.enabled = request.enabled
+            if (request.concurrency !== undefined) {
+              state.concurrency = clampConcurrency(request.concurrency, state.concurrency)
+            }
+            return { ok: true as const, value: snapshotOf(state) }
           }
-          return { ok: false as const, error: { code: 'not-found', message: `unknown endpoint ${JSON.stringify(endpoint)}` } }
+          return {
+            ok: false as const,
+            error: { code: 'not-found', message: `unknown endpoint ${JSON.stringify(endpoint)}` },
+          }
         },
         { authority: 'loopback' },
       ),
@@ -157,7 +212,7 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
     defineTool({
       name: config.toolName,
       description:
-        'ULTRA 模式：并发运行 N 个独立 agent 处理同一个任务（类似 o1-pro 的 self-consistency 多路采样），全部完成后由第 N+1 个 agent 把各分支结果交叉核对并合并成一份最终答案。当 ULTRA 模式开启（composer 滑块），每个新用户请求必须先调用本工具再作答；用户明确要求“ultra/并发处理”时也可使用。代价约为 N+1 个完整 agent 会话。',
+        'ULTRA 模式：并发运行 N 个独立 agent 处理同一个任务（类似 o1-pro 的 self-consistency 多路采样），全部完成后由第 N+1 个 agent 把各分支结果交叉核对并合并成一份最终答案。提示词段会给出当前会话的 ULTRA 开关状态：开启时每个新用户请求必须先调用本工具再作答；用户明确要求“ultra/并发处理”时也可使用。代价约为 N+1 个完整 agent 会话。',
       parameters: {
         task: {
           type: 'string',
@@ -179,40 +234,38 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
             output: { type: 'array', required: true, items: { type: 'json' } },
           },
         },
-        render: (_args, value) => [
-          { type: 'text', text: textOf({ output: value.output }) },
-        ],
+        render: (_args, value) => [{ type: 'text', text: textOf({ output: value.output }) }],
       },
       isConcurrencySafe: () => true,
       async execute(args, exec) {
         const agent = exec && (exec as { agent?: unknown }).agent
         const parent = agent as AgentLike | undefined
         if (!parent) throw new Error('ultra_task requires a calling agent')
-        const state = stateOf(keyOfAgent(parent))
+        const key = resolveSessionKey(parent.id)
+        if (key === undefined) throw new Error('ultra_task requires a session identity (agent.id)')
+
+        const state = ensure(key)
+        const task = String((args && args.task) || '').trim()
+        if (task === '') throw new Error('ultra_task requires a non-empty task')
+        const requested = clampConcurrency(
+          args && args.concurrency !== undefined ? args.concurrency : state.concurrency,
+          state.concurrency,
+        )
+        const provider = providerOf()
+        if (provider === undefined) throw new Error('no subagent provider available (subagents.list() is empty)')
+
         const startedAt = Date.now()
-        state.running = true
+        const runs: RunLike[] = []
+        let mergeRun: RunLike | undefined
+        state.activeRuns += 1
         try {
-          const task = String((args && args.task) || '').trim()
-          if (task === '') throw new Error('ultra_task requires a non-empty task')
-          const n = clampN(args && args.concurrency !== undefined ? args.concurrency : state.concurrency)
-          const provider = providerOf()
-          if (provider === undefined) throw new Error('no subagent provider available (subagents.list() is empty)')
+          const workerBrief = buildWorkerBrief(task)
 
-          const workerBrief = [
-            '你是 ULTRA 并发工作流的一个分支（独立 agent，看不到主对话）。',
-            '【任务】' + task,
-            '要求：',
-            '1. 独立、完整地处理该任务；你的最终回复就是交付物（完成态最终结果，不是草稿或过程汇报）。',
-            '2. 需要时可使用可用工具（读文件、执行命令、搜索等）取得事实后再下结论。',
-            '3. 最终回复用中文（除非任务另有要求），结构清晰、可直接使用。',
-            '4. 不要提及“分支、并发、ULTRA”等机制性内容。',
-          ].join('\n')
-
-          const runs: RunLike[] = []
-          for (let i = 0; i < n; i += 1) {
+          for (let i = 0; i < requested; i += 1) {
+            // 逐路启动：任何一路失败都会进入 finally，已启动的 run 一并释放。
             runs.push(
               await ctx.subagents.start(provider, {
-                label: `ultra-${i + 1}/${n}`,
+                label: `ultra-${i + 1}/${requested}`,
                 prompt: [{ type: 'text', text: workerBrief }],
                 parent,
                 signal: exec.signal,
@@ -220,12 +273,15 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
             )
           }
 
-          const results = await Promise.all(
-            runs.map(async (run) => {
+          const outcomes: WorkerOutcome[] = await Promise.all(
+            runs.map(async (run): Promise<WorkerOutcome> => {
               try {
                 const result = await run.result
                 if (result.stopReason !== 'completed') {
-                  return { ok: false, error: `worker ended: ${result.stopReason}${result.diagnostic ? `: ${result.diagnostic}` : ''}` }
+                  return {
+                    ok: false,
+                    error: `worker ended: ${result.stopReason}${result.diagnostic ? `: ${result.diagnostic}` : ''}`,
+                  }
                 }
                 return { ok: true, text: textOf(result) }
               } catch (error) {
@@ -234,72 +290,62 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
             }),
           )
 
-          const okWorkers = results.filter((r) => r.ok)
-          if (okWorkers.length === 0) {
-            for (const run of runs) {
-              try { await run.dispose() } catch { /* 清理失败不掩盖主错误 */ }
-            }
-            throw new Error(`all ultra workers failed: ${results.map((r) => r.error).join(' | ')}`)
+          const plan = planMerge(outcomes, requested)
+          if (plan.strategy === 'insufficient') {
+            const errors = outcomes.map((o) => o.error ?? 'empty output').join(' | ')
+            throw new Error(
+              `ULTRA 只获得 ${plan.succeeded}/${plan.requested} 路可用结果（少于 2 路，可靠性不足，已放弃合并）：${errors}`,
+            )
           }
 
-          const mergePrompt = buildMergePrompt(task, okWorkers)
           let merged = ''
           try {
-            const mergeRun = await ctx.subagents.start(provider, {
+            mergeRun = await ctx.subagents.start(provider, {
               label: 'ultra-merge',
-              prompt: [{ type: 'text', text: mergePrompt }],
+              prompt: [{ type: 'text', text: buildMergePrompt(task, outcomes, plan) }],
               parent,
               signal: exec.signal,
             })
             const mergeResult = await mergeRun.result
             if (mergeResult.stopReason === 'completed') merged = textOf(mergeResult)
-            await mergeRun.dispose()
-          } catch { merged = '' }
-          if (merged.trim() === '') {
-            merged = okWorkers.map((w, i) => `【分支 ${i + 1}】\n${(w as { text: string }).text}`).join('\n\n')
+          } catch {
+            // 合并失败不掩盖分支成果；清理仍在 finally 统一进行。
+            merged = ''
           }
 
-          for (const run of runs) {
-            try { await run.dispose() } catch { /* 同上 */ }
+          const body = merged.trim() === '' ? fallbackJoin(outcomes) : merged
+          const banner = runBanner(plan)
+          return {
+            kind: 'foreground' as const,
+            runId: 'ultra',
+            output: [{ type: 'text' as const, text: banner === '' ? body : `${banner}\n\n${body}` }],
           }
-          return { kind: 'foreground' as const, runId: 'ultra', output: [{ type: 'text' as const, text: merged }] }
         } finally {
-          state.running = false
-          state.lastRun = { at: Date.now(), ms: Date.now() - startedAt }
+          state.activeRuns = Math.max(0, state.activeRuns - 1)
+          if (!isRunning(state)) state.lastRun = { at: Date.now(), ms: Date.now() - startedAt }
+          await Promise.allSettled([
+            ...runs.map((run) => run.dispose()),
+            ...(mergeRun === undefined ? [] : [mergeRun.dispose()]),
+          ])
         }
       },
     }),
   )
 
-  const buildMergePrompt = (task: string, workers: { ok: boolean; text?: string; error?: string }[]): string => {
-    const parts = workers
-      .map((w, i) => `【结果 ${i + 1}】\n${(w.text ?? '').slice(0, 20000)}`)
-      .join('\n\n')
-    return [
-      `你是 ULTRA 合并者。下面是 ${workers.length} 个独立 agent 对同一个任务的完成结果，任务原文如下：`,
-      `【任务】${task}`,
-      '',
-      parts,
-      '',
-      '请：',
-      '1. 交叉核对：找出共识点、分歧点和遗漏点；对分歧给出你的判断与理由。',
-      '2. 整合出一份最终答案（中文，除非任务另有要求）：结构清晰、完整、可直接使用，宁全勿缺。',
-      '3. 若某些分歧无法调和，在答案中注明。',
-      '4. 最终回复即最终答案本身；不要附上流程说明。',
-    ].join('\n')
-  }
-
-  // ── /ultra 命令（软依赖） ──────────────────────────────────────
-  const commands = ctx.get('commands') as { register(def: unknown): () => void } | undefined
+  // ── /ultra 命令（软依赖；无 agent 身份时拒绝修改） ────────────────
+  const commands = ctx.get('commands') as CommandsService | undefined
   if (commands !== undefined) {
-    const register = (definition: unknown): void => void commands.register(definition)
-    register({
+    commands.register({
       name: 'ultra',
       description: 'toggle ULTRA multi-agent concurrency mode for this session',
       input: { hint: '[on|off|<2-5>]', images: false },
-      handler: (invocation: { rawInput?: string; agent?: AgentLike }) => {
+      handler: (invocation: { rawInput?: string; agent?: unknown }) => {
+        const key = resolveSessionKey((invocation?.agent as AgentLike | undefined)?.id)
+        if (key === undefined) {
+          return { kind: 'error', text: '/ultra 需要一个会话身份（当前上下文没有 agent），已拒绝修改。' }
+        }
+        const state = ensure(key)
         const input = String((invocation && invocation.rawInput) || '').trim()
-        const state = stateOf(keyOfAgent(invocation && invocation.agent))
         const lower = input.toLowerCase()
         if (input === '') {
           return {
@@ -317,23 +363,27 @@ export function apply(ctx: Context & { tools: ToolsService; subagents: SubagentS
         }
         const num = Number(input)
         if (Number.isInteger(num) && num >= 2 && num <= 5) {
-          state.concurrency = num
+          state.concurrency = clampConcurrency(num, state.concurrency)
           state.enabled = true
-          return { kind: 'success', text: `ULTRA 已开启（${num} 路并发）。` }
+          return { kind: 'success', text: `ULTRA 已开启（${state.concurrency} 路并发）。` }
         }
         return { kind: 'error', text: '用法: /ultra on | off | <2-5>' }
       },
     })
   }
 
-  // ── 提示词引导段（软依赖；无状态静态文案，跨会话安全） ─────────────
-  const systemPrompt = ctx.get('systemPrompt') as { section(section: unknown): () => void } | undefined
+  // ── 提示词引导段（软依赖；每次装配按会话状态求值） ─────────────────
+  const systemPrompt = ctx.get('systemPrompt') as SystemPromptService | undefined
   if (systemPrompt !== undefined) {
     systemPrompt.section({
       name: 'ultra-mode',
       order: config.sectionOrder,
-      text: () =>
-        `存在 ${config.toolName} 工具：并发运行多个独立 agent 处理同一任务并合并答案（类似 o1-pro 多路采样）。当用户开启 ULTRA 模式（composer 滑块）或明确要求“ultra/并发处理”时，对每个新用户请求先在第一步调用 ${config.toolName}（task 参数 = 用户请求全文），再基于合并结果直接答复用户；不要重新执行整个任务，也不要对同一请求发起多次调用。`,
+      // AssembleContext 携带 agent（DSH 的 assembleContextFor 同时设置 agent 与
+      // scope），因此这里能读到"当前会话"的开关状态并注入到本轮提示词。
+      text: (context: { agent?: unknown }) => {
+        const key = resolveSessionKey((context?.agent as AgentLike | undefined)?.id)
+        return renderUltraSection(peek(key), config.toolName)
+      },
     })
   }
 }
