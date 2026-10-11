@@ -94,7 +94,7 @@ interface PolicyLog {
 
 /** Event payloads cross several independently versioned optional capabilities. */
 interface RuntimeEvents {
-  on(name: string, callback: (payload: Record<string, unknown>, next: () => Promise<unknown>) => unknown): () => void
+  on(name: string, callback: (payload: Record<string, unknown>, next: () => Promise<unknown>) => unknown, options?: { prepend?: boolean }): () => void
   waterfall(carrier: unknown, name: string, payload: Record<string, unknown>, next: () => Promise<unknown>): Promise<unknown>
 }
 
@@ -194,10 +194,16 @@ function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent,
     publishProgress(state, child.id, 'tool', `${exec.name} (${result.isError ? 'error' : 'result'}):\n${text}`)
     return undefined
   })
-  // The approval audit remains on the calling loop; only the visible answerer scope changes.
-  events.on('approval/request', (request) => (parent.ctx as unknown as RuntimeEvents).waterfall(
-    agentCarrier(parent), 'approval/request', request, () => Promise.resolve('unavailable'),
-  ))
+  // Run before the Host's global Remote answerer, which otherwise presents the
+  // hidden child scope. Remote forwarding requires request.agent === carrier.
+  // Copy only the answerer request: ApprovalService retains the original child
+  // for its policy lookup and asked/decided audit, with the same cancellation.
+  events.on('approval/request', (request, next) => {
+    if (request.agent !== child) return next()
+    return (parent.ctx as unknown as RuntimeEvents).waterfall(
+      agentCarrier(parent), 'approval/request', { ...request, agent: parent }, () => Promise.resolve('unavailable'),
+    )
+  }, { prepend: true })
 
   // DSH's human-question service accepts only live roots. Keep the child tool-call
   // audit, and execute its public question tool with the visible root identity.

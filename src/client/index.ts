@@ -1,4 +1,4 @@
-/** Session-scoped Ultra composer button: 3–5 execution routes and one decision route. */
+/** Session-scoped Ultra button: main-agent assistance or 2–5 routes, with one decision route. */
 import React from 'react'
 
 interface HostRpc {
@@ -48,7 +48,7 @@ interface ClientContext {
 
 interface UltraStateSnapshot {
   enabled: boolean
-  concurrency: 3 | 4 | 5
+  concurrency: 1 | 2 | 3 | 4 | 5
   running: boolean
   activeRuns: number
   lastRun: { at: number; ms: number } | null
@@ -75,7 +75,7 @@ interface SessionScope {
 
 const RPC_CHANNEL = '/dsh-ultra-mode'
 const LOCALE_NAMESPACE = 'dsh-ultra-mode'
-const LEVELS = [0, 3, 4, 5] as const
+const LEVELS = [0, 1, 2, 3, 4, 5] as const
 const ROUTE_SESSION_PREFIX = 'ultra-route-'
 
 /** Hide internal durable route records from the installed DSH 0.2 session list. */
@@ -120,16 +120,20 @@ function hideRouteSessions(list: SessionListStore): () => void {
 
 const zh = {
   'trigger.off': '关',
+  'trigger.assisted': 'Agent + 决策',
   'trigger.routes': '{count} 路',
   'trigger.loading': '载入中',
   'trigger.saving': '保存中',
   'trigger.error': '出错',
   'trigger.unavailable': '请先选择会话',
   'trigger.title': 'Ultra：{count} 路并发执行 + 1 路独立决策；默认 max 思考',
-  'menu.title': 'Ultra 并发模式',
-  'menu.description': '高于 Max 的独立模式',
+  'trigger.assistedTitle': 'Ultra：正常主 Agent 执行 + 1 路 Max 自动决策辅助',
+  'menu.title': 'Ultra 模式',
+  'menu.description': '主 Agent 决策辅助或多路并发',
   'menu.off': '关闭 Ultra',
   'menu.offDetail': '使用当前会话的普通模式',
+  'menu.assisted': 'Agent + 决策',
+  'menu.assistedDetail': '正常主 Agent 执行 · 另 1 路 Max 决策',
   'menu.routes': '{count} 路并发',
   'menu.routesDetail': '另加 1 路决策 · 默认 max 思考',
   'menu.runningHint': '当前执行保持原配置；更改用于后续任务。',
@@ -150,16 +154,20 @@ const zh = {
 
 const en: Record<keyof typeof zh, string> = {
   'trigger.off': 'Off',
+  'trigger.assisted': 'Agent + decision',
   'trigger.routes': '{count} routes',
   'trigger.loading': 'Loading',
   'trigger.saving': 'Saving',
   'trigger.error': 'Error',
   'trigger.unavailable': 'Select a session first',
   'trigger.title': 'Ultra: {count} execution routes + 1 independent decision route; max reasoning by default',
-  'menu.title': 'Ultra concurrency',
-  'menu.description': 'Independent mode above Max',
+  'trigger.assistedTitle': 'Ultra: normal main Agent execution + 1 automatic Max decision assistant',
+  'menu.title': 'Ultra mode',
+  'menu.description': 'Main Agent decision assistance or parallel execution',
   'menu.off': 'Turn Ultra off',
   'menu.offDetail': 'Use this session’s ordinary mode',
+  'menu.assisted': 'Agent + decision',
+  'menu.assistedDetail': 'Normal main Agent execution · plus 1 Max decision route',
   'menu.routes': '{count} parallel routes',
   'menu.routesDetail': 'Plus 1 decision route · max reasoning by default',
   'menu.runningHint': 'The active task keeps its configuration. Changes apply to subsequent tasks.',
@@ -220,7 +228,7 @@ function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
   const value = result.value as Partial<UltraStateSnapshot>
   if (
     typeof value.enabled !== 'boolean'
-    || (value.concurrency !== 3 && value.concurrency !== 4 && value.concurrency !== 5)
+    || (value.concurrency !== 1 && value.concurrency !== 2 && value.concurrency !== 3 && value.concurrency !== 4 && value.concurrency !== 5)
     || typeof value.running !== 'boolean'
     || !Number.isInteger(value.activeRuns) || (value.activeRuns ?? -1) < 0
     || (value.lastRun !== null && (
@@ -353,7 +361,7 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   }
 
   const valueLabel = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading')
-    : snapshot.enabled ? t('trigger.routes', { count: snapshot.concurrency }) : t('trigger.off')
+    : snapshot.enabled ? (snapshot.concurrency === 1 ? t('trigger.assisted') : t('trigger.routes', { count: snapshot.concurrency })) : t('trigger.off')
   const status = snapshot === null ? null : phaseLabel(snapshot, t)
   return React.createElement('div', {
     ref: rootRef, className: 'dsh-ultra', 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error), onKeyDown,
@@ -365,7 +373,7 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   React.createElement('button', {
     ref: triggerRef, type: 'button', className: 'dsh-ultra-trigger', disabled: !available,
     'aria-label': t('menu.title'), 'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-controls': open ? menuId : undefined,
-    title: available ? t('trigger.title', { count: snapshot?.concurrency ?? 3 }) : t('trigger.unavailable'),
+    title: available ? (snapshot?.concurrency === 1 ? t('trigger.assistedTitle') : t('trigger.title', { count: snapshot?.concurrency ?? 3 })) : t('trigger.unavailable'),
     onClick: () => { setOpen(previous => !previous) },
   },
   React.createElement('svg', { className: 'dsh-ultra-icon', viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
@@ -388,8 +396,8 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
         disabled: current.pending || snapshot === null, onClick: () => { void choose(level) },
       },
       React.createElement('span', null,
-        React.createElement('span', { className: 'dsh-ultra-option-label' }, t(level === 0 ? 'menu.off' : 'menu.routes', { count: level })),
-        React.createElement('span', { className: 'dsh-ultra-detail' }, t(level === 0 ? 'menu.offDetail' : 'menu.routesDetail'))),
+        React.createElement('span', { className: 'dsh-ultra-option-label' }, t(level === 0 ? 'menu.off' : level === 1 ? 'menu.assisted' : 'menu.routes', { count: level })),
+        React.createElement('span', { className: 'dsh-ultra-detail' }, t(level === 0 ? 'menu.offDetail' : level === 1 ? 'menu.assistedDetail' : 'menu.routesDetail'))),
       !selected ? null : React.createElement('svg', { className: 'dsh-ultra-check', viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
         React.createElement('path', { d: 'm3 8 3 3 7-7', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' })))
     }),

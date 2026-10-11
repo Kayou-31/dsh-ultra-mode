@@ -144,26 +144,55 @@ function harness(handler = async () => response(), { sessionList } = {}) {
   }
 }
 
-test('registers a localized independent button with explicit session injection and only off/3/4/5 routes', async () => {
-  const ui = harness()
+test('registers a localized independent button with session injection, Agent assistance and 2/3/4/5 routes', async () => {
+  const ui = harness((endpoint, payload) => endpoint === 'set'
+    ? response({ enabled: payload.enabled, concurrency: payload.concurrency }) : response())
   assert.deepEqual(Array.from(ui.module.inject), ['slots', 'connection', 'locale', 'sessions'])
   assert.equal(ui.slots[0].options.locale, 'dsh-ultra-mode')
   assert.equal(ui.slots[0].options.inject('session-a').sessionId, 'session-a')
   ui.render('session-a')
   await ui.settle()
   ui.open()
-  assert.deepEqual(ui.options().map(option => option.props.key), [0, 3, 4, 5])
+  assert.deepEqual(ui.options().map(option => option.props.key), [0, 1, 2, 3, 4, 5])
   assert.match(ui.text(), /另加 1 路决策 · 默认 max 思考/)
   assert.doesNotMatch(ui.styles[0].textContent, /canvas|slider|ult-track/)
-  ui.select(5)
+  ui.select(2)
   await ui.settle()
   const mutation = ui.calls.find(call => call.endpoint === 'set')
   assert.equal(mutation.payload.sessionId, 'session-a')
-  assert.equal(mutation.payload.concurrency, 5)
+  assert.equal(mutation.payload.concurrency, 2)
   assert.equal(mutation.payload.enabled, true)
+  assert.match(ui.text(), /2 路/)
   ui.dispose()
   assert.equal(ui.timers.size, 0)
   assert.equal(ui.styles.length, 0)
+})
+
+test('Agent plus decision mode uses main Agent wording and accepts its enabled and disabled snapshots', async () => {
+  const ui = harness((endpoint, payload) => endpoint === 'set'
+    ? response({ enabled: payload.enabled, concurrency: payload.concurrency }) : response())
+  ui.render('session-a')
+  await ui.settle()
+  ui.open()
+  assert.match(ui.text(), /正常主 Agent 执行 · 另 1 路 Max 决策/)
+  ui.select(1)
+  await ui.settle()
+  const mutation = ui.calls.find(call => call.endpoint === 'set')
+  assert.equal(mutation.payload.concurrency, 1)
+  assert.equal(mutation.payload.enabled, true)
+  assert.match(ui.text(), /Agent \+ 决策/)
+  assert.match(ui.trigger().props.title, /正常主 Agent 执行 \+ 1 路 Max 自动决策辅助/)
+  assert.doesNotMatch(ui.trigger().props.title, /1 路并发/)
+  ui.open()
+  assert.equal(ui.options().find(option => option.props.key === 1).props['aria-checked'], true)
+  ui.select(0)
+  await ui.settle()
+  const off = ui.calls.filter(call => call.endpoint === 'set').at(-1)
+  assert.equal(off.payload.enabled, false)
+  assert.equal(off.payload.concurrency, 1)
+  assert.equal(ui.alerts().length, 0)
+  assert.match(ui.text(), /关/)
+  ui.dispose()
 })
 
 test('missing session identity leaves the button inert and never touches a shared bucket', async () => {
@@ -246,13 +275,15 @@ test('decision and live coordination phases, active count and invalid responses 
     assert.ok(ui.text().includes(label + ' · 1 个任务'))
     ui.dispose()
   }
-  const broken = harness(async () => ({ ok: true, value: { enabled: true } }))
-  broken.render('session-a')
-  await broken.settle()
-  broken.open()
-  assert.match(broken.alerts().join(''), /无效的 Ultra 状态/)
-  assert.ok(broken.options().every(option => option.props.disabled))
-  broken.dispose()
+  for (const invalid of [{ enabled: true }, state({ enabled: true, concurrency: 0 }), state({ enabled: true, concurrency: 6 })]) {
+    const broken = harness(async () => ({ ok: true, value: invalid }))
+    broken.render('session-a')
+    await broken.settle()
+    broken.open()
+    assert.match(broken.alerts().join(''), /无效的 Ultra 状态/)
+    assert.ok(broken.options().every(option => option.props.disabled))
+    broken.dispose()
+  }
 })
 
 test('settling an in-flight request after unmount does not write React state', async () => {

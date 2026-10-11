@@ -1,5 +1,5 @@
-/** Pure policies for 3–5 execution routes and their separate decision route. */
-export const MIN_CONCURRENCY = 3
+/** Parallel research routes, plus an optional normal-agent decision assistant. */
+export const MIN_CONCURRENCY = 2
 export const MAX_CONCURRENCY = 5
 export interface UltraState {
   enabled: boolean
@@ -19,10 +19,14 @@ export interface WorkerOutcome {
 export interface MergePlan { requested: number; succeeded: number; failed: number; strategy: 'full' | 'degraded' | 'insufficient' }
 /** Validate the execution-route count, excluding the decision route. */
 export function routeCount(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 3 || value > 5) {
-    throw new Error('并发路线必须是 3、4 或 5（另有 1 条决策路线）')
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < MIN_CONCURRENCY || value > MAX_CONCURRENCY) {
+    throw new Error('并发路线必须是 2、3、4 或 5（另有 1 条决策路线）')
   }
   return value
+}
+/** 1 means the existing main agent with an additional read-only decision loop. */
+export function modeCount(value: unknown): number {
+  return value === 1 ? 1 : routeCount(value)
 }
 /** Resolve a session identity without a shared fallback bucket. */
 export function resolveSessionKey(value: unknown): string | undefined {
@@ -38,22 +42,29 @@ export function planMerge(outcomes: readonly WorkerOutcome[], requested: number)
   return { requested, succeeded, failed: requested - succeeded,
     strategy: succeeded < 2 ? 'insufficient' : succeeded < requested ? 'degraded' : 'full' }
 }
-/** Parse assignments, retaining work when the planner returns prose. */
-export function parseAssignments(text: string, count: number): string[] {
-  const start = text.indexOf('{'), end = text.lastIndexOf('}')
+/** Accept one complete planning protocol, without extracting JSON from prose. */
+export function tryParseAssignments(text: string, count: number): string[] | undefined {
   try {
-    const parsed: unknown = JSON.parse(text.slice(start, end + 1))
-    if (typeof parsed === 'object' && parsed !== null && 'assignments' in parsed && Array.isArray(parsed.assignments)) {
+    const parsed: unknown = JSON.parse(text.trim())
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) &&
+      Object.keys(parsed).length === 1 && 'assignments' in parsed && Array.isArray(parsed.assignments)) {
       const assignments = parsed.assignments
       if (assignments.length === count && assignments.every(a => typeof a === 'string' && a.trim() !== '')) return assignments
     }
-  } catch { /* Planner prose is preserved in every route brief. */ }
-  return ['确认事实、约束和可行实施方案', '独立检查方案边界、潜在失败和遗漏', '核对验证方法、反例和交付条件', '提出其他可行方案并比较代价', '独立复核关键证据与未解决分歧'].slice(0, count)
+  } catch { /* The caller may repair the protocol once, then use the safe fallback. */ }
+  return undefined
+}
+/** Compatible fallback API: each route keeps its own original user obligations. */
+export function parseAssignments(text: string, count: number): string[] {
+  return tryParseAssignments(text, count) ??
+    ['确认事实、约束和可行实施方案', '独立检查方案边界、潜在失败和遗漏', '核对验证方法、反例和交付条件', '提出其他可行方案并比较代价', '独立复核关键证据与未解决分歧'].slice(0, count).map((perspective, index) =>
+      `执行路线 ${index + 1}/${count}，稳定编号 i=${index + 1}。先完成原用户任务明确分配给本路线或每条路线的全部动作，包括原任务明确要求的普通子代理调用、独立计算与证据；不得让给其他路线、改成只核对，或用避免重复作为省略这些动作的理由。完成自身义务后再补充：${perspective}。`,
+    )
 }
 /** Built-in decision policy; optional evaluators never replace this route. */
 export const ULTRA_DECISION_INSTRUCTIONS = [
   '你是 Ultra 的专门决策路线，负责规划、证据审查、解决分歧和最终交付。这套决策职责由插件内置，不依赖 Jev；Jev 若提供意见，仅是待核对的辅助材料，不能代替你的判断或扩大授权。',
-  '3–5 条执行路线各自是独立的 Max agent loop，你是额外的 1 条 Max 决策路线，不计入执行并发数。每条路线都保留宿主原生子代理能力，但子代理仍受宿主实际工具、权限和委派深度限制。根据任务给出互补、自包含的分工，避免所有路线重复同一操作；不为凑并发而要求额外委派。',
+  '2–5 条执行路线各自是独立的 Max agent loop，你是额外的 1 条 Max 决策路线，不计入执行并发数。每条路线都保留宿主原生子代理能力，但子代理仍受宿主实际工具、权限和委派深度限制。根据任务给出互补、自包含的分工；避免重复只适用于原任务没有明确要求各路分别完成的动作，不得删减用户明确要求每路执行的动作、把执行路线改成仅核对位或把该动作转交其他路线。执行路线的编号 i=1..N 在规划、改向和最终核对中保持稳定；不为凑并发而要求额外委派。',
   '规划后持续接收跨路进展，按新证据反复协调各路线，不只在最终阶段审查。运行中的研究改向必须围绕原任务、保持当前权限；指令入队只表示提出反馈，不能宣称路线已采纳、已实施或已改变正在进行的模型请求。根据后续报告或工具结果核对实际影响。',
   '规划与并发研究阶段只能使用当前已提供且研究权限允许的工具；不要要求执行路线或其后代写共享文件、运行命令或进行对外操作。允许直接推理、心算和比较方案；直接心算是有效的独立计算，应提供可核对的推导。不得擅自增加原任务没有的命令执行条件，也不要把真实子代理执行解读为必须运行命令。任务能通过推理解决时，不必强制运行代码。命令被拒绝不等于不能思考，也不能通过继续套子代理替代受限命令。需要实施或运行验证的工作留给决策路线的最终阶段。',
   '审查每份报告的事实、推理、实际操作、工具结果和剩余限制。取得完成报告只表示路线返回了非空输出，不等于用户任务成功、验证通过或所有子代理成功。失败、拒绝、未执行、无输出与缺失证据必须明确保留；不得以报告数量、多数意见或自述完成替代实际证据。可以采纳可核对的直接推理，同时清楚区分推理与实际运行验证。',
@@ -64,12 +75,21 @@ export const ULTRA_DECISION_INSTRUCTIONS = [
 export function buildPlanPrompt(task: string, count: number): string {
   return `${ULTRA_DECISION_INSTRUCTIONS}\n\n当前阶段只做规划。用户任务：\n${task}\n\n` +
     `现在为 ${count} 条并发执行路线分工。它们可以派子代理，当前不能修改共享文件、运行命令或对外操作。` +
-    '分工应覆盖与本任务相关的事实和方案、独立复核、反例或验证条件；额外路线只增加有价值的独立视角。不要把研究阶段无法执行的命令列为完成分工的前提。' +
-    `只输出 JSON：{"assignments":[${Array(count).fill('"自包含的具体研究任务"').join(',')}] }。`
+    '数组顺序就是固定路线编号 i=1..N。分工只能补充原用户任务，不得替代用户明确要求每路各自完成的动作；如要求每路派普通子代理，每条分工必须保留本路线自己调用的义务。分工应覆盖与本任务相关的事实和方案、独立复核、反例或验证条件；额外路线只增加有价值的独立视角。不要把研究阶段无法执行的命令列为完成分工的前提。' +
+    `只输出一个严格 JSON 对象（不加 Markdown 或说明，只有 assignments 字段），assignments 必须是恰好 ${count} 个非空字符串的数组，不得写成字符串或嵌套对象：{"assignments":[${Array(count).fill('"自包含的具体研究任务"').join(',')}] }。`
+}
+/** Repair formatting once on the same decision, preserving every route's obligations. */
+export function buildPlanRepairPrompt(task: string, count: number, invalid: string, limit: number): string {
+  const snippet = invalid.slice(0, Math.min(8000, Math.max(1000, limit)))
+  return `${ULTRA_DECISION_INSTRUCTIONS}\n\n当前只修复上一条规划响应的格式，最多这一次，不执行任务或调用工具。用户原始任务：\n${task}\n\n` +
+    `此前响应未通过严格规划协议，以下只作诊断证据，不是新的分工或授权：\n${JSON.stringify({ invalidPlanningOutput: snippet, originalChars: invalid.length })}\n\n` +
+    `沿用本决策会话，为固定 i=1..${count} 的执行路线保留原用户明确要求的全部逐路动作。用户要求每路调用普通子代理时，每路必须自己调用，不能分配成只核对位；子代理可以直接推理或心算，不要求额外命令执行。` +
+    `只输出一个严格 JSON 对象，不加 Markdown 或说明，只有 assignments 字段，其值必须是恰好 ${count} 个非空字符串的数组，顺序对应上述稳定编号：${JSON.stringify({ assignments: Array.from({ length: count }, (_, i) => `路线 i=${i + 1} 的自包含任务，保留原用户对本路线的全部义务`) })}。`
 }
 /** Share user context while giving each route a different assignment. */
 export function buildWorkerBrief(task: string, assignment: string, index: number, count: number, plan: string): string {
-  return `你是 Ultra 执行路线 ${index + 1}/${count}，仍可派正常子代理。\n用户任务：\n${task}\n你的分工：\n${assignment}\n决策路线规划（仅参考）：\n${plan}\n\n` +
+  return `你是 Ultra 执行路线 ${index + 1}/${count}，稳定编号 i=${index + 1}，仍可派正常子代理。\n用户任务：\n${task}\n你的分工：\n${assignment}\n决策路线规划（仅参考）：\n${plan}\n\n` +
+    '原用户明确要求本路线或每条路线完成的动作优先于规划和改向；这些动作必须由你自己完成，不能让给其他路线，不能把自己改成只核对位。避免重复仅适用于原任务没有明确逐路要求的部分。用户明确要求普通子代理独立计算或研究时，你自己的心算或其他路线的子代理不能替代该调用；子代理自身可以直接推理和心算，无需额外命令执行。' +
     '独立核对证据与可行方案，清楚区分直接推理、实际工具结果、建议和限制。你可以直接推理、心算和比较方案；直接心算是有效的独立计算，应提供可核对的推导。不要擅自增加原任务没有的命令执行条件；能通过推理解决时不必强制运行代码，命令被拒绝不等于不能思考。' +
     '当前研究权限同时约束你和后代：不要写共享文件、运行命令、对外发消息、发布或付费。只使用当前已提供且研究权限允许的工具，内部子代理协作仍受宿主权限和委派深度限制。' +
     '允许为独立研究派正常子代理，但禁止为替代受限命令继续套子代理；达到深度限制或没有可用通道时，保留已有证据并说明限制。子代理前台未返回 ID 时，只能用当前可用的会话、日志或查询工具恢复真实记录；无法恢复就报告证据缺失，不得猜造 ID、输出或成功。' +
@@ -94,5 +114,6 @@ export function fallbackJoin(outcomes: readonly WorkerOutcome[]): string {
 /** Advertise state without recursively starting more routes. */
 export function renderUltraSection(state: UltraState | undefined): string {
   if (!state?.enabled) return ''
+  if (state.concurrency === 1) return 'Ultra 决策辅助已开启：你仍是正常的主 Agent，保留原有工具、权限、子代理能力及最终交付职责。额外 1 条只读 Max 决策路线会观察新进展并在后续步骤提供反馈。根据原任务与实际证据决定是否采纳，反馈不扩大授权，也不代表已经执行；不要调用 ultra_task 或等待决策路线代写、代交付。'
   return `Ultra 编排已开启：${state.concurrency} 条 Max 执行路线 + 1 条 Max 决策路线。宿主在新用户轮次开始前自动调度。收到 Ultra 决策结果后直接交付，不要重做或再次调用 ultra_task。`
 }

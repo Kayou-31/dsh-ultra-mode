@@ -1,5 +1,5 @@
-/** Pure policies for 3–5 execution routes and their separate decision route. */
-export declare const MIN_CONCURRENCY = 3;
+/** Parallel research routes, plus an optional normal-agent decision assistant. */
+export declare const MIN_CONCURRENCY = 2;
 export declare const MAX_CONCURRENCY = 5;
 export interface UltraState {
     enabled: boolean;
@@ -35,6 +35,8 @@ export interface MergePlan {
 }
 /** Validate the execution-route count, excluding the decision route. */
 export declare function routeCount(value: unknown): number;
+/** 1 means the existing main agent with an additional read-only decision loop. */
+export declare function modeCount(value: unknown): number;
 /** Resolve a session identity without a shared fallback bucket. */
 export declare function resolveSessionKey(value: unknown): string | undefined;
 /** Snapshot state without exposing mutable host records. */
@@ -55,12 +57,16 @@ export declare function snapshotOf(state: UltraState): {
 };
 /** Count only completed, nonblank route output. */
 export declare function planMerge(outcomes: readonly WorkerOutcome[], requested: number): MergePlan;
-/** Parse assignments, retaining work when the planner returns prose. */
+/** Accept one complete planning protocol, without extracting JSON from prose. */
+export declare function tryParseAssignments(text: string, count: number): string[] | undefined;
+/** Compatible fallback API: each route keeps its own original user obligations. */
 export declare function parseAssignments(text: string, count: number): string[];
 /** Built-in decision policy; optional evaluators never replace this route. */
 export declare const ULTRA_DECISION_INSTRUCTIONS: string;
 /** Plan in the decision loop that later implements and synthesizes. */
 export declare function buildPlanPrompt(task: string, count: number): string;
+/** Repair formatting once on the same decision, preserving every route's obligations. */
+export declare function buildPlanRepairPrompt(task: string, count: number, invalid: string, limit: number): string;
 /** Share user context while giving each route a different assignment. */
 export declare function buildWorkerBrief(task: string, assignment: string, index: number, count: number, plan: string): string;
 /** Resolve disagreements and let one route commit shared changes. */

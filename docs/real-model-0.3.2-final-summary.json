@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "publicSanitizedSummary": true,
+  "auditDate": "2026-10-11",
+  "pluginVersion": "0.3.2",
+  "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+  "testedPackageSha256Prefix": "701fbd1b",
+  "wholeAcceptancePassed": true,
+  "formalStableAcceptancePassed": true,
+  "acceptanceScope": "Two independent Max workers, one real ordinary completed child per worker, correct 14/30 results and parent checks, same decision planning/coordination/final loop, normal approval, actual final write/readback/delivery; prior unchanged assist core is separately retained.",
+  "decisionAndDeliveryAudit": {
+    "version": "0.3.2",
+    "kind": "real-model-planning-fix-manual-recheck",
+    "testedPackageSha256Prefix": "701fbd1b",
+    "decisionAndDeliveryAcceptancePassed": true,
+    "evidenceValidation": {
+      "selectedLogs": 6,
+      "zstdChecksumsValidated": true,
+      "officialStrictRestore": true,
+      "stableSnapshots": true,
+      "reasoningIncluded": false,
+      "rawRequestTraceIncluded": false
+    },
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "recordedEffort": "max"
+    },
+    "execution": {
+      "workers": 2,
+      "decisionRoutes": 1,
+      "independentWorkerLoopOverlapMs": 9377,
+      "mainDurationMs": 50314,
+      "allSelectedLoggedTurnsCompleted": true,
+      "pureHttpTimingIndependentlyMeasured": false
+    },
+    "planning": {
+      "strictAssignmentsJsonValid": true,
+      "assignmentsPreserveBothFixedChildDuties": true,
+      "repairRequiredInThisRealRun": false,
+      "repairAndDoubleInvalidFallbackVerifiedOfflineOnly": true
+    },
+    "decision": {
+      "sameDecisionLoop": true,
+      "planningTurns": 1,
+      "coordinationTurns": 3,
+      "finalTurns": 1,
+      "proposedDirectives": 0,
+      "acceptedSteering": 0,
+      "admittedSteering": 0,
+      "thisShortTaskDoesNotProveSteeringAdoption": true,
+      "decisionOrdinaryChildCalls": 0
+    },
+    "finalWrite": {
+      "approvalAsked": 1,
+      "approvalAllowedOnce": 1,
+      "approvalWaitMs": 11057,
+      "writeAttempts": 2,
+      "successfulWrites": 1,
+      "sameTargetAndContentOnRetry": true,
+      "readbackMatchesStoredFileAndWriteContent": true,
+      "outputLines": 10,
+      "rootFinalDelivered": true,
+      "approvalTimeout": false
+    },
+    "scopeChecks": {
+      "decisionCommandCalls": 0,
+      "decisionNetworkCalls": 0,
+      "decisionSourceReads": 0,
+      "decisionSuccessfulWriteTargets": 1,
+      "recursiveProjectFilenameGlobObserved": false,
+      "nonrecursiveOutputsListingObserved": true,
+      "outputsListingUsedWildcardRatherThanExactName": true,
+      "noOutsideDirectorySearchObserved": true,
+      "rootRepeatedToolOperations": 0
+    },
+    "limits": [
+      "Actual inherited workspace policy remained on C drive; authorized D drive output required a normal allowed-once approval.",
+      "The existence check also listed outputs/* nonrecursively rather than matching only the exact filename.",
+      "Three coordination turns correctly proposed no directions for this short nonconflicting task; live adoption evidence comes from earlier separately documented runs.",
+      "Actual DSH GUI automation remains unavailable; this audit reads authorized logs and the delivered file only."
+    ]
+  },
+  "independentWorkerAndChildAudit": {
+    "result": "worker-and-child-scope-passed",
+    "version": "0.3.2",
+    "scope": {
+      "workers": 2,
+      "ordinaryChildren": 2,
+      "rootDecisionReviewed": false
+    },
+    "source": "Real model session logical events with upstream checksum validation and official strict restore; no reasoning or request trace read in this audit",
+    "independentWorkers": {
+      "depth": 0,
+      "originSubagent": false,
+      "reasoningEffort": "max",
+      "actualToolSchemasObserved": true,
+      "sameSchemaCount": 11,
+      "ordinarySubagentToolAvailable": true,
+      "workerTurnOverlapMs": 9377,
+      "extraTurns": 0
+    },
+    "workers": [
+      {
+        "index": 1,
+        "ordinarySubagentCalls": 1,
+        "runInBackground": false,
+        "catalogedChildren": 1,
+        "child": {
+          "origin": "subagent",
+          "depth": 1,
+          "reasoningEffort": "max",
+          "completed": true,
+          "expectedValue": 14,
+          "markerMatches": true,
+          "toolCalls": 0,
+          "nestedChildren": 0,
+          "assistantResultExactlyMatchesParentToolResult": true
+        },
+        "parentVerification": {
+          "completed": true,
+          "method": "item-by-item addition: 1+4=5, 5+9=14",
+          "matched": true,
+          "resultArrivedBeforeVerification": true
+        },
+        "otherToolCalls": [
+          "list_agents"
+        ],
+        "commandNetworkReadWriteSearchCalls": 0
+      },
+      {
+        "index": 2,
+        "ordinarySubagentCalls": 1,
+        "runInBackground": false,
+        "catalogedChildren": 1,
+        "child": {
+          "origin": "subagent",
+          "depth": 1,
+          "reasoningEffort": "max",
+          "completed": true,
+          "expectedValue": 30,
+          "markerMatches": true,
+          "toolCalls": 0,
+          "nestedChildren": 0,
+          "assistantResultExactlyMatchesParentToolResult": true
+        },
+        "parentVerification": {
+          "completed": true,
+          "method": "closed formula: 4*5*9/6=30; n=3 cross-check=14",
+          "matched": true,
+          "resultArrivedBeforeVerification": true
+        },
+        "otherToolCalls": [],
+        "commandNetworkReadWriteSearchCalls": 0
+      }
+    ],
+    "foregroundChildIdVisibility": {
+      "modelToolReturnExposesId": false,
+      "auditRecoveredFromCatalogAndChildHeader": true,
+      "noAdditionalDelegationForId": true
+    },
+    "prohibitedObservedCalls": {
+      "command": 0,
+      "network": 0,
+      "fileWrite": 0,
+      "fileRead": 0,
+      "fileSearch": 0
+    },
+    "boundaries": [
+      "Only the two workers and their two linked children were audited. Overall root and decision delivery were not audited here.",
+      "Child identity and execution are established by tool calls, catalogs, child headers and completed turns, beyond model self-report.",
+      "Worker turn overlap is observed; exact provider request overlap is not established without transport trace.",
+      "Arithmetic output is verified; cognitive independence of mental reasoning cannot be measured from logs."
+    ]
+  },
+  "normalAgentAssistEvidence": {
+    "testedEarlierArtifactSha256Prefix": "a7c78e0a",
+    "sourceUnchangedDuringPlanningFix": true,
+    "mechanismAcceptancePassed": true,
+    "completedStrictJsonRounds": 7,
+    "sameOriginalMainTurnFeedbackAdmissions": 7,
+    "recordSelectedAdviceCount": 2,
+    "fullySupportedSelectedAdviceAdoptions": 1,
+    "additionalSelectedAdviceWithWriteReadbackCompliance": 1,
+    "secondAdviceTriggeredNewFilenameCheck": false,
+    "strictEightyCharacterSuggestionTaskCompliancePassed": false,
+    "publicHistoricalSummary": "real-model-0.3.2-recheck-summary.json"
+  },
+  "localVerification": {
+    "buildPassed": true,
+    "hostAndClientStrictTypecheckPassed": true,
+    "targetedTestsPassed": 97,
+    "targetedAssistTestsPassed": 15,
+    "targetedTestProcessExitCode": 0,
+    "compiledSdkPlanningRepairOfflineProbePassed": true,
+    "realAcceptedRunTriggeredPlanningRepair": false,
+    "fullNpmTestReportedAsPassed": false,
+    "historicalRuntimeExitFailuresRetained": true
+  },
+  "releasePlan": {
+    "intendedStatus": "stable",
+    "intendedGithubPrereleaseFlag": false,
+    "pausedForAnotherUserRetest": false,
+    "anotherUserTestRequired": false,
+    "finalCommitCi": "planned; not claimed completed here",
+    "tagReleaseCreationAndAssetUpload": "planned; not claimed completed here",
+    "finalDeliveryChanges": "Documentation only after the tested implementation",
+    "compiledFilesMatchTestedPackage": "To be verified by the release-root packaging check",
+    "finalTgzWholeHashWasRealModelTested": false
+  },
+  "evidenceLimits": {
+    "rawProviderRequestBodyCaptured": false,
+    "completeNativeDshUiAutomaticallyControlled": false,
+    "preciseHttpConcurrencyTimingMeasured": false,
+    "shortTaskProvesNewSteeringAdoption": false,
+    "planningRepairTriggeredInThisRealRun": false,
+    "allExactFilenameOnlyTaskConstraintsSatisfied": false,
+    "repeatedLongRunStabilityVerified": false,
+    "jevRealAccountVerified": false,
+    "futureHostVersionCompatibilityVerified": false
+  },
+  "historicalRecords": [
+    "real-model-0.3.2-candidate-summary.json",
+    "real-model-0.3.2-recheck-summary.json"
+  ],
+  "privacy": {
+    "realSessionOrAgentIdentifiersIncluded": false,
+    "personalAbsolutePathsIncluded": false,
+    "privateJournalsIncluded": false,
+    "rawPromptsIncluded": false,
+    "reasoningIncluded": false
+  }
+}

@@ -24,8 +24,9 @@ const snapshot = [
 ]
 
 /** A barrier forces all successful workers to overlap before any can finish. */
-function harness(count, { createFailure, workers = [], final = {}, planning = {}, waitForAbort = false } = {}) {
+function harness(count, { createFailure, workers = [], final = {}, planning = {}, repair, waitForAbort = false } = {}) {
   const started = deferred()
+  const repairStarted = deferred()
   const release = deferred()
   const expected = count - (createFailure === undefined ? 0 : 1)
   const record = { created: [], creationAttempts: [], calls: [], disposed: [], accessChanges: [], workerActive: 0, peak: 0, workerStarts: 0, aborts: 0 }
@@ -51,7 +52,22 @@ function harness(count, { createFailure, workers = [], final = {}, planning = {}
         try {
           if (isDecision) {
             if (handle.runs === 1) return result(options.id, planning.text ?? JSON.stringify({ assignments: Array.from({ length: count }, (_, i) => `Research ${i + 1}`) }), planning.ok ?? true)
-            assert.equal(handle.runs, 2, 'exactly one planning turn and one final turn')
+            if (repair !== undefined && handle.runs === 2) {
+              repairStarted.resolve()
+              if (repair.waitForAbort) {
+                let onAbort
+                try {
+                  await new Promise(resolve => {
+                    onAbort = resolve
+                    options.signal.addEventListener('abort', onAbort, { once: true })
+                    if (options.signal.aborted) onAbort()
+                  })
+                } finally { options.signal.removeEventListener('abort', onAbort) }
+                return result(options.id, '', false)
+              }
+              return result(options.id, repair.text ?? 'invalid repaired plan', repair.ok ?? true)
+            }
+            assert.equal(handle.runs, repair === undefined ? 2 : 3, 'at most one formatting repair before the final turn')
             return result(options.id, final.text ?? 'Authorized work delivered with verified evidence.', final.ok ?? true)
           }
           record.workerActive++
@@ -94,7 +110,7 @@ function harness(count, { createFailure, workers = [], final = {}, planning = {}
   const phases = []
   const image = { type: 'image', url: 'fixture://image' }
   const options = { parent, task: 'Fix and deliver the original task', content: [{ type: 'text', text: 'Original task text' }, image], concurrency: count, signal: controller.signal, route: { provider: 'fixture', model: 'fixture-max' }, phase: value => phases.push(value) }
-  return { record, factory, controller, phases, options, image, started: started.promise, release: release.resolve }
+  return { record, factory, controller, phases, options, image, started: started.promise, repairStarted: repairStarted.promise, release: release.resolve }
 }
 
 function assertDrained(h) {
@@ -104,7 +120,7 @@ function assertDrained(h) {
   assert.equal(h.phases.at(-1), 'cleaning')
 }
 
-for (const count of [3, 4, 5]) {
+for (const count of [2, 3, 4, 5]) {
   test(`${count} execution loops overlap; one extra persistent decision plans and finalizes`, async () => {
     const h = harness(count)
     const output = await runUltra(config, h.options, h.factory)
@@ -189,8 +205,69 @@ test('failed planning drains the decision loop and starts no executions', async 
   const h = harness(3, { planning: { ok: false, text: 'invalid plan' } })
   await assert.rejects(runUltra(config, h.options, h.factory), /无法完成规划/)
   assert.equal(h.record.created.length, 1)
+  assert.equal(h.record.calls.length, 1, 'provider failure is not retried as a format repair')
   assert.equal(h.record.workerStarts, 0)
   assert.deepEqual(h.record.accessChanges, [])
+  assertDrained(h)
+})
+
+test('malformed planning is repaired once on the same decision before any workers start', async () => {
+  const h = harness(2, { planning: { text: '{"assignments":"BAD_INITIAL_PLAN"}' }, repair: { text: JSON.stringify({ assignments: ['Own action for i=1', 'Own action for i=2'] }) } })
+  const output = await runUltra(config, h.options, h.factory)
+  const decisions = h.record.calls.filter(call => call.isDecision)
+  assert.equal(decisions.length, 3)
+  assert.equal(new Set(decisions.map(call => call.id)).size, 1)
+  assert.equal(h.record.created.length, 3, 'repair never creates another decision')
+  assert.match(decisions[1].prompt[0].text, /当前只修复上一条规划响应的格式/)
+  for (const [index, worker] of h.record.calls.filter(call => !call.isDecision).entries()) {
+    assert.match(worker.prompt[0].text, new RegExp(`Own action for i=${index + 1}`))
+    assert.doesNotMatch(worker.prompt[0].text, /BAD_INITIAL_PLAN/, 'invalid planning output is not presented as an assignment')
+  }
+  assert.match(decisions[2].prompt[0].text, /"status":"repaired"/)
+  assert.match(decisions[2].prompt[0].text, /"initialValid":false/)
+  assert.match(decisions[2].prompt[0].text, /"repairValid":true/)
+  assert.equal(output.decisionId, decisions[0].id)
+  assert.equal(output.decided, true)
+  assertDrained(h)
+})
+
+for (const repair of [{ text: '{"assignments":"BAD_REPAIR"}' }, { ok: false, text: 'BAD_PROVIDER_REPAIR' }]) {
+  test(`invalid initial planning and ${repair.ok === false ? 'failed' : 'invalid'} repair retain original per-route obligations with final evidence`, async () => {
+    const task = '每条执行路线自己派恰好一个普通子代理，按固定 i=1..2 独立算术并交付结果'
+    const h = harness(2, { planning: { text: '{"assignments":["BROKEN_FIRST", \'BROKEN_SECOND\']}' }, repair })
+    h.options.task = task
+    const output = await runUltra(config, h.options, h.factory)
+    const decisions = h.record.calls.filter(call => call.isDecision)
+    assert.equal(decisions.length, 3, 'one bounded repair, then final; no retry loop')
+    assert.equal(new Set(decisions.map(call => call.id)).size, 1)
+    for (const [index, worker] of h.record.calls.filter(call => !call.isDecision).entries()) {
+      const text = worker.prompt[0].text
+      assert.ok(text.includes(task))
+      assert.match(text, new RegExp(`稳定编号 i=${index + 1}`))
+      for (const phrase of ['每条路线的全部动作', '原任务明确要求的普通子代理调用', '不得让给其他路线', '优先于规划和改向', '完成自身义务后再补充']) assert.ok(text.includes(phrase), phrase)
+      assert.doesNotMatch(text, /BROKEN_FIRST|BROKEN_SECOND|BAD_REPAIR|BAD_PROVIDER_REPAIR/)
+    }
+    assert.match(decisions[2].prompt[0].text, /"status":"fallback"/)
+    assert.match(decisions[2].prompt[0].text, /"repairValid":false/)
+    assert.match(decisions[2].prompt[0].text, /未取得有效规划/)
+    assert.match(decisions[2].prompt[0].text, /BROKEN_FIRST/)
+    if (repair.ok === false) assert.match(decisions[2].prompt[0].text, /"repairOk":false.*"repairError":"scripted failure"/)
+    assert.equal(output.decided, true)
+    assertDrained(h)
+  })
+}
+
+test('abort during the sole format repair drains its same decision and starts no workers', async () => {
+  const h = harness(2, { planning: { text: 'invalid protocol' }, repair: { waitForAbort: true } })
+  const rejection = assert.rejects(runUltra(config, h.options, h.factory), error => error.name === 'AbortError')
+  await h.repairStarted
+  h.controller.abort()
+  await rejection
+  assert.equal(h.record.created.length, 1)
+  assert.equal(h.record.calls.length, 2)
+  assert.equal(h.record.workerStarts, 0)
+  assert.deepEqual(h.record.accessChanges, [])
+  assert.equal(h.phases.includes('researching'), false)
   assertDrained(h)
 })
 

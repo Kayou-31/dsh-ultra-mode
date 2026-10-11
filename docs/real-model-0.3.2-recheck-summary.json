@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "publicSanitizedSummary": true,
+  "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+  "pluginVersion": "0.3.2",
+  "testedArtifactSha256Prefix": "a7c78e0a",
+  "sourceStage": "Approval and assist protocol repair, before latest strict planning repair",
+  "realModelUserRuns": true,
+  "overallAcceptancePassed": false,
+  "normalAgentAssist": {
+    "schemaVersion": 1,
+    "publicSanitizedSummary": true,
+    "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+    "pluginVersion": "0.3.2",
+    "testedArtifactSha256Prefix": "a7c78e0a",
+    "versionSource": "Installed artifact stage and install-before-task timing supplied by the root audit",
+    "realModelRun": true,
+    "mechanismAcceptancePassed": true,
+    "strictTaskCompliancePassed": false,
+    "normalMain": {
+      "mainTurns": 1,
+      "completedTurns": 1,
+      "extraTurns": 0,
+      "modelSteps": 7,
+      "observedReasoningEffort": "max",
+      "originalUiEffortSelectionIndependentlyInspected": false,
+      "ordinarySubagentCalls": 1,
+      "actualTools": {
+        "subagent": 1,
+        "glob": 1,
+        "list_agents": 2,
+        "write": 2,
+        "read": 1
+      },
+      "forbiddenCommandOrNetworkCalls": 0,
+      "allowedOutputDirectoryExistenceSearches": 1,
+      "otherDirectorySearches": 0
+    },
+    "ordinaryChild": {
+      "count": 1,
+      "origin": "subagent",
+      "delegationDepth": 1,
+      "completed": true,
+      "arithmeticResult": 140,
+      "requestedMarkerPresent": true,
+      "commandOrNetworkCalls": 0,
+      "fileWritesOrReads": 0,
+      "grandchildren": 0,
+      "onlyTool": "send_message to its own parent as required by the native delegation context"
+    },
+    "decision": {
+      "sidecars": 1,
+      "independentWorkers": 0,
+      "sameIdentity": true,
+      "reasoningEffort": "max",
+      "readOnly": true,
+      "serial": true,
+      "completedLogicalReviews": 7,
+      "completedStrictJsonResponsesValid": 7,
+      "completedProtocolFailures": 0,
+      "protocolRepairs": 0,
+      "finalReviewAbortedOnParentEnd": true,
+      "abortedPartialCountedAsProtocolFailure": false,
+      "toolCalls": 0,
+      "feedbackQueued": 7,
+      "matchingInboxConsumptions": 7,
+      "sameIdDurableAdmissions": 7,
+      "sameOriginalMainTurnAdmissions": 7,
+      "subsequentModelProducedAssistantStepsAfterAdmission": 7,
+      "pendingOwnedFeedbackAtEnd": 0
+    },
+    "adoption": {
+      "recordSelectedAdviceCount": 2,
+      "actualFeedbackAdmissionCount": 7,
+      "fullySupportedSelectedAdviceAdoptions": 1,
+      "additionalSelectedAdviceWithWriteAndReadbackCompliance": 1,
+      "firstAdviceValueAndMarkerCheckSupported": true,
+      "secondAdviceNineLineSingleWriteAndReadbackSupported": true,
+      "secondAdviceTriggeredNewFilenameCheckSupported": false,
+      "filenameExistenceCheckPredatedSecondAdviceAdmission": true,
+      "causalChangeOfOriginalPlanProven": false,
+      "allSevenAdmittedDirectionsCountedAsSevenCorrectAdoptions": false
+    },
+    "outputAndApproval": {
+      "writeAttempts": 2,
+      "uniqueWriteTargets": 1,
+      "firstNormalSandboxWriteDenied": true,
+      "identicalOperationRetriedOnce": true,
+      "realApprovalAsked": 1,
+      "matchingAllowedOnceDecision": 1,
+      "successfulWrites": 1,
+      "actualSuccessfulReadback": true,
+      "recordedArtifactLines": 9,
+      "finalMarkerAfterReadback": true,
+      "unchangedHostSandboxRootDifferedFromUserRequestedDirectory": true
+    },
+    "taskLengthDeviation": {
+      "userRequestedInstructionCharacterMaximum": 80,
+      "allCompletedInstructionsExceedRequestedMaximum": true,
+      "completedInstructionsExceedingMaximum": 7,
+      "observedInstructionCharacterMinimum": 97,
+      "observedInstructionCharacterMaximum": 182,
+      "protocolLengthLimitsExceeded": false
+    },
+    "evidenceLimits": {
+      "rawProviderRequestBodyCaptured": false,
+      "requestInclusionEstablishedByNetworkCapture": false,
+      "evidenceForConsumption": "Native next-step queue removal, same message ID durable admission, same main turn, and later assistant/tool behaviour",
+      "completeNativeDshUiAutomatedControlPerformed": false,
+      "nonMaxMainSettingPreservationEstablishedByThisRealRun": false,
+      "pendingFeedbackPurgeWithUnconsumedFeedbackExercisedInThisRun": false,
+      "protocolRepairExercisedInThisRealRun": false,
+      "repeatedLongRunStabilityEstablished": false,
+      "otherParallelTestAuditedHere": false
+    },
+    "privacy": {
+      "realIdentifiersIncluded": false,
+      "personalAbsolutePathsIncluded": false,
+      "privateJournalsIncluded": false,
+      "rawPromptsIncluded": false,
+      "reasoningIncluded": false
+    }
+  },
+  "twoRouteParallel": {
+    "version": "0.3.2",
+    "kind": "real-model-manual-recheck",
+    "scope": "Two-route mode only",
+    "result": "partial",
+    "wholeAcceptancePassed": false,
+    "recordedRootTurnCompleted": true,
+    "evidenceValidation": {
+      "selectedLogs": 5,
+      "zstdChecksumsValidated": true,
+      "officialStrictRestore": true,
+      "stableSnapshots": true,
+      "reasoningIncluded": false,
+      "rawRequestTraceIncluded": false
+    },
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "recordedEffort": "max"
+    },
+    "execution": {
+      "workers": 2,
+      "decisionRoutes": 1,
+      "workerAndDecisionOriginSubagent": false,
+      "workerAndDecisionDelegationDepth": 0,
+      "independentLoopOverlapMs": 13351,
+      "firstSdkStepIntervalsOverlap": true,
+      "pureHttpTimingIndependentlyMeasured": false,
+      "mainDurationMs": 82786,
+      "allSelectedLoggedTurnsCompleted": true
+    },
+    "workers": [
+      {
+        "index": 1,
+        "completed": true,
+        "subagentSchemaPresent": true,
+        "subagentForkSchemaPresent": true,
+        "sameResearchToolNamesAsOtherWorker": true,
+        "toolCalls": 2,
+        "ordinarySubagentCalls": 1,
+        "cataloguedChildren": 1,
+        "completedNativeChildren": 1,
+        "childValue": 14,
+        "finalReportExplicitlySaysNoChild": false,
+        "commandOrMutationCalls": 0,
+        "networkCalls": 0
+      },
+      {
+        "index": 2,
+        "completed": true,
+        "subagentSchemaPresent": true,
+        "subagentForkSchemaPresent": true,
+        "sameResearchToolNamesAsOtherWorker": true,
+        "toolCalls": 0,
+        "ordinarySubagentCalls": 0,
+        "cataloguedChildren": 0,
+        "completedNativeChildren": 0,
+        "childValue": null,
+        "finalReportExplicitlySaysNoChild": true,
+        "commandOrMutationCalls": 0,
+        "networkCalls": 0
+      }
+    ],
+    "childEvidence": {
+      "count": 1,
+      "originSubagent": true,
+      "delegationDepth": 1,
+      "parentIsFirstWorker": true,
+      "completed": true,
+      "markedValue": 14,
+      "secondWorkerHasNoActualChildEvidence": true
+    },
+    "planning": {
+      "validAssignmentsJson": false,
+      "originalTaskIncludedInBothBriefs": true,
+      "taskSpecificAssignmentsWereNotApplied": true,
+      "genericFallbackAssignmentsApplied": true,
+      "secondWorkerInterpretedFallbackAsReviewRole": true,
+      "hiddenSubagentToolClaimSupported": false,
+      "permissionDenialClaimSupported": false,
+      "failureClass": "Malformed planner protocol caused generic fallback and conflicting task ownership",
+      "minimumRecommendedFix": "One bounded same-context strict planning repair and an index-aware fallback preserving explicit per-route duties; never replace required child evidence with arithmetic alone"
+    },
+    "decision": {
+      "planningTurns": 1,
+      "coordinationTurns": 2,
+      "finalTurns": 1,
+      "sameDecisionLoop": true,
+      "proposedDirectives": 1,
+      "acceptedSteering": 0,
+      "admittedSteering": 0,
+      "observedSteeringAdoptions": 0,
+      "lastDirectiveResponseAfterTargetWorkerCompletedMs": 5144,
+      "noLateSteeringWakeObserved": true
+    },
+    "finalWrite": {
+      "approvalAsked": 1,
+      "approvalAllowedOnce": 1,
+      "approvalWaitMs": 1234,
+      "writeAttempts": 2,
+      "successfulWrites": 1,
+      "readbackMatchesStoredFileAndWriteContent": true,
+      "outputLines": 6,
+      "rootFinalDelivered": true,
+      "approvalTimeout": false
+    },
+    "scopeChecks": {
+      "workerCommandMutationNetworkCalls": 0,
+      "decisionCommandCalls": 0,
+      "decisionSubagentCalls": 0,
+      "decisionSuccessfulWriteTargets": 1,
+      "decisionRecursiveProjectFilenameGlobObserved": 1,
+      "recursiveGlobWasBroaderThanOutputExistenceCheck": true,
+      "sourceContentReadObserved": false
+    },
+    "interpretation": "Approval and final-write fix have real completion evidence. Both workers retained native child capability. The requirement that each worker actually create one child was fulfilled by only the first worker; this run is not a full two-route child acceptance pass."
+  },
+  "latestPlanningSourceFix": {
+    "acceptedShape": "One strict JSON object with only assignments: an array of exactly N nonempty strings",
+    "fragmentsSelectedFromNarrativeOrMultipleObjects": false,
+    "maxSameContextRepairs": 1,
+    "initialProviderFailureTerminates": true,
+    "secondInvalidOutputFallsBack": true,
+    "repairProviderFailureFallsBack": true,
+    "fallbackUsesStableWorkerIndex": true,
+    "fallbackPreservesUserSpecifiedPerRouteActions": true,
+    "errorsRetainedInFinalDelivery": true,
+    "parentArithmeticMaySubstituteForRequiredRealChild": false
+  },
+  "latestSourceVerification": {
+    "buildPassed": true,
+    "hostAndClientStrictTypecheckPassed": true,
+    "targetedTestsPassed": 97,
+    "assistTestsPassed": 15,
+    "targetedTestExitCode": 0,
+    "singleOfflineCompiledSdkPlanningRepairProbePassed": true,
+    "latestStrictPlanningRealModelRetest": "pending",
+    "assistModuleChangedDuringPlanningFix": false,
+    "assistUserRetestRequested": false,
+    "formalStableAcceptancePassed": false
+  },
+  "evidenceLimits": {
+    "rawProviderRequestBodiesCaptured": false,
+    "completeNativeDshUiAutomaticallyControlled": false,
+    "runtimeOverlapIsPreciseHttpConcurrencyTiming": false,
+    "validParentArithmeticSubstitutesForMissingChild": false,
+    "latestSourceInstalledOrPublishedConfirmedByThisSummary": false
+  },
+  "publication": {
+    "pausedUntilLatestPlanningRealModelRetest": true,
+    "formalReleasePassed": false
+  },
+  "privacy": {
+    "realIdentifiersIncluded": false,
+    "personalAbsolutePathsIncluded": false,
+    "privateJournalsIncluded": false,
+    "rawPromptsIncluded": false,
+    "reasoningIncluded": false
+  }
+}

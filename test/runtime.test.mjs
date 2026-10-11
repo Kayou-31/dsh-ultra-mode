@@ -23,6 +23,12 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/runtime.ts', im
   compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS },
 }).outputText
 
+async function loadSdk(name) {
+  return import(process.env.DSH_ULTRA_TEST_SDK
+    ? pathToFileURL(resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai', name, 'lib', 'index.js')).href
+    : `@deepseek-ai/${name}`)
+}
+
 async function fixture(presentation = 'native') {
   const { Context } = sdk.cordis
   const { createScope, scopeOf, scopeParentOf, bindScopeParent } = sdk['dsh-scope']
@@ -124,6 +130,85 @@ async function fixture(presentation = 'native') {
     close: () => ctx.fiber.dispose(),
   }
 }
+
+test('approval bridge reaches the visible root before actual global Remote forwarding and keeps caller audit/policy', { skip: unavailable, timeout: 5000 }, async () => {
+  const f = await fixture()
+  const [{ ApprovalService, setApprovalPolicy }, remotes] = await Promise.all([
+    loadSdk('dsh-user-approval'), loadSdk('dsh-api-remotes'),
+  ])
+  let source
+  f.ctx.provide('typertGateway', { registerRemoteEvents(value) { source = value; return () => {} } })
+  await f.ctx.plugin(ApprovalService, { policy: 'ask' }).await()
+  await f.ctx.plugin(remotes).await()
+  const remoteAbort = new AbortController()
+  // The real Host global answerer is already listening when route setup runs.
+  const remote = source(remoteAbort.signal)
+  const firstFrame = remote.next()
+  let route
+  const approvalEvents = agent => agent.session.snapshotEvents().filter(event => event.type === 'approval/asked' || event.type === 'approval/decided')
+  try {
+    const created = await f.create('approval-decision')
+    route = created.route
+    route.setReadOnly(false)
+    const decision = created.agent
+    decision.session.append('turn/start', { turn: 1 })
+    const requestSignal = new AbortController().signal
+    const request = { agent: decision, toolName: 'write', callId: 'decision-write', reason: 'Outside sandbox', displayReason: 'Fixture rejection only', signal: requestSignal }
+    const pending = f.ctx.get('approval').request(request)
+    const { value: frame } = await firstFrame
+    assert.equal(frame.event, 'approval/request')
+    assert.equal(frame.context.subject, f.parent)
+    assert.equal(frame.context.agentId, f.parent.id)
+    assert.equal(frame.context.value, f.parent.ctx)
+    assert.equal(frame.request.agent, f.parent, 'Remote identity contract matches the visible carrier')
+    assert.equal(frame.request.signal, requestSignal)
+    assert.equal(frame.request.callId, request.callId)
+    assert.equal(frame.request.reason, request.reason)
+    assert.equal(frame.request.displayReason, request.displayReason)
+    assert.equal(request.agent, decision, 'answerer projection never mutates the original caller')
+    frame.resolve({ kind: 'result', value: 'rejected' })
+    assert.equal(await pending, 'rejected')
+    assert.deepEqual(approvalEvents(decision).map(event => event.type), ['approval/asked', 'approval/decided'])
+    assert.equal(approvalEvents(decision)[1].data.id, approvalEvents(decision)[0].data.id)
+    assert.equal(approvalEvents(decision)[1].data.outcome, 'rejected')
+    assert.equal(approvalEvents(f.parent).length, 0, 'visible root does not acquire caller audit')
+
+    const child = await f.childOf(decision, 'approval-native-child', null)
+    child.session.append('turn/start', { turn: 1 })
+    const cancel = new AbortController()
+    const nextFrame = remote.next()
+    const childPending = f.ctx.get('approval').request({ agent: child, toolName: 'pwsh', callId: 'child-write', reason: 'Fixture cancellation only', signal: cancel.signal })
+    const { value: childFrame } = await nextFrame
+    assert.equal(childFrame.context.subject, f.parent, 'ordinary descendant is presented in the same visible root')
+    assert.equal(childFrame.request.agent, f.parent)
+    cancel.abort(new Error('Fixture cancelled'))
+    assert.equal(await childPending, 'cancelled')
+    childFrame.reject(cancel.signal.reason)
+    assert.equal(approvalEvents(child).at(-1).data.outcome, 'cancelled')
+    assert.equal(approvalEvents(f.parent).length, 0)
+
+    // Policy is evaluated on the actual descendant before any UI bridge runs.
+    setApprovalPolicy(child.session, 'never')
+    assert.equal(await f.ctx.get('approval').request({ agent: child, toolName: 'pwsh' }), 'rejected')
+    assert.equal(f.ctx.get('approval').effectivePolicy(f.parent.session), 'ask')
+    assert.equal(approvalEvents(child).at(-1).data.outcome, 'rejected')
+
+    const ended = remote.next()
+    remoteAbort.abort(new Error('Fixture Remote disconnected'))
+    assert.equal((await ended).done, true)
+    assert.equal(await f.ctx.get('approval').request({ agent: decision, toolName: 'write' }), 'unavailable', 'no Remote answerer still fails closed')
+    assert.equal(approvalEvents(decision).at(-1).data.outcome, 'unavailable')
+    assert.equal(approvalEvents(f.parent).length, 0)
+    await route.dispose()
+    route = undefined
+    assert.equal(f.runtime.isUltraRoute(decision.id), false)
+  } finally {
+    remoteAbort.abort(new Error('Fixture cleanup'))
+    await remote.return()
+    await route?.dispose()
+    await f.close()
+  }
+})
 
 test('actual SDK masks inherited research tools, preserves own tools, and restores decision access', { skip: unavailable }, async () => {
   for (const presentation of ['native', 'ptc', 'both']) {

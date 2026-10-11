@@ -1,0 +1,38 @@
+import { type ContentBlock } from '@deepseek-ai/dsh-llm';
+import type { Agent } from '@deepseek-ai/dsh-agent';
+import type { RunConfig } from './orchestrator.js';
+import type { createRoute } from './runtime.js';
+import { type CoordinationSummary } from './coordination.js';
+declare module '@deepseek-ai/dsh-llm' {
+    interface MessageSourceMap {
+        'ultra-assist': {
+            kind: 'ultra-assist';
+            form: 'feedback';
+            summary: string;
+            runId: string;
+            decisionId: string;
+        };
+    }
+}
+export interface DecisionAssistOptions {
+    parent: Agent;
+    task: string;
+    content: ContentBlock[];
+    signal: AbortSignal;
+    route?: {
+        provider: string;
+        model: string;
+    };
+    phase(value: string): void;
+}
+export interface DecisionAssistHandle {
+    runId: string;
+    decisionId: string;
+    coordination: CoordinationSummary;
+    /** Includes the currently running decision turn and lifecycle disposal. */
+    done: Promise<void>;
+    /** Stop the sidecar only, without cancelling or waking the parent. */
+    stop(): void;
+}
+/** Create one Max sidecar, returning without waiting for its model response. */
+export declare function startDecisionAssist(config: RunConfig, options: DecisionAssistOptions, factory?: typeof createRoute): Promise<DecisionAssistHandle>;

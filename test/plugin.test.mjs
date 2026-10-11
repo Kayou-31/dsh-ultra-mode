@@ -12,8 +12,8 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/index.ts', impo
 const CONFIG = { toolName: 'ultra_task', concurrency: 3, sectionOrder: 117.5, maxSessions: 64,
   timeoutMs: 10000, reportChars: 20000, researchTools: ['read', 'subagent'], jevEnabled: false }
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
-function boot({ runner, config, lateConnection = false } = {}) {
-  const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], pending: [], disposers: [], injections: [] }
+function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
+  const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], assists: [], pending: [], disposers: [], injections: [] }
   const services = {
     systemPrompt: { section: value => record.sections.push(value) },
     commands: { register: value => record.commands.push(value) },
@@ -38,6 +38,14 @@ function boot({ runner, config, lateConnection = false } = {}) {
     '@deepseek-ai/dsh-llm': { createUserMessage: value => value },
     '@deepseek-ai/dsh-agent': { agentCarrier: agent => ({ agent }) },
     './ultra.js': policy,
+    './assist.js': { async startDecisionAssist(config, options) {
+      record.assists.push(options)
+      if (assistRunner) return assistRunner(config, options)
+      const gate = deferred()
+      const stop = () => gate.resolve()
+      options.signal.addEventListener('abort', stop, { once: true })
+      return { runId: 'assist-run', decisionId: 'assist-decision', coordination: { rounds: 0, directives: [], errors: [] }, done: gate.promise, stop }
+    } },
     './runtime.js': { routeParentOf: agent => agent.owner, researchToolDenial: (agent, name) => agent?.research && name === 'write' ? 'read-only' : undefined },
     './orchestrator.js': { async runUltra(config, options) {
       record.calls.push(options)
@@ -66,15 +74,16 @@ test('registers automatic observer, tool, guard, command, prompt and RPC', () =>
   assert.equal(typeof h.record.events.get('agent/pre-step'), 'function')
   assert.equal(h.record.guards.length, 1)
   assert.equal(h.record.injections.some(names => names.includes('connection') && names.includes('webServer')), true, 'actual HostConnection RPC registration needs owner.webServer injection')
-  assert.deepEqual(Array.from(h.tool.parameters.concurrency.enum), [3, 4, 5])
+  assert.deepEqual(Array.from(h.tool.parameters.concurrency.enum), [2, 3, 4, 5])
 })
-test('RPC strictly accepts 3/4/5 and never mutates on invalid values', () => {
+test('RPC accepts normal-agent assistance and 2/3/4/5 without invalid mutation', () => {
   const h = boot()
   assert.equal(h.rpc('set', { sessionId: 'a', enabled: true, concurrency: 4 }).ok, true)
-  for (const concurrency of [2, 6, 3.5, '5', null]) assert.equal(h.rpc('set', { sessionId: 'a', concurrency }).ok, false)
+  for (const concurrency of [0, 6, 3.5, '5', null]) assert.equal(h.rpc('set', { sessionId: 'a', concurrency }).ok, false)
   assert.equal(h.rpc('get', { sessionId: 'a' }).value.concurrency, 4)
   assert.equal(h.rpc('get', { sessionId: 'b' }).value.enabled, false)
   assert.equal(h.rpc('set', { sessionId: 'a', enabled: 'yes' }).ok, false)
+  for (const concurrency of [1, 2]) assert.equal(h.rpc('set', { sessionId: 'b', concurrency }).ok, true)
 })
 test('RPC requires an identity and rejects unknown endpoints', () => {
   const h = boot()
@@ -97,7 +106,9 @@ test('command and button use the same state; invalid/child commands fail', () =>
   assert.equal(h.command.handler({ rawInput: 'on' }).kind, 'error')
   assert.equal(h.command.handler({ agent: agent(), rawInput: '4' }).kind, 'success')
   assert.equal(h.rpc('get', { sessionId: 'root' }).value.concurrency, 4)
-  assert.equal(h.command.handler({ agent: agent(), rawInput: '2' }).kind, 'error')
+  assert.equal(h.command.handler({ agent: agent(), rawInput: '2' }).kind, 'success')
+  assert.equal(h.command.handler({ agent: agent(), rawInput: 'assist' }).kind, 'success')
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.concurrency, 1)
   assert.equal(h.command.handler({ agent: { ...agent(), owner: agent() }, rawInput: 'off' }).kind, 'error')
   h.command.handler({ agent: agent(), rawInput: 'off' })
   assert.equal(h.rpc('get', { sessionId: 'root' }).value.enabled, false)
@@ -125,6 +136,66 @@ test('automatic dispatch follows actual enter contract and selected model', asyn
   assert.match(result.messages[1].content[0].text, /Verified decision output/)
   assert.equal(h.rpc('get', { sessionId: 'root' }).value.activeRuns, 0)
 })
+test('normal-agent mode starts one assistant without Ultra takeover or delivery tool lock', async () => {
+  const h = boot()
+  const root = agent()
+  h.rpc('set', { sessionId: 'root', enabled: true, concurrency: 1 })
+  const user = { id: 'human-1', source: { kind: 'user' }, content: [{ type: 'text', text: 'implement normally' }] }
+  const input = { kind: 'enter', messages: [user] }
+  const signal = exec().signal
+  const hook = h.record.events.get('agent/pre-step')
+  const result = await hook({ agent: root, step: 1, turn: 1, signal, messages: [user] }, async () => input)
+  assert.equal(h.record.calls.length, 0)
+  assert.equal(h.record.assists.length, 1)
+  assert.equal(h.record.assists[0].parent, root)
+  assert.equal(result.messages[0], user)
+  assert.match(result.messages[1].content[0].text, /正常主 Agent/)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.running, true)
+  const feedback = { id: 'feedback', source: { kind: 'ultra-assist' }, content: [{ type: 'text', text: 'verify claim' }] }
+  const feedbackInput = { kind: 'enter', messages: [feedback] }
+  assert.equal(await hook({ agent: root, step: 2, turn: 1, signal, messages: [feedback] }, async () => feedbackInput), feedbackInput)
+  assert.equal(h.record.assists.length, 1, 'decision feedback is not a new human task')
+  const snapshotRpc = h.record.handlers.get('/dsh-ultra-mode')
+  for (const dispose of h.record.disposers) await dispose()
+  assert.equal(snapshotRpc('get', { sessionId: 'root' }).value.running, false)
+  assert.equal(h.record.handlers.size, 0)
+})
+
+test('assistant creation failure leaves the normal task and tools usable with a visible warning', async () => {
+  const h = boot({ assistRunner: async () => { throw new Error('assistant unavailable') } })
+  const root = agent()
+  h.rpc('set', { sessionId: 'root', enabled: true, concurrency: 1 })
+  const user = { source: { kind: 'user' }, content: [{ type: 'text', text: 'normal task' }] }
+  const output = await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec().signal, messages: [user] }, async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(output.messages[0], user)
+  assert.match(output.messages[1].content[0].text, /未启动.*assistant unavailable/)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.running, false)
+  assert.equal(h.record.calls.length, 0)
+})
+
+test('fresh same-turn human tasks replace assistance only after prior cleanup', async () => {
+  const h = boot()
+  const root = agent()
+  h.rpc('set', { sessionId: 'root', enabled: true, concurrency: 1 })
+  const hook = h.record.events.get('agent/pre-step')
+  const signal = exec().signal
+  for (const [index, text] of ['first task', 'second task'].entries()) {
+    const user = { id: `human-${index}`, source: { kind: 'user' }, content: [{ type: 'text', text }] }
+    await hook({ agent: root, step: index + 1, turn: 1, signal, messages: [user] }, async () => ({ kind: 'enter', messages: [user] }))
+  }
+  assert.equal(h.record.assists.length, 2)
+  assert.deepEqual(h.record.assists.map(options => options.task), ['first task', 'second task'])
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.running, true)
+  h.rpc('set', { sessionId: 'root', enabled: false })
+  const user = { id: 'off-task', source: { kind: 'user' }, content: [{ type: 'text', text: 'ordinary' }] }
+  await hook({ agent: root, step: 3, turn: 1, signal, messages: [user] }, async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(h.record.assists.length, 2)
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.running, false)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+})
+
 test('off, steps without fresh user input, child loops, commands and non-enter decisions skip dispatch', async () => {
   const h = boot()
   const hook = h.record.events.get('agent/pre-step')

@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  MIN_CONCURRENCY, MAX_CONCURRENCY, routeCount, resolveSessionKey, snapshotOf,
-  planMerge, parseAssignments, ULTRA_DECISION_INSTRUCTIONS, buildPlanPrompt, buildWorkerBrief,
+  MIN_CONCURRENCY, MAX_CONCURRENCY, routeCount, modeCount, resolveSessionKey, snapshotOf,
+  planMerge, tryParseAssignments, parseAssignments, ULTRA_DECISION_INSTRUCTIONS, buildPlanPrompt, buildPlanRepairPrompt, buildWorkerBrief,
   buildDecisionPrompt, fallbackJoin, renderUltraSection,
 } from '../lib/ultra.js'
 
@@ -10,11 +10,11 @@ const state = extra => ({ enabled: true, concurrency: 3, activeRuns: 0, phase: '
 const ok = (text, sessionId = 'route-1') => ({ ok: true, text, sessionId })
 const bad = (error, sessionId = 'route-2') => ({ ok: false, text: '', error, sessionId })
 
-test('execution count accepts only 3/4/5 and excludes the extra decision route', () => {
-  assert.equal(MIN_CONCURRENCY, 3)
+test('execution count accepts only 2/3/4/5 and excludes the extra decision route', () => {
+  assert.equal(MIN_CONCURRENCY, 2)
   assert.equal(MAX_CONCURRENCY, 5)
-  for (const value of [3, 4, 5]) assert.equal(routeCount(value), value)
-  for (const value of [2, 6, 3.5, '3', undefined, null, false, NaN, Infinity]) assert.throws(() => routeCount(value), /3、4 或 5/)
+  for (const value of [2, 3, 4, 5]) assert.equal(routeCount(value), value)
+  for (const value of [1, 6, 3.5, '3', undefined, null, false, NaN, Infinity]) assert.throws(() => routeCount(value), /2、3、4 或 5/)
 })
 
 test('blank/non-string sessions never collapse into one shared identity', () => {
@@ -39,15 +39,28 @@ test('completed but blank reports do not satisfy the two-report minimum', () => 
   assert.equal(planMerge([ok('one'), ok('two'), ok('three')], 3).strategy, 'full')
 })
 
-test('planner JSON preserves exact assignments; invalid prose gets distinct useful fallbacks', () => {
+test('planner accepts one strict JSON protocol; invalid plans keep every route original obligations', () => {
   const assignments = ['First concrete task', 'Second concrete task', 'Third concrete task']
-  assert.deepEqual(parseAssignments(`Plan:\n${JSON.stringify({ assignments })}\n`, 3), assignments)
-  for (const response of ['plain prose', '{"assignments":["only one"]}', '{"assignments":["a","","c"]}', '{"assignments":["a",42,"c"]}']) {
+  assert.deepEqual(tryParseAssignments(`\n${JSON.stringify({ assignments })}\n`, 3), assignments)
+  assert.deepEqual(parseAssignments(JSON.stringify({ assignments }), 3), assignments)
+  for (const response of ['plain prose', `Plan:\n${JSON.stringify({ assignments })}`, '```json\n' + JSON.stringify({ assignments }) + '\n```', '{"assignments":["only one"]}', '{"assignments":["a","","c"]}', '{"assignments":["a",42,"c"]}', '{"assignments":"route1, route2"}', JSON.stringify({ assignments, extra: true }), JSON.stringify({ assignments }) + JSON.stringify({ assignments })]) {
+    assert.equal(tryParseAssignments(response, 3), undefined)
     const fallback = parseAssignments(response, 5)
     assert.equal(fallback.length, 5)
     assert.equal(new Set(fallback).size, 5)
     assert.ok(fallback.every(text => text.trim()))
+    fallback.forEach((text, index) => {
+      assert.match(text, new RegExp(`稳定编号 i=${index + 1}`))
+      for (const phrase of ['原用户任务', '每条路线的全部动作', '原任务明确要求的普通子代理调用', '不得让给其他路线', '避免重复', '完成自身义务后再补充']) assert.ok(text.includes(phrase), phrase)
+    })
   }
+})
+
+test('one formatting repair preserves fixed per-route duties and bounds invalid response evidence', () => {
+  const prompt = buildPlanRepairPrompt('每路自己派一个普通子代理计算对应 i', 2, 'B'.repeat(9000), 3000)
+  for (const phrase of ['最多这一次', '固定 i=1..2', '每路必须自己调用', '不能分配成只核对位', '子代理可以直接推理或心算', '恰好 2 个非空字符串的数组', '只有 assignments 字段', '不执行任务或调用工具']) assert.ok(prompt.includes(phrase), phrase)
+  assert.ok(prompt.includes('B'.repeat(3000)))
+  assert.equal(prompt.includes('B'.repeat(3001)), false)
 })
 
 test('planning/worker briefs preserve task, descendant research limits, and subagent ability', () => {
@@ -57,7 +70,7 @@ test('planning/worker briefs preserve task, descendant research limits, and suba
   assert.match(plan, /可以派子代理/)
   assert.match(plan, /不能修改共享文件/)
   const worker = buildWorkerBrief('Original user task', 'Check the evidence', 1, 4, 'Planner context')
-  for (const phrase of ['Original user task', 'Check the evidence', 'Planner context', '2/4', '后代', '不要写共享文件', '不要调用 ultra_task', '直接推理、心算', '命令被拒绝不等于不能思考', '禁止为替代受限命令继续套子代理', '委派深度限制', '无法恢复就报告证据缺失']) assert.ok(worker.includes(phrase), phrase)
+  for (const phrase of ['Original user task', 'Check the evidence', 'Planner context', '2/4', '稳定编号 i=2', '优先于规划和改向', '这些动作必须由你自己完成', '你自己的心算或其他路线的子代理不能替代该调用', '后代', '不要写共享文件', '不要调用 ultra_task', '直接推理、心算', '命令被拒绝不等于不能思考', '禁止为替代受限命令继续套子代理', '委派深度限制', '无法恢复就报告证据缺失']) assert.ok(worker.includes(phrase), phrase)
 })
 
 test('decision brief names partial outcomes and does not expand authorization', () => {
@@ -74,7 +87,7 @@ test('decision brief names partial outcomes and does not expand authorization', 
 })
 
 test('built-in decision policy governs planning and final review with or without Jev', () => {
-  for (const count of [3, 4, 5]) {
+  for (const count of [2, 3, 4, 5]) {
     const outcomes = Array.from({ length: count }, (_, i) => ok('Could not verify the requested task', `r${i}`))
     const plan = buildPlanPrompt('Unspecified task', count)
     const decision = buildDecisionPrompt('Unspecified task', outcomes, planMerge(outcomes, count), '', 100)
@@ -105,4 +118,11 @@ test('enabled prompt states N Max executions plus one Max decision without recur
   const prompt = renderUltraSection(state({ concurrency: 5 }))
   assert.match(prompt, /5 条 Max 执行路线 \+ 1 条 Max 决策路线/)
   assert.match(prompt, /不要重做或再次调用 ultra_task/)
+  assert.equal(modeCount(1), 1)
+  assert.equal(modeCount(2), 2)
+  assert.throws(() => modeCount(0))
+  const assistance = renderUltraSection(state({ concurrency: 1 }))
+  assert.match(assistance, /正常的主 Agent/)
+  assert.match(assistance, /最终交付职责/)
+  assert.doesNotMatch(assistance, /收到 Ultra 决策结果后直接交付/)
 })

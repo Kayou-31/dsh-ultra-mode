@@ -7,12 +7,16 @@
       config:
         # 模型可见工具名
         toolName: ultra_task
-        # 执行路线 3/4/5，不包含独立决策路线；所有路线默认 Max
+        # 1 为主 Agent 辅助；2/3/4/5 为并发 worker 数，不含独立 Max 决策
+        # 默认仍为 3；/ultra on 恢复当前选项，新会话首次开启用此默认
+        # /ultra assist 或 /ultra 1 选择主 Agent + 只读 Max 决策辅助
+        # 辅助模式保留主 Agent 的 DSH 设置，额外 decision 固定 Max
         concurrency: 3
         # 提示词段插入顺序
         sectionOrder: 117.5
         timeoutMs: 900000
-        # 仅进展变化触发跨路决策；-1 不限轮数，0 关闭运行中协调
+        # 仅进展变化触发跨路决策；-1 不限，并发模式 0 关闭运行中协调
+        # 辅助模式有限值约束 decision.run 调用预算（含格式修复）；0/1 仅初始检查
         coordinationIntervalMs: 1000
         coordinationMaxRounds: -1
         # 可选 Typesafe Jev 决策辅助；密钥只从 Host 环境变量读取

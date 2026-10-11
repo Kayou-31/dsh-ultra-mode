@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "publicSanitizedSummary": true,
+  "auditDate": "2026-10-11",
+  "pluginVersion": "0.3.2",
+  "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+  "testedArtifactSha256Prefix": "f00587f2",
+  "testedSourceStage": "Installed candidate before latest approval bridge, bounded assist protocol repair and final owned-feedback cleanup",
+  "realModelRuns": true,
+  "overallAcceptancePassed": false,
+  "twoRouteParallel": {
+    "independentWorkers": 2,
+    "decisions": 1,
+    "allRecordedRouteEffortsMax": true,
+    "ordinaryNativeChildren": 2,
+    "nativeChildArithmeticResults": [
+      14,
+      30
+    ],
+    "coordinationRounds": 9,
+    "durableDirectionAdmissions": 6,
+    "sixAdmissionsCountedAsSixCorrectSubstantiveAdoptions": false,
+    "finalApprovalTimedOut": true,
+    "requestedFinalArtifactAndDeliveryCompleted": false,
+    "overallAcceptancePassed": false
+  },
+  "normalAgentAssist": {
+    "schemaVersion": 1,
+    "publicSanitizedCandidate": true,
+    "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+    "testedVersion": "0.3.2 installed candidate, before the latest approval bridge, bounded protocol repair and final pending-feedback cleanup",
+    "auditDate": "2026-10-11",
+    "realModelRun": true,
+    "overallAcceptancePassed": false,
+    "taskSummary": "Normal main Agent should review only the specified plugin files, create one ordinary arithmetic child, process actual helper feedback, write one authorized short record and deliver it. Commands, network and searches outside the specified scope were forbidden.",
+    "facts": {
+      "mainTurns": 1,
+      "mainCompletedTurns": 1,
+      "extraMainTurns": 0,
+      "mainToolCalls": 11,
+      "ordinarySubagentCalls": 1,
+      "nativeChildren": 1,
+      "nativeChildrenCompleted": 1,
+      "childArithmeticResult": 140,
+      "mainCommandCalls": 2,
+      "mainWriteAttempts": 2,
+      "mainSuccessfulWrites": 1,
+      "mainRequestedArtifactReadback": true,
+      "mainDeliveryMarkerSeen": true,
+      "mainEffort": "max",
+      "sidecarEffort": "max",
+      "sidecarReadOnlyPreset": true,
+      "sidecarReadOnlySandbox": true,
+      "sameDecisionCompletedTurns": 6,
+      "sidecarAbortedTurns": 1,
+      "sidecarCallsByTool": {
+        "read": 6,
+        "grep": 4,
+        "glob": 1
+      },
+      "sidecarWriteCommandOrNetworkCalls": 0,
+      "completedDecisionResponsesInvalidJson": 6,
+      "feedbackQueued": 0,
+      "feedbackDurablyAdmitted": 0,
+      "feedbackRequestVisibilityVerified": 0,
+      "feedbackSubstantiveAdoptionVerified": 0,
+      "sidecarHostInstallationSearchAttempts": 1,
+      "sidecarOtherProjectDirectorySearchAttempts": 2,
+      "sidecarRepoWideSearchAttempts": 1,
+      "rawRequestPromptCaptured": false
+    },
+    "normalMain": {
+      "nativeChildAndArithmeticPassed": true,
+      "authorizedArtifactWriteAndReadbackPassed": true,
+      "finalDeliveryPassed": true,
+      "onlyOneCompletedTurn": true,
+      "originalUiEffortSelectionInspected": false,
+      "firstWriteDeniedByNormalSandbox": true,
+      "sameOperationRetryApprovedOnceAndSucceeded": true
+    },
+    "decision": {
+      "sameIdentity": true,
+      "maxReadOnly": true,
+      "completedReviewRounds": 6,
+      "finalReviewAbortedOnParentCompletion": true,
+      "completedProtocolTextFailures": 6,
+      "protocolFailureCategories": {
+        "invalidJsonStringSyntax": 1,
+        "trailingContentOrMultipleObjects": 5
+      },
+      "feedbackQueued": 0,
+      "feedbackDurablyAdmitted": 0,
+      "substantiveAdoptionsVerified": 0,
+      "lastAbortedPartialCountedAsProtocolFailure": false
+    },
+    "taskCompliance": {
+      "passed": false,
+      "forbiddenMainCommandCalls": 2,
+      "mainFirstCommandListedOriginalWorkspaceOutsideRequestedRepo": true,
+      "sidecarHostInstallationSearchAttempts": 1,
+      "sidecarOtherProjectDirectorySearchAttempts": 2,
+      "sidecarRepoWideSearchAttempts": 1,
+      "sidecarUsedOnlyReadSearchTools": true
+    },
+    "privacy": {
+      "realIdentifiersIncluded": false,
+      "personalAbsolutePathsIncluded": false,
+      "rawPromptsIncluded": false,
+      "reasoningIncluded": false,
+      "privateJournalsIncluded": false
+    },
+    "testedArtifactSha256Prefix": "f00587f2"
+  },
+  "latestSourceFixes": {
+    "approvalBridge": "Prefer visible-parent source and consistently project request context, subject, identity and agent while preserving original caller policy, signal and audit",
+    "assistProtocol": "Single-object final JSON requirements and at most one same-context bounded repair per logical round; strict parser and all validation retained",
+    "pendingFeedback": "Stop disables listeners and aborts immediately; only current-run pending feedback is purged in a microtask and completion waits for purge"
+  },
+  "latestSourceVerification": {
+    "buildPassed": true,
+    "hostAndClientStrictTypecheckPassed": true,
+    "targetedTestsPassed": 92,
+    "targetedAssistTestsPassed": 15,
+    "targetedTestProcessExitCode": 0,
+    "targetedOfflineApprovalSdkCheckPassed": true,
+    "targetedOfflineAssistRepairSdkChecksPassed": true,
+    "latestTwoRouteRealModelReacceptance": "pending",
+    "latestAssistRealModelReacceptance": "pending",
+    "stableAcceptancePassed": false
+  },
+  "evidenceLimits": {
+    "queueAdmissionAndSubstantiveAdoptionAreDistinct": true,
+    "rawModelRequestBodyCaptured": false,
+    "offlineSdkChecksReplaceRealModelAcceptance": false,
+    "originalUiEffortSelectionInspectedForAssistCandidate": false,
+    "candidateMainEffort": "max; non-Max setting preservation is shown by offline SDK, not this real candidate",
+    "nativeDshUiAutomaticallyControlled": false
+  },
+  "publication": {
+    "formalStableReleaseAuthorizedOnlyAfterLatestFixRealModelAcceptance": true,
+    "latestFixInstallationOrPublicationConfirmedByThisSummary": false
+  },
+  "privacy": {
+    "realSessionOrAgentIdentifiersIncluded": false,
+    "personalAbsolutePathsIncluded": false,
+    "privateJournalsIncluded": false,
+    "rawPromptsIncluded": false,
+    "reasoningIncluded": false
+  }
+}

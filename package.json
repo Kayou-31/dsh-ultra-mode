@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/dsh-ultra-mode",
-  "version": "0.3.1",
-  "description": "DSH Ultra：单会话 3–5 路 Max 执行 + 实时跨路决策，独立按钮，内置决策提示词，可选 Jev 辅助",
+  "version": "0.3.2",
+  "description": "DSH Ultra：正常 Agent + 自动决策，或单会话 2–5 路 Max 执行 + 跨路决策，独立实色按钮",
   "keywords": [
     "deepseek",
     "deepseek-harness",

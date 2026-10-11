@@ -5,8 +5,9 @@ import { defineTool, type ToolDefinition, type ToolRunContext } from '@deepseek-
 import { createUserMessage, type ContentBlock, type UserMessage } from '@deepseek-ai/dsh-llm'
 import { agentCarrier, type Agent } from '@deepseek-ai/dsh-agent'
 import { runUltra, type RunConfig, type UltraResult } from './orchestrator.js'
+import { startDecisionAssist } from './assist.js'
 import { researchToolDenial, routeParentOf } from './runtime.js'
-import { routeCount, resolveSessionKey, snapshotOf, renderUltraSection, type UltraState } from './ultra.js'
+import { routeCount, modeCount, resolveSessionKey, snapshotOf, renderUltraSection, type UltraState } from './ultra.js'
 import type { CoordinationSummary } from './coordination.js'
 
 declare module '@deepseek-ai/dsh-llm' {
@@ -18,7 +19,7 @@ export const name = '@dsh-external/dsh-ultra-mode'
 export const inject = ['agents', 'tools', 'systemPrompt']
 export const Config = z.object({
   toolName: z.string().default('ultra_task'),
-  concurrency: z.number().step(1).min(3).max(5).default(3),
+  concurrency: z.number().step(1).min(1).max(5).default(3),
   sectionOrder: z.number().default(117.5),
   maxSessions: z.number().step(1).min(1).default(64),
   timeoutMs: z.number().step(1).min(1000).max(86400000).default(900000),
@@ -51,12 +52,13 @@ interface HostContext {
 }
 /** Registers automatic turn dispatch, the independent button RPC, and manual command/tool entries. */
 export function apply(ctx: Context, config: Config): void {
-  routeCount(config.concurrency)
+  modeCount(config.concurrency)
   const host = ctx as unknown as HostContext
   const shutdown = new AbortController()
   const pending = new Set<Promise<void>>()
   const deliveryOnly = new WeakSet<Agent>()
   const sessions = new Map<string, UltraState>()
+  const assists = new Map<Agent, { handle: Awaited<ReturnType<typeof startDecisionAssist>>; drained: Promise<void> }>()
   const stateFor = (id: string, create = false): UltraState | undefined => {
     const existing = sessions.get(id)
     if (existing !== undefined) { sessions.delete(id); sessions.set(id, existing); return existing }
@@ -76,7 +78,7 @@ export function apply(ctx: Context, config: Config): void {
     if (deliveryOnly.has(agent)) throw new Error('本轮 Ultra 已交付；下一轮用户消息可开始新任务。')
     const state = stateFor(agent.id, true)!
     if (state.activeRuns > 0) throw new Error('当前会话已有 Ultra 运行；请等待完成或取消。')
-    const concurrency = routeCount(count ?? state.concurrency)
+    const concurrency = routeCount(count ?? Math.max(2, state.concurrency))
     const startedAt = Date.now()
     state.activeRuns = 1
     state.error = null
@@ -101,6 +103,49 @@ export function apply(ctx: Context, config: Config): void {
       state.lastRun = { at: Date.now(), ms: Date.now() - startedAt, requested: concurrency, succeeded: result?.succeeded ?? 0, runId: result?.runId ?? '' }
     }
   }
+  const beginAssist = async (agent: Agent, task: string, content: ContentBlock[], signal: AbortSignal, route?: { provider: string; model: string }) => {
+    const previous = assists.get(agent)
+    if (previous !== undefined) { previous.handle.stop(); await previous.drained }
+    const state = stateFor(agent.id, true)!
+    const startedAt = Date.now()
+    state.activeRuns = 1
+    state.phase = 'assisting'
+    state.error = null
+    try {
+      const assist = await startDecisionAssist(config, { parent: agent, task, content, signal: AbortSignal.any([signal, shutdown.signal]), route,
+        phase: phase => { state.phase = phase } })
+      if (shutdown.signal.aborted || signal.aborted) {
+        assist.stop()
+        await assist.done
+        throw new Error('决策辅助启动已取消')
+      }
+      const tracking = { handle: assist, drained: Promise.resolve() }; assists.set(agent, tracking)
+      const drain = assist.done.then(() => {
+        if (assists.get(agent) !== tracking) return
+        state.phase = signal.aborted || shutdown.signal.aborted ? 'cancelled' : 'completed'
+        state.error = assist.coordination.errors.at(-1) ?? null
+      }, error => {
+        if (assists.get(agent) !== tracking) return
+        state.phase = signal.aborted || shutdown.signal.aborted ? 'cancelled' : 'failed'
+        state.error = error instanceof Error ? error.message : String(error)
+      }).finally(() => {
+        pending.delete(drain)
+        if (assists.get(agent) !== tracking) return
+        assists.delete(agent)
+        state.activeRuns = 0
+        // No independent worker report or task-success claim in normal-agent mode.
+        state.lastRun = { at: Date.now(), ms: Date.now() - startedAt, requested: 1, succeeded: 0, runId: assist.runId }
+      })
+      tracking.drained = drain
+      pending.add(drain)
+      return assist
+    } catch (error) {
+      state.activeRuns = 0
+      state.phase = 'failed'
+      state.error = error instanceof Error ? error.message : String(error)
+      return undefined
+    }
+  }
   host.tools.guard(exec => {
     if (exec.agent !== undefined && deliveryOnly.has(exec.agent)) return 'Ultra 决策已完成，本轮主会话只负责转述；禁止重复工具操作。'
     if (exec.agent !== undefined && routeParentOf(exec.agent) !== undefined && exec.name === config.toolName) return 'Ultra 内部路线及其子代理不能递归开启 Ultra。'
@@ -108,9 +153,9 @@ export function apply(ctx: Context, config: Config): void {
   })
   host.tools.register(defineTool({
     name: config.toolName,
-    description: '仅当用户明确请求 Ultra 而会话按钮未开启时使用：3–5 条独立 Max 执行路线，加 1 条持续 Max 决策路线规划、实施和收敛。每路保留正常子代理能力。按钮开启时由宿主自动调度，无需调用本工具。',
+    description: '仅当用户明确请求并行 Ultra 而会话按钮未开启时使用：2–5 条独立 Max 执行路线，加 1 条持续 Max 决策路线规划、实施和收敛。每路保留正常子代理能力。正常 Agent + 决策辅助使用按钮或 /ultra assist，不使用本工具。',
     timeoutMs: config.timeoutMs,
-    parameters: { task: { type: 'string', required: true, description: '用户完整任务' }, concurrency: { type: 'integer', enum: [3, 4, 5], description: '执行路线数，不含决策路线' } },
+    parameters: { task: { type: 'string', required: true, description: '用户完整任务' }, concurrency: { type: 'integer', enum: [2, 3, 4, 5], description: '独立执行路线数，不含决策路线；不是正常主 Agent 辅助模式' } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string', required: true }, runId: { type: 'string', required: true }, succeeded: { type: 'integer', required: true } } }, render: (_args, value) => [{ type: 'text', text: value.text }] },
     isConcurrencySafe: () => false,
     async execute(args, exec: ToolRunContext) {
@@ -134,12 +179,32 @@ export function apply(ctx: Context, config: Config): void {
     const user = decision.messages.filter(m => m.source.kind === 'user' && (claimed.includes(m) || claimedIds.has(m.id)))
     if (user.length === 0) return decision
     deliveryOnly.delete(payload.agent)
-    if (!stateFor(payload.agent.id)?.enabled) return decision
+    const state = stateFor(payload.agent.id)
+    if (!state?.enabled) {
+      const previous = assists.get(payload.agent)
+      if (previous !== undefined) { previous.handle.stop(); await previous.drained }
+      return decision
+    }
     const content = user.flatMap(m => [...m.content])
     const task = content.filter((b): b is Extract<ContentBlock, { type: 'text' }> => b.type === 'text').map(b => b.text).join('\n')
     const dispatch = payload.agent.ctx as unknown as { waterfall(carrier: unknown, event: string, value: unknown, next: () => Promise<unknown>): Promise<Record<string, unknown>> }
     const selected = await dispatch.waterfall(agentCarrier(payload.agent), 'agent/request', payload, () => Promise.resolve({ ...payload.agent.options }))
     const route = typeof selected.provider === 'string' && typeof selected.model === 'string' ? { provider: selected.provider, model: selected.model } : undefined
+    if (state.concurrency === 1) {
+      const starting = beginAssist(payload.agent, task || '处理用户附带的材料', content, payload.signal, route)
+      const creationDrain = starting.then(() => {}, () => {})
+      pending.add(creationDrain)
+      let assist: Awaited<ReturnType<typeof beginAssist>>
+      try { assist = await starting } finally { pending.delete(creationDrain) }
+      return { ...decision, messages: [...decision.messages, createUserMessage({
+        content: [{ type: 'text', text: assist === undefined
+          ? '【Ultra 决策辅助未启动】' + state.error + '。继续按正常主 Agent 执行原任务，保留原有工具和权限；没有决策辅助成功的证据。'
+          : '【Ultra 决策辅助已启动】你仍是正常主 Agent，照常执行原任务、调用工具和子代理并完成交付；额外只读 Max 决策路线会在后续步骤给出反馈，不会代你实施或交付。' }],
+        source: { kind: 'ultra-mode', form: 'notice', summary: '正常 Agent + 1 条自动决策辅助', runId: assist?.runId ?? '', routeIds: [payload.agent.id], decisionId: assist?.decisionId ?? '' },
+      })] }
+    }
+    const previous = assists.get(payload.agent)
+    if (previous !== undefined) { previous.handle.stop(); await previous.drained }
     const result = await execute(payload.agent, task || '处理用户附带的材料', content, payload.signal, undefined, route)
     return { ...decision, messages: [...decision.messages, createUserMessage({
       content: [{ type: 'text', text: '【Ultra 决策结果】\n' + result.output + '\n\n以上是本轮决策路线的交付结果。直接转述给用户，保持事实、路径与验证边界。不要调用工具重新实施或再开启 Ultra。' }],
@@ -156,7 +221,7 @@ export function apply(ctx: Context, config: Config): void {
   })
   host.inject(['commands'], owner => {
     const commands = owner.get('commands') as { register(value: unknown): unknown }
-    commands.register({ name: 'ultra', description: 'Ultra：3–5 条 Max 执行路线 + 1 条决策路线', input: { hint: '[on|off|3|4|5]', attachments: false },
+    commands.register({ name: 'ultra', description: 'Ultra：正常 Agent + 自动决策，或 2–5 条 Max 执行路线 + 1 条决策路线', input: { hint: '[on|off|assist|2|3|4|5]', attachments: false },
       handler: ({ agent, rawInput }: { agent?: Agent; rawInput?: string }) => {
         const id = resolveSessionKey(agent?.id)
         if (id === undefined || (agent !== undefined && routeParentOf(agent) !== undefined)) return { kind: 'error', text: '/ultra 只能用于主会话。' }
@@ -164,9 +229,10 @@ export function apply(ctx: Context, config: Config): void {
         const input = (rawInput ?? '').trim().toLowerCase()
         if (input === 'off') state.enabled = false
         else if (input === 'on') state.enabled = true
-        else if (['3','4','5'].includes(input)) { state.concurrency = Number(input); state.enabled = true }
-        else if (input !== '') return { kind: 'error', text: '用法：/ultra on | off | 3 | 4 | 5' }
-        return { kind: 'success', text: state.enabled ? `Ultra 已开启：${state.concurrency} 条 Max 执行路线 + 1 条 Max 决策路线。` : 'Ultra 已关闭。' }
+        else if (input === 'assist' || input === '1') { state.concurrency = 1; state.enabled = true }
+        else if (['2','3','4','5'].includes(input)) { state.concurrency = Number(input); state.enabled = true }
+        else if (input !== '') return { kind: 'error', text: '用法：/ultra on | off | assist | 2 | 3 | 4 | 5' }
+        return { kind: 'success', text: state.enabled ? state.concurrency === 1 ? 'Ultra 决策辅助已开启：正常主 Agent + 1 条只读 Max 决策路线。' : `Ultra 已开启：${state.concurrency} 条 Max 执行路线 + 1 条 Max 决策路线。` : 'Ultra 已关闭。' }
       },
     })
   })
@@ -181,7 +247,7 @@ export function apply(ctx: Context, config: Config): void {
       try {
         if (endpoint === 'set') {
           if (data.enabled !== undefined && typeof data.enabled !== 'boolean') throw new Error('enabled must be boolean')
-          if (data.concurrency !== undefined) routeCount(data.concurrency)
+          if (data.concurrency !== undefined) modeCount(data.concurrency)
           const state = stateFor(id, true)!
           if (typeof data.enabled === 'boolean') state.enabled = data.enabled
           if (typeof data.concurrency === 'number') state.concurrency = data.concurrency

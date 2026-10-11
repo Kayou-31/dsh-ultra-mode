@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type { RouteHandle, AgentLike as RouteParent, ContentBlock, createRoute } from './runtime.js'
 import { decideWithJev, JevError } from './jev.js'
-import { buildPlanPrompt, buildWorkerBrief, buildDecisionPrompt, parseAssignments, planMerge, fallbackJoin, type WorkerOutcome } from './ultra.js'
+import { buildPlanPrompt, buildPlanRepairPrompt, buildWorkerBrief, buildDecisionPrompt, tryParseAssignments, parseAssignments, planMerge, fallbackJoin, type WorkerOutcome } from './ultra.js'
 import { buildCoordinationPrompt, parseCoordinationDecision, renderCoordinationSummary, type CoordinationSnapshot, type CoordinationSummary, type RouteProgress } from './coordination.js'
 
 export interface RunConfig {
@@ -152,7 +152,34 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
     const planned = await decision.run([{ type: 'text', text: buildPlanPrompt(options.task, options.concurrency) }, ...options.content.filter(b => b.type !== 'text')])
     signal.throwIfAborted()
     if (!planned.ok) throw new Error('Ultra 决策路线无法完成规划：' + planned.error)
-    const assignments = parseAssignments(planned.text, options.concurrency)
+    let assignments = tryParseAssignments(planned.text, options.concurrency)
+    let planningEvidence = ''
+    let planContext = planned.text
+    if (assignments === undefined) {
+      let repaired: WorkerOutcome
+      try {
+        // The same decision keeps its history; only a malformed successful
+        // response gets this one repair, inside the original signal/deadline.
+        signal.throwIfAborted()
+        repaired = await decision.run([{ type: 'text', text: buildPlanRepairPrompt(options.task, options.concurrency, planned.text, config.reportChars) }])
+      } catch (error) {
+        signal.throwIfAborted()
+        repaired = { ok: false, text: '', error: String(error), sessionId: decisionId }
+      }
+      signal.throwIfAborted()
+      if (repaired.ok) assignments = tryParseAssignments(repaired.text, options.concurrency)
+      const status = assignments === undefined ? 'fallback' : 'repaired'
+      const limit = Math.min(8000, Math.max(1000, config.reportChars))
+      planningEvidence = '【规划协议记录；无效响应仅为诊断证据，不是分工指令】\n' + JSON.stringify({
+        status, attempts: 2, initialValid: false,
+        initialOutput: planned.text.slice(0, limit), initialChars: planned.text.length,
+        repairOk: repaired.ok, repairValid: assignments !== undefined,
+        repairOutput: repaired.text.slice(0, limit), repairChars: repaired.text.length,
+        ...(repaired.error === undefined ? {} : { repairError: repaired.error.slice(0, limit) }),
+      }) + (status === 'fallback' ? '\n未取得有效规划，已使用保留原用户逐路义务的默认分工；这不代表规划或用户任务成功。' : '\n首次规划格式无效，同一决策路线的一次修复已通过格式核验；格式核验不代表用户任务成功。')
+      assignments ??= parseAssignments('', options.concurrency)
+      planContext = (status === 'fallback' ? '规划格式无效，采用保留原用户逐路义务的默认分工。\n' : '同一决策路线的一次规划格式修复通过。\n') + JSON.stringify({ assignments })
+    }
     options.phase('researching')
     const coordinator = new ResearchCoordinator(decision, routeIds, config, options, signal)
     const coordinationDone = coordinator.run()
@@ -165,7 +192,7 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
         handles.push(handle)
         signal.throwIfAborted()
         stopProgress = coordinator.observe(handle)
-        outcome = await handle.run([{ type: 'text', text: buildWorkerBrief(options.task, assignments[i]!, i, options.concurrency, planned.text) }, ...options.content.filter(b => b.type !== 'text')])
+        outcome = await handle.run([{ type: 'text', text: buildWorkerBrief(options.task, assignments[i]!, i, options.concurrency, planContext) }, ...options.content.filter(b => b.type !== 'text')])
       } catch (error) {
         outcome = { ok: false, text: '', error: String(error), sessionId: id }
       } finally {
@@ -200,7 +227,7 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
     }
     options.phase('deciding')
     decision.setReadOnly(false)
-    const final = await decision.run([{ type: 'text', text: buildDecisionPrompt(options.task, outcomes, plan, jev, config.reportChars) + '\n\n' + renderCoordinationSummary(coordination) }])
+    const final = await decision.run([{ type: 'text', text: buildDecisionPrompt(options.task, outcomes, plan, jev, config.reportChars) + (planningEvidence === '' ? '' : '\n\n' + planningEvidence) + '\n\n' + renderCoordinationSummary(coordination) }])
     signal.throwIfAborted()
     const decided = final.ok && final.text.trim() !== ''
     const notice = plan.strategy === 'degraded' ? `[Ultra 降级：已返回有效报告 ${plan.succeeded}/${plan.requested}，未返回有效报告 ${plan.failed}；另有 1 条决策路线。]\\n\\n` : ''
