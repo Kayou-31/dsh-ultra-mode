@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "publicSanitizedSummary": true,
+  "auditDate": "2026-10-11",
+  "hostVersion": "DSH Desktop / Host 0.2.0-rc.2",
+  "testedPackage": {
+    "version": "0.3.0",
+    "sha256": "a4a00b7a3ce923b4cc3a2b40489e6c129e56d8f1dc1cb6273eb47718f89c71d2",
+    "realModelRun": true
+  },
+  "releaseVersionEvidence": {
+    "version": "0.3.1",
+    "realModelRerun": false,
+    "change": "Coordination prompt now explicitly states the existing assessment <= 2000 and full JSON <= 16000 character limits.",
+    "parserChanged": false,
+    "steeringChannelChanged": false,
+    "compiledLibFilesCompared": 20,
+    "compiledLibFilesByteIdentical": 18,
+    "changedCompiledLibFiles": [
+      "coordination.js",
+      "coordination.js.map"
+    ],
+    "buildPassed": true,
+    "hostAndClientTypecheckPassed": true,
+    "targetedTests": {
+      "command": "node --test test/orchestrator.test.mjs test/ultra.test.mjs",
+      "passed": 31,
+      "failed": 0,
+      "canceled": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "jitlessAttempt": {
+        "assertionsPassed": 31,
+        "processExitSucceeded": false,
+        "exitCode": 1,
+        "explanation": "The orchestrator test subprocess did not exit normally; the identified test processes were stopped after approximately 98 seconds. This attempt is not a successful test command."
+      }
+    }
+  },
+  "historicalArithmeticRun": {
+    "version": "0.3.0",
+    "independentWorkers": 5,
+    "ordinaryNativeChildren": 5,
+    "childrenCompleted": 5,
+    "results": [14, 30, 55, 91, 140],
+    "acceptedDirections": 0,
+    "provesLiveSteering": false
+  },
+  "liveCrossRouteReview": {
+    "mechanismPassed": true,
+    "exactTaskCompliancePassed": false,
+    "selectedRelatedSessionCount": 13,
+    "independentWorkers": 5,
+    "workerOriginEmpty": true,
+    "workerDelegationDepth": 0,
+    "ordinaryNativeChildren": 6,
+    "ordinaryNativeChildrenByRoute": [1, 1, 1, 1, 2],
+    "childOrigin": "subagent",
+    "childDelegationDepth": 1,
+    "childrenCompletedByRetainedSnapshot": 6,
+    "recordedInternalRequestConfigurations": 13,
+    "allRecordedInternalConfigurationsMax": true,
+    "configurationCountIsRequestCount": false,
+    "concurrency": {
+      "allFiveFirstTurnsOverlapMs": 114575,
+      "allFiveFirstRecordedModelStreamsOverlapMs": 901,
+      "preciseNetworkTimingMeasured": false,
+      "note": "Turn overlap measures session activity; recorded model-stream overlap measures retained fragments, not network request intervals or first-output latency."
+    },
+    "decision": {
+      "sameIdentityAcrossPhases": true,
+      "serialTurns": 23,
+      "planningTurns": 1,
+      "coordinationTurns": 21,
+      "finalTurns": 1
+    },
+    "steering": {
+      "acceptedDirections": 17,
+      "consumedNativeNextStepDirections": 17,
+      "durablyAdmittedUserMessages": 17,
+      "sameOriginalWorkerTurnAdmissions": 17,
+      "directionsFollowedByRealModelStepBeforeTurnEnd": 17,
+      "substantiveAdoptionsIndependentlyCompared": 3,
+      "allAcceptedDirectionsClaimedCorrectOrFullyObeyed": false,
+      "verifiedAdoptionExamples": [
+        {
+          "coordinationRound": 4,
+          "targetRoute": 5,
+          "behavior": "Acted on a shared steer-gate finding by actually reading the specified runtime source and test sections."
+        },
+        {
+          "coordinationRound": 12,
+          "targetRoute": 5,
+          "behavior": "Acted on route 4 client findings while still running by actually reading the specified client source sections."
+        },
+        {
+          "coordinationRound": 17,
+          "targetRoute": 5,
+          "behavior": "Registered the outside-repo scope violation after correction; no further worker read calls occurred."
+        }
+      ]
+    },
+    "coordinationProtocolRejections": [
+      {
+        "round": 10,
+        "reason": "assessment exceeds existing character limit",
+        "assessmentCharacters": 2028,
+        "maximumCharacters": 2000,
+        "directivesInRejectedResponse": 0
+      },
+      {
+        "round": 11,
+        "reason": "assessment exceeds existing character limit",
+        "assessmentCharacters": 2036,
+        "maximumCharacters": 2000,
+        "directivesInRejectedResponse": 3
+      }
+    ],
+    "coordinationContinuedAfterRejections": true,
+    "rejectedDirectivesCountedAsAccepted": false,
+    "taskScope": {
+      "repoOnlyReadScopePassed": false,
+      "explicitOutsideRepoReadAttempts": 19,
+      "hostInstallationAttempts": 6,
+      "projectOutsideRepoAttempts": 13,
+      "separatelyCountedToolSpillAuxiliaryReads": 3,
+      "atLeastOneOutsideRepoWorkerReadSucceeded": true,
+      "workerAndChildWriteCommandOrNetworkToolCalls": 0,
+      "laterScopeCorrectionObserved": true,
+      "explanation": "Read-only capability restrictions did not enforce the task's repo-only path scope. Subsequent correction does not erase earlier scope violations. Outside-repo material is excluded from public code-review evidence."
+    },
+    "backgroundChildReportBoundary": {
+      "childrenCompletingAfterFirstWorkerReport": 2,
+      "lateChildren": [
+        {"route": 2, "completionLagAfterFirstWorkerTurnMs": 39140, "laterWorkerTurns": 2},
+        {"route": 3, "completionLagAfterFirstWorkerTurnMs": 26898, "laterWorkerTurns": 1}
+      ],
+      "laterTurnsCausedByNativeBackgroundMessages": true,
+      "laterTurnsAttributedToSteeringResidue": false,
+      "firstReportSnapshotIncludedLateChildCompletion": false,
+      "explanation": "All retained children eventually completed; later native callbacks and worker turns cannot be retroactively attributed to the original runUltra report snapshot."
+    }
+  },
+  "evidenceLimits": {
+    "rawRequestPromptRetained": false,
+    "requestContextIsMetadataOnly": true,
+    "requestMessageInclusionBasis": "Durable native admission, consumed next-step inbox, later real model step, and the separately verified SDK buildRequest -> deriveMessages pipeline; inclusion is structurally supported, not a captured network payload.",
+    "codeReviewFindingCorrectnessAdjudicatedHere": false,
+    "nativeUiAcceptanceAddedHere": false,
+    "liveLongTaskWorkerCountsCovered": [5],
+    "sdkFixtureWorkerCountsCovered": [3, 4, 5],
+    "jevRealAccountTested": false,
+    "repeatedLongRunStabilityTested": false,
+    "futureHostVersionsTested": false
+  },
+  "privacy": {
+    "realSessionOrAgentIdentifiersIncluded": false,
+    "personalLocalPathsIncluded": false,
+    "privateJournalsIncluded": false,
+    "rawPromptsIncluded": false,
+    "reasoningIncluded": false,
+    "evidenceText": "Aggregate facts and independently compared behavior descriptions only."
+  }
+}

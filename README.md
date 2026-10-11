@@ -1,4 +1,4 @@
-# dsh-ultra-mode 0.3.0
+# dsh-ultra-mode 0.3.1
 
 DeepSeek Harness 的独立 Ultra 编排按钮：**一个用户会话，3 / 4 / 5 条独立 Max 执行路线，再加 1 条持续 Max 决策路线**。按钮放在会话输入框右侧，不修改 DSH 的滑轨或思考强度选择器。
 
@@ -28,7 +28,7 @@ DeepSeek Harness 的独立 Ultra 编排按钮：**一个用户会话，3 / 4 / 5
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 下载 `dsh-external-dsh-ultra-mode-0.3.0.tgz`。包已包含 `lib/`，安装时不需要构建，也不需要复制 DSH 运行库。请以 Release 的预发布/正式版标记及验证记录为准。
+从 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 下载 `dsh-external-dsh-ultra-mode-0.3.1.tgz`。包已包含 `lib/`，安装时不需要构建，也不需要复制 DSH 运行库。请以 Release 的预发布/正式版标记及验证记录为准。
 
 在 DSH 的插件管理页面按本地包路径安装并启用 bundle。也可以在关闭 DSH 后，通过该宿主使用的 pnpm 将本地包添加到 desktop profile：
 
@@ -36,7 +36,7 @@ DeepSeek Harness 的独立 Ultra 编排按钮：**一个用户会话，3 / 4 / 5
 # 按自己的路径替换；使用 DSH 随附 pnpm 或兼容版本。
 node 'D:\DSH\resources\runtime\pnpm\bin\pnpm.mjs' `
   --dir "$env:USERPROFILE\.dsh\profiles\desktop" add `
-  'D:\Downloads\dsh-external-dsh-ultra-mode-0.3.0.tgz' --ignore-scripts
+  'D:\Downloads\dsh-external-dsh-ultra-mode-0.3.1.tgz' --ignore-scripts
 ```
 
 保留 profile `package.json` 和 `cordis.patch.yml` 原件。在原有 `dsh.profile.bundles` 中追加 `@dsh-external/dsh-ultra-mode`，不要替换已有列表：
@@ -109,11 +109,13 @@ npm run typecheck
 npm test
 ```
 
-`--legacy-peer-deps` 用于开发构建；DSH 的可选客户端 peer 由宿主提供。测试覆盖并行、运行中改向、取消、部分失败、自动入口、状态隔离、按钮异步竞态、卸载和 Jev 协议；实际 SDK 的工具限制、解除恢复和原生子代理身份观察另有集成检查。当前版本的通过数和未验证边界见 [0.3.0 验证记录](docs/verification-0.3.0.md)。
+`--legacy-peer-deps` 用于开发构建；DSH 的可选客户端 peer 由宿主提供。测试覆盖并行、运行中改向、取消、部分失败、自动入口、状态隔离、按钮异步竞态、卸载和 Jev 协议；实际 SDK 的工具限制、解除恢复和原生子代理身份观察另有集成检查。当前版本的通过数和未验证边界见 [0.3.1 验证记录](docs/verification-0.3.1.md)。
 
 实际 DSH 0.2.0-rc.2 的编译后服务另做了 9 组路线场景和 1 组热卸载 smoke：3/4/5 独立循环、每路真实普通子代理、Max、preset、native/PTC/both、审批与人机问题、只读边界、同轮重复执行拦截、取消/卸载零活跃循环残留。**模型响应和写工具在该 smoke 中是脚本化 fixture**；这不能代替真实模型调用、长期运行或真实桌面窗口验收。详见 [验证记录](docs/verification-0.2.0.md)。
 
-真实模型方面，用户在实际 DSH 窗口运行了 0.2.0 的 3/4/5 路测试。运行时日志证实三组均为 N 个独立 Max loop、同一个决策 loop 和每路一个真实普通子代理。3/4 路算术结果正确；5 路因旧决策层添加了与研究权限冲突的命令执行条件而未完成任务。0.3.0 针对此问题修正提示词和工具可见性，并新增运行中协调；旧版本真实运行证据不能替代新版本端到端验收。详见 [真实模型记录](docs/real-model-0.2.0.md)。
+真实模型方面，用户在实际 DSH 窗口运行了 0.2.0 的 3/4/5 路测试，三组均核对到 N 个独立 Max loop 和每路普通子代理。0.3.0 五路算术又核对到 5 个完成的普通子代理，结果 14/30/55/91/140 全部正确。修复版 0.3.0 的长任务中，5 条独立 Max 路线共调用 6 个真实普通子代理且全部完成；同一个 decision 完成规划、21 次协调、最终交付共 23 轮。17 条方向调整均有原生队列消费、持久消息准入与同一 worker turn 后续模型步骤证据；另外独立核对了具体的跨路发现传递、源码复核和停止越界读取行为。这证明运行中改向机制，不代表 17 条判断全部正确。
+
+这轮也记录了两个边界：模型出现 repo 外只读尝试，未完全遵守该验收任务的路径范围；两名后台子代理晚于父路线首份报告结束，原报告不会自动回填其较晚结果。没有执行写入、命令或联网工具。原始网络请求正文未保留，不能称为抓包验证。0.3.1 只补充协调提示词的 assessment 和完整 JSON 长度上限，解决提示词未告知校验限制的问题；真实长任务运行在 0.3.0，版本证据及未验证项见 [正式版验证记录](docs/verification-0.3.1.md)。历史证据仍保留在 [0.2.0 真实模型记录](docs/real-model-0.2.0.md)。
 
 宿主 peer：Cordis `~4.0.4`、Schemastery `~3.18.4`、DSH agents/tools/llm/session/scope `0.2.0-rc.2`；Web 客户端依赖同版本 UI renderer、connection、locale、session-controller，以及 React 18/19。未宣称兼容旧 0.1.x API。
 
