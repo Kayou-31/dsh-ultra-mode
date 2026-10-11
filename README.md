@@ -1,4 +1,4 @@
-# dsh-ultra-mode 0.3.2
+# DSH Ultra Mode
 
 > **⚠ 黑箱展示与大幅 Token 消耗：请先了解再开启。** 并发 Ultra 的内部 worker、普通子代理及运行中 decision 不在主会话中逐路、逐步展示。用户主要看到最终交付阶段的 DSH 展示与结果，难以在界面中实时核对每一路做了什么。若宿主显示该阶段的思考，它取决于可见主 Agent 的请求与宿主呈现；插件不会逐字透传内部 decision 的真实思维链。
 >
@@ -6,180 +6,113 @@
 >
 > **更多路线会明显增加 Token 预算。用户提供的粗略预算参考为：每多开一路，约增加 125%。** 这不是本插件测得的固定倍率；实际消耗随上下文、工具步骤、普通子代理及协调轮数变化，按钮没有额度或费用估算。
 
-DeepSeek Harness 的独立 Ultra 按钮提供两种方式：**正常主 Agent + 自动只读 Max 决策辅助**，或 **2 / 3 / 4 / 5 条独立 Max 执行路线 + 1 条持续 Max 决策路线**。按钮放在会话输入框右侧，不修改 DSH 的滑轨或思考强度选择器；开启并发模式时默认仍为 3 路。
+在 DeepSeek Harness 的会话输入框旁加入独立 **Ultra** 按钮：可以给普通主 Agent 增加自动决策辅助，也可以启用 **2–5 条独立 Max 执行路线 + 1 条 Max 决策路线**。决策层会根据新进展反复检查、调整仍在运行路线的方向，最终统一实施与交付。每条独立 worker 仍能调用宿主普通子代理。
 
-目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**。这次按实际安装版本的 API 重写了 0.1.x 插件。Ultra 表示比单路 Max 增加并行研究和独立决策；模型请求仍使用宿主支持的 `reasoningEffort: max`。它不会给模型 API 发送虚构的 `ultra` 强度值，也不声称复现 Codex 的内部实现。
+**当前正式版：[v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
 
-## 使用
+[![verify](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml/badge.svg)](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml)
 
-在已选择的会话输入框右侧点击 **Ultra**，选择关闭、主 Agent 辅助、2 路、3 路、4 路或 5 路。新会话默认关闭，开启并发模式默认 3 路；接下来提交的普通用户任务由宿主自动处理，无需模型主动调用工具。设置按会话隔离，修改运行中的选项只影响后续任务。按钮、菜单、选项及错误提示使用实色背景，沿用宿主浅色/深色主题；即使宿主菜单颜色自带透明度，也不会透出下方内容。
+主分支现已补充完整中文文档、9 项案例工具检查，以及 4 个业务案例的 **66 项独立业务检查**。本机参考实现全部通过、缺陷基线全部被拒绝；这些结果不代表 Ultra 对业务任务的真实模型优势。[扩充验证记录](docs/repository-expansion-0.3.2.json) 与 [最新 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml) 单独记录，不改写正式包的历史验收。
 
-也可用命令选择：
+[安装指南](docs/installation.md) · [架构与配置](docs/architecture.md) · [测试指南](docs/testing.md) · [业务样例](benchmarks/README.md) · [排障](docs/troubleshooting.md) · [更新记录](CHANGELOG.md)
 
-| 命令 | 模式与执行者 |
+## 快速安装
+
+1. 下载 [v0.3.2 安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/dsh-external-dsh-ultra-mode-0.3.2.tgz)。需要核对文件时使用 [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/SHA256SUMS-0.3.2.txt)。源码 ZIP 用于开发，安装请选择 TGZ。
+2. 在 DSH 插件管理页的本地包安装入口选择该文件或填写其本地路径，安装并启用 `@dsh-external/dsh-ultra-mode` bundle。升级前保留 profile 配置与旧包，不覆盖原有 bundle 列表。
+3. 完整退出 DSH（包括后台／托盘实例）后重新打开。在会话输入框右侧检查 **Ultra** 按钮及菜单。
+4. 选择模式后提交普通用户任务即可，无需额外填写决策提示词。
+
+发布包已含 `lib/`，用户不需要 Node 构建环境，也不需要复制 DSH SDK。不同安装入口或手动 profile 安装、升级与回滚步骤见 [安装指南](docs/installation.md)。该插件目前通过 GitHub Release 分发，不表示已发布到 npm registry。
+
+## 使用与模式
+
+| 选择 | 执行者与思考设置 | 决策职责 | 普通子代理与交付 |
+| --- | --- | --- | --- |
+| 关闭 | 普通主 Agent，保留 DSH 设置 | 不自动加入 Ultra 决策 | 按宿主原有行为执行 |
+| Agent + 决策 | 普通主 Agent，模型、provider、preset、思考强度及权限不变 | 额外 1 条只读 Max 辅助，根据进展提供建议 | 主 Agent 负责子代理、工具、写入和最终交付 |
+| 2／3／4／5 路 | N 条独立 Max worker；数量不含 decision | 1 条 Max decision 共用上下文完成规划、运行中协调和最终实施 | 各 worker 可派普通子代理；主会话呈现最终交付，避免重复实施 |
+
+并发 worker 负责研究，默认不允许写入、命令或发布；共享工作区的修改由 decision 最终阶段处理。没有自动创建每路 Git worktree。辅助模式的旁路 decision 只读，主 Agent 的原有执行权限保持不变。
+
+新会话默认关闭，首次开启并发默认 **3 路**。选项按会话隔离；运行中修改只影响后续任务，重启 DSH 后选项复位。按钮和菜单使用实色背景，不修改滑轨或思考强度选择器。
+
+| 命令 | 行为 |
 | --- | --- |
-| `/ultra assist` 或 `/ultra 1` | 主 Agent 保持当前 DSH 设置执行，额外启动只读 Max 决策辅助。`1` 是辅助模式别名，不是单个 Max worker 接管任务。 |
-| `/ultra 2`、`/ultra 3`、`/ultra 4`、`/ultra 5` | 相应数量的独立 Max worker 加 1 条 Max decision；数量不含 decision。 |
-| `/ultra on` | 恢复当前选择；新会话首次开启默认 3 路。 |
-| `/ultra off` | 关闭自动 Ultra，后续任务按普通 DSH 会话执行。 |
+| `/ultra assist` 或 `/ultra 1` | 普通主 Agent + 只读 Max 决策辅助；`1` 不是一个 Max worker 接管任务 |
+| `/ultra 2`、`/ultra 3`、`/ultra 4`、`/ultra 5` | N 条独立 Max worker + 1 条 Max decision |
+| `/ultra on` | 恢复当前选择；新会话首次开启默认 3 路 |
+| `/ultra off` | 关闭后续任务的自动 Ultra，保留已选模式 |
 
-`ultra_task` 工具用于按钮关闭时用户明确提出的手动并发 Ultra 请求，不能从内部路线或它们的子代理递归调用。
+按钮关闭时，用户明确要求的手动并发 Ultra 可通过 `ultra_task` 入口处理。内部路线和它们的子代理不能递归开启 Ultra。
 
-## 主 Agent 辅助模式
+## 调度如何工作
 
-主 Agent 继续使用会话实际选择的模型、provider、preset、思考强度及工具权限，负责工具执行、写入、子代理和最终交付。辅助模式不会把主 Agent 强制改成 Max，也不会让主 Agent只转述辅助路线的答案。
+```mermaid
+flowchart LR
+    U[用户任务] --> M{模式}
+    M -->|辅助| A[普通主 Agent]
+    A -->|新进展| H[只读 Max 辅助]
+    H -->|下一步骤建议| A
+    M -->|并发| D[Max decision 规划]
+    D --> W[2–5 个独立 Max worker]
+    W --> S[各路普通子代理]
+    W -->|新进展| C[同一 decision 串行协调]
+    C -->|下一步骤方向| W
+    W --> F[同一 decision 最终实施]
+    A --> O[主会话交付]
+    F --> O
+```
 
-插件为真实用户任务自动加入独立的 Max 决策辅助。辅助路线只做只读判断，在任务运行中观察进展，向主 Agent 提供可反复更新的方向建议；它不负责最终实施、写入或发布。建议由主 Agent 在后续模型步骤处理，已经发出的模型请求不会被中途改写。辅助绑定当前用户任务的主 Agent turn，完成或取消后停止，不为补建议额外唤醒主 Agent。主 Agent 不进入并发模式的交付转述限制，原生子代理仍按 DSH 原有工具和委派规则调用。
+反馈通过宿主下一模型步骤通道处理，不能改写已经发送的模型请求。**入队、持久准入和实际采纳是不同证据。** 协调只在新进展时运行，没有空轮询；默认可反复触发，仍受本次任务的取消与超时控制。完整协议、权限、收尾和轮数预算见 [架构与配置](docs/architecture.md)。
 
-辅助创建后立即进行一次初始检查，此后主 Agent 的工具返回、完整助手文本和本次新建原生子代理的进展触发建议；限频串行，没有新进展时不轮询。建议只送往仍在运行的原主 turn，入队不等于主 Agent 已采纳。主 turn 结束、下一 turn 开始、取消、超时或卸载都会停止辅助接收并清理 decision；辅助不会替主 Agent 发起新 turn。辅助模式不调用 Jev，也不另做最终代写。
+## 已验证什么
 
-辅助收尾立即停止接收与决策请求，再等待本次运行仍待消费的反馈清理完成，保留人类消息、其他运行消息和已准入历史；清理异常如实报告。达到有限轮数上限只停止新决策请求，当前建议仍可在原 turn 消费，最终随主 Agent 生命周期清理。
-
-辅助最终回复须符合单个严格 JSON 对象协议；解析错误会保留。主 turn 仍活跃且预算足够时，同一 decision 上下文最多做一次格式修复，修复只收到具体错误和格式要求，不把旧非法全文当成指令；再次失败不入队，也不无限重试。修复也消耗一次 `decision.run` 调用预算，不增加逻辑协调轮计数。
-
-| 对比 | 主 Agent 辅助 | 2 / 3 / 4 / 5 路并发 |
+| 证据 | 已证明 | 重要限制 |
 | --- | --- | --- |
-| 实际任务执行 | 普通主 Agent，保留会话设置 | 独立 Max worker 研究，decision 最终实施 |
-| 额外决策 | 1 条只读 Max 辅助 | 1 条 Max decision，规划、协调与最终实施共用上下文 |
-| 文件写入、命令、发布 | 主 Agent 按原有权限处理 | worker 研究阶段禁止；decision 最终阶段统一处理 |
-| 子代理 | 主 Agent 保持原生能力 | 每个独立 worker 保持原生能力，不因 worker 身份占一层深度 |
-| 主会话交付 | 主 Agent 自行执行与交付 | 主会话呈现 decision 的交付，不再重复实施 |
+| v0.3.2 发布与 CI | 正式 Release；发布 CI 构建、类型检查成功，97 通过／0 失败／5 跳过 | 公开 SDK 的运行时依赖不可用，不能用跳过代替集成验收 |
+| v0.3.2 真实两路 | 两个独立 Max worker 各完成一个普通 Max child，结果 14／30；正常审批后唯一写入、10 行读回与实际文件一致 | 3 次协调均为空方向；这次短任务没有证明新改向采纳，也未触发格式 repair |
+| v0.3.2 真实辅助 | 主 Agent 保持一个 turn；普通 child 得到 140；同一只读 Max 辅助 7 条建议在原 turn 准入，并核对具体采纳行为 | 记录选写 2 条，不把 7 次准入当 7 次正确采纳；建议超验收的 80 字要求，一项存在性检查时序偏差保留 |
+| 历史 3／4／5 路真实任务 | 独立 Max 路线、普通子代理和跨路协调有实际宿主证据；0.3.0 长任务核对 17 条方向准入 | 只独立核对部分具体采纳；历史越界读取尝试及后台 child 晚到边界保留 |
+| 实际 SDK 离线场景 | 工具限制、审批桥、同 turn 反馈、格式 repair、取消与清理等契约 | 模型与部分工具回复来自脚本 adapter，不能代表真实业务质量；Windows 全 SDK 子进程历史退出失败未改记成功 |
+| 新业务 fixture 与扩展测试 | 为可复现任务、协议检查及评测提供输入、参考结果和运行说明 | 未经真实模型／人工评审的业务 fixture 不能声称模型质量已验收；其最新覆盖与命令见测试及业务样例文档 |
 
-**0.3.2 两种新模式的核心验收已通过，准备正式发布。** 正常主 Agent 辅助已验证 7 条反馈在原主 turn 准入，并有具体采纳行为；最新规划修复的两路任务已确认两条独立 Max worker 各创建并完成一个真实普通 child，结果为 14/30，决策完成正常审批、唯一文件写入和读回。历史候选失败及任务格式偏差继续保留。CI、最终包与 GitHub Release 的发布操作另行完成，此处不提前声称已经上传。用户无需再跑辅助或两路验收。
+v0.3.2 正式包的 23 个编译文件与真实验收包 `701fbd1b` 阶段逐字节一致；正式 TGZ 整包哈希本身没有被真实模型实测。原始 provider 请求正文未留存，不能称为抓包验证。真实任务由用户在 DSH 中运行后核验日志及文件；完整 DSH 原生界面自动化控制未获验证。Jev 真实账户、重复长任务、未来宿主版本与业务质量泛化仍未验证。
 
-## 并发模式运行机制
+详细证据按版本保留：
 
-1. 新建一个独立 decision loop，以插件内置的决策提示词和 Max 规划任务并分配 N 个研究方向。规划只接受单个 JSON 对象、唯一 `assignments` 字段、与路线数相符的非空字符串数组；不从叙述或多个对象中选取片段。格式失败时同一上下文最多修复一次，再失败或修复请求失败则按稳定路线索引降级，保留用户指定的每路动作并公开错误。首次 provider 请求失败仍终止任务，不伪装为可用规划。默认不依赖 Jev，也不用用户填写提示词。
-2. N 个独立 worker loops 并行工作。它们继承主会话的模型、provider、preset 和已完成轮次的上下文，固定使用 Max。它们不是 `subagents.start()` 创建的子代理，也不消耗一层委派深度；每一路仍可调用宿主正常的子代理工具。
-3. 并发运行期间，工具返回和完整助手消息形成有界进展快照。原来的 decision loop 按事件串行审查各路进展，发现重复、分歧或新线索时向仍在运行的路线发送方向调整。指令通过宿主原生 `Agent.steer()` 进入下一模型步骤，并记录在该路线日志中；已发出的请求无法中途改写。没有新进展时不轮询，短任务结束后不补协调轮。默认最短间隔 1 秒，不限协调轮数，但仍受本次 Ultra 的超时和取消控制。
-4. 同一个 decision loop 收到最终报告，核对冲突、实施变更、验证并形成交付。规划、运行中协调和最终交付共用上下文，decision 自身不重叠运行。
-5. 主会话呈现结果。宿主守卫禁止该轮主会话再调用工具重复实施；新的实际用户输入恢复任务处理；若在上一任务呈现期间进入同一 turn 的 next-step，也会顺序启动独立 Ultra，不沿用上一任务的转述限制。
+- [0.3.2 验证记录](docs/verification-0.3.2.md)、[最终真实摘要](docs/real-model-0.3.2-final-summary.json)、[SDK 聚合摘要](docs/sdk-verification-0.3.2.json)。历史记录中的“准备发布”是写入当时状态，当前正式发布状态以首页和 Release 为准。
+- [首候选失败](docs/real-model-0.3.2-candidate-summary.json) 与 [修复阶段复验](docs/real-model-0.3.2-recheck-summary.json)：保留审批超时、非法 JSON、缺 child 等历史失败。
+- [0.3.1 未发布历史](docs/verification-0.3.1.md)、[0.3.0 验证](docs/verification-0.3.0.md)、[0.2.0 验证](docs/verification-0.2.0.md)、[0.2.0 真实模型记录](docs/real-model-0.2.0.md)。
 
-**执行策略：**并发 worker 负责读取、搜索、推理、提出实现方案和调用研究子代理；共享文件的写入、命令执行和发布由 decision 收敛阶段统一执行。当前版本没有给每个 worker 自动建立 Git worktree，因此不让多路同时修改同一份工作区。研究工具 allowlist 是配置项；追加有副作用的工具会改变这个边界。
+## 常见问题
 
-研究阶段强制 native 工具呈现，支持父会话的 native / ptc / both 模式，并继续禁止任意 JavaScript 的 `run_code`。继承工具的可见 schema 与研究 allowlist 对齐，避免模型先规划命令、调用时才被拒绝；宿主必须保留的 agent 自有工具仍受执行守卫约束。decision 运行中协调保持研究权限，最终实施阶段才恢复父会话实际工具呈现和权限。审批保留实际调用路线的审计身份，通过可见主会话接受；人机问题也转发给主会话。
+**Ultra 是否对应模型 API 的新思考强度？**
 
-内置提示词明确区分推理和实际运行验证，不为原任务添加“必须执行命令”等额外条件。宿主观察到的普通子代理 ID 随路线报告传给 decision，弥补等待式 `subagent` 返回体没有 ID 的可观测性缺口；这些身份只证明创建，完成状态和结果仍须核对实际工具返回或会话记录。取得非空完成报告不代表业务任务成功。
+请求仍使用宿主支持的 `reasoningEffort: max`。Ultra 增加并行研究和独立决策，没有向 API 发送虚构的 `ultra` 强度，也不声称复现 Codex 内部实现。辅助模式主 Agent 保留原先选择的强度。
 
-用户要求某一路真实派子代理时，其他路线或父路线自行算出的正确数值不能替代该子代理的实际创建与完成证据。规划、降级或最终收敛均须保留这个区别。
+**为什么 worker 还可以派子代理？**
 
-内部路线有独立、持久化的 DSH 审计日志，但不在普通会话列表中展示。客户端使用针对 0.2.0-rc.2 的会话列表兼容桥，仅过滤 `ultra-route-` 前缀的内部记录，不改原快照或子代理 origin；卸载恢复原读取函数。升级宿主版本前应重新验证这条桥。
+worker 使用独立 AgentLoop，本身不算普通子代理，不占一层委派深度。它们调用的普通子代理仍受 DSH 的权限、能力和深度限制，插件不会无限放开嵌套。
 
-主会话接收的是内部交付的文本结果，不是内部 decision 思考内容的逐字记录。持久化审计日志与主界面逐路可见性是两件事：日志存在不能写成用户能在会话框中实时看见各路全过程。
+**为什么看不到每路的实时全过程？**
 
-## 安装
+当前主会话展示最终交付，内部路线有宿主审计记录但不逐路展示。辅助模式保留普通主 Agent 过程；旁路 decision 仍不可逐步查看。可见思考不能当作内部 decision 原始思维链。
 
-从 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 下载对应版本的包；0.3.2 包名为 `dsh-external-dsh-ultra-mode-0.3.2.tgz`。包已包含 `lib/`，安装时不需要构建，也不需要复制 DSH 运行库。请以实际 Release 的预发布/正式版标记及验证记录为准。
+**决策层是否只在最后审查？**
 
-在 DSH 的插件管理页面按本地包路径安装并启用 bundle。也可以在关闭 DSH 后，通过该宿主使用的 pnpm 将本地包添加到 desktop profile：
+并发模式共享一个 decision 上下文完成规划、进展协调、最终交付；辅助模式在普通主 Agent 运行期间提供建议。短任务可能在建议可消费之前结束，入队也不保证采纳。
 
-```powershell
-# 按自己的路径替换；使用 DSH 随附 pnpm 或兼容版本。
-node 'D:\DSH\resources\runtime\pnpm\bin\pnpm.mjs' `
-  --dir "$env:USERPROFILE\.dsh\profiles\desktop" add `
-  'D:\Downloads\dsh-external-dsh-ultra-mode-0.3.2.tgz' --ignore-scripts
-```
+**必须使用 Jev 或填写自己的决策提示词吗？**
 
-保留 profile `package.json` 和 `cordis.patch.yml` 原件。在原有 `dsh.profile.bundles` 中追加 `@dsh-external/dsh-ultra-mode`，不要替换已有列表：
+默认使用内置 Max 决策提示词。Jev 是并发模式的可选最终辅助判断，默认关闭，辅助模式不调用 Jev。开启后会向配置服务发送受限任务与报告摘录，见 [Jev 配置与数据范围](docs/architecture.md#可选-jev)。
 
-```json
-"bundles": [
-  "@deepseek-ai/dsh-base",
-  "@deepseek-ai/dsh-web-app",
-  "@dsh-external/dsh-ultra-mode"
-]
-```
+**主仓库和 Release 有什么区别？**
 
-重新打开 DSH 后检查插件状态和按钮。desktop profile 由 Electron 管理，普通 `dsh --profile desktop ...` CLI 在该版本中拒绝接管；不要据此修改宿主保护。pnpm 对缺失的 peer 发出警告时，须确认宿主 bundle resolver 提供下方所列版本，不能将警告视为已经完成运行验证。
+主仓库保存当前源码、文档、测试与业务样例；Release 发布特定版本的可安装包和哈希。主仓库新增文档或测试不会自动改写已经上传的 TGZ。安装用 Release TGZ，开发用源码；最新仓库验证状态见 [测试指南](docs/testing.md)。
 
-## 配置
+## 参与与支持
 
-bundle 已提供默认 patch。需要覆盖时，在用户 profile patch 中按相同 `id` 更新，例如：
+[贡献指南](CONTRIBUTING.md) 说明开发与验证约定；问题可使用 [Bug 模板](https://github.com/Kayou-31/dsh-ultra-mode/issues/new?template=bug_report.yml) 或 [功能建议模板](https://github.com/Kayou-31/dsh-ultra-mode/issues/new?template=feature_request.yml)。提交前请移除密钥、个人路径、会话身份与原始思维链；敏感问题见 [安全报告约定](SECURITY.md)。
 
-```yaml
-- id: ultra-mode
-  config:
-    concurrency: 3
-    timeoutMs: 900000
-    reportChars: 20000
-    jevEnabled: false
-```
-
-| 配置 | 默认值 | 含义 |
-| --- | --- | --- |
-| `concurrency` | `3` | `1` 表示主 Agent 辅助；`2`、`3`、`4`、`5` 表示相应并发 worker 数，不含 decision |
-| `toolName` | `ultra_task` | 手动入口工具名称 |
-| `timeoutMs` | `900000` | 一次运行截止时间，毫秒 |
-| `reportChars` | `20000` | 传入 decision 的每路报告字符上限 |
-| `coordinationIntervalMs` | `1000` | 运行中决策轮的最短启动间隔；仅新进展触发，无空轮询 |
-| `coordinationMaxRounds` | `-1` | `-1` 不限。并发模式的正数限制逻辑协调轮数，`0` 关闭运行中协调但保留规划与最终决策；辅助模式的正数限制 `decision.run` 调用预算（格式修复也消耗一次），`0` 仅允许一次初始检查、不会修复 |
-| `maxSessions` | `64` | 内存中的会话设置 LRU 上限；不淘汰运行中的状态 |
-| `researchTools` | 读取、搜索及子代理工具 | 研究路线和后代的工具 allowlist |
-| `jevEnabled` | `false` | 开启并发模式的额外 Jev 最终判断；主 Agent 辅助模式不调用 Jev |
-| `jevKeyEnv` | `TYPESAFE_API_KEY` | 仅由 Host 环境读取的密钥变量名 |
-| `jevModel` | `jev-latest` | TypeSafe Jev 模型名 |
-| `jevBaseUrl` | `https://api.typesafe.ai` | Jev API 服务地址 |
-| `jevTimeoutMs` | `15000` | Jev 请求截止时间，100–120000 毫秒 |
-
-按钮与命令共用现有 `enabled` 和 `concurrency` 状态，不增加 `mode` 字段：`concurrency=1` 为辅助，`2..5` 为并发，`enabled=false` 为关闭。`/ultra off` 保留当前选项，`/ultra on` 恢复它。开关和选项只驻留 Host 内存，重启后复位。内部审计日志仍遵循 DSH 的持久化行为；“状态不持久化”不表示任务文本不会写入宿主日志。
-
-辅助的有限预算约束 `decision.run` 调用数；一个 run 内仍可能有多次模型请求或工具步骤，不是底层 provider 请求数上限。辅助的协调摘要 `rounds` 统计逻辑检查轮数，单轮格式修复不会再加一轮，因此它可能小于实际 run 调用数。上限为 1 时只做初始 run，没有格式修复。
-
-## 可选 Jev
-
-适配的是 [TypeSafe 的 Jev API](https://api.typesafe.ai/redoc)，调用 `/v1/systemone`，比较并发模式的各路报告、返回路线选择和证据充分性概率。它属于 decision 的辅助判断，不能替代 DSH 的工具执行循环，也不增加一条执行路线。主 Agent 辅助模式不调用 Jev。
-
-开启 `jevEnabled` 并给启动 DSH 的进程提供 `TYPESAFE_API_KEY`。开启后，任务及有效分支报告的受限摘录会发送到配置的 Jev 服务（任务最多 4000 字符，每路最多 8000 字符，截断会标记）。密钥不进入按钮 RPC、日志结果或分支正文。缺密钥、超时、HTTP 错误或无效响应会明确降级为内置的 DSH Max decision。运行中跨路协调由 DSH decision 实现，Jev 只用于最终报告的可选辅助判断。
-
-这不是 npm 发布，也没有捆绑 Jev 模型权重。本次未提供 Jev 实际账户密钥，验证使用离线官方协议 fixture，没有真实 Jev 服务调用证据。
-
-## 失败和清理
-
-- 并发模式至少需要 2 条非空、完成的报告才会进入最终 decision；缺少报告会明确显示。报告计数不等同于任务成功数，返回的拒绝或失败说明须由 decision 如实保留。
-- 并发模式 decision 失败只保留分支证据，标记尚未完成交付。辅助模式的建议失败不将主 Agent 的任务改为已交付，也不替它执行或重开任务。
-- 同一会话不重叠启动独立 Ultra 任务。并发模式避免两个最终实施者同时写入；辅助模式保留主 Agent 的正常执行职责。
-- 并发模式的用户取消、超时和插件卸载会取消并等待实际内部路线及其子代理退出；既有并发卸载与 drain 具有历史离线宿主测试。辅助模式清理自己的 decision，不由辅助额外取消或唤醒主 Agent；同 turn 反馈与结束已有真实模型证据，未消费反馈清理和有限预算的边界仍主要由独立实际 SDK 离线场景验证。
-- 路线清理不会删除 DSH 的持久化审计日志。卸载本插件后，保留的内部日志可能重新出现在原生列表中。
-
-## 构建与验证
-
-需要 Node.js 22.13 或更新版本。发布包自带编译产物；从源码构建：
-
-```sh
-npm ci --ignore-scripts --legacy-peer-deps
-npm run build
-npm run typecheck
-npm test
-```
-
-`--legacy-peer-deps` 用于开发构建；DSH 的可选客户端 peer 由宿主提供。既有测试覆盖并行、运行中改向、取消、部分失败、自动入口、状态隔离、按钮异步竞态、卸载和 Jev 协议；实际 SDK 的工具限制、解除恢复和原生子代理身份观察另有集成检查。0.3.2 新模式的检查与未验证边界见 [0.3.2 验证记录](docs/verification-0.3.2.md)。
-
-实际 DSH 0.2.0-rc.2 的编译后服务另做了 9 组路线场景和 1 组热卸载 smoke：3/4/5 独立循环、每路真实普通子代理、Max、preset、native/PTC/both、审批与人机问题、只读边界、同轮重复执行拦截、取消/卸载零活跃循环残留。**模型响应和写工具在该 smoke 中是脚本化 fixture**；这不能代替真实模型调用、长期运行或真实桌面窗口验收。详见 [验证记录](docs/verification-0.2.0.md)。
-
-真实模型方面，用户在实际 DSH 窗口运行了 0.2.0 的 3/4/5 路测试，三组均核对到 N 个独立 Max loop 和每路普通子代理。0.3.0 五路算术又核对到 5 个完成的普通子代理，结果 14/30/55/91/140 全部正确。修复版 0.3.0 的长任务中，5 条独立 Max 路线共调用 6 个真实普通子代理且全部完成；同一个 decision 完成规划、21 次协调、最终交付共 23 轮。17 条方向调整均有原生队列消费、持久消息准入与同一 worker turn 后续模型步骤证据；另外独立核对了具体的跨路发现传递、源码复核和停止越界读取行为。这证明运行中改向机制，不代表 17 条判断全部正确。
-
-这轮也记录了两个边界：模型出现 repo 外只读尝试，未完全遵守该验收任务的路径范围；两名后台子代理晚于父路线首份报告结束，原报告不会自动回填其较晚结果。没有执行写入、命令或联网工具。原始网络请求正文未保留，不能称为抓包验证。0.3.1 的未发布历史仅补充协调提示词的 assessment 和完整 JSON 长度上限；真实长任务运行在 0.3.0，版本证据及未验证项保留在 [0.3.1 历史验证记录](docs/verification-0.3.1.md)。0.2.0 证据保留在 [0.2.0 真实模型记录](docs/real-model-0.2.0.md)。
-
-0.3.2 候选包的真实两路任务观察到 2 条独立 Max worker、1 条 Max decision、普通子代理结果 14/30、9 次协调与 6 条持久准入的方向，但最终审批超时，整体交付失败。真实辅助任务中主 Agent 仅 1 个 turn，普通子代理算出 140，主 Agent 实际写入并交付；同一个只读 Max 辅助完成 6 轮，全部协议解析失败，反馈入队和准入均为 0，另有任务范围违约。详细公开证据见 [真实候选失败摘要](docs/real-model-0.3.2-candidate-summary.json)。
-
-审批与辅助修复包（SHA256 前缀 `a7c78e0a`）的真实复验中，辅助同一只读 Max decision 完成 7 轮有效 JSON，7 条建议全部在原主 turn 消费与持久准入，主 Agent 仍只有 1 个 turn，真实普通 child 算出 140，主 Agent 实际写入并读回 9 行记录。第一条建议的数值/标记核对有明确采纳与行为证据；第二条建议的写入/读回要求有行为支持，但同名文件检查发生在它准入前。记录只选写了两条建议；不将 7 次准入称为 7 次正确采纳。七条建议为 97～182 字符，未满足该验收任务要求的 80 字上限，保留这一严格格式偏差。
-
-该历史包的两路复验完成了一次 1.234 秒的审批、实际单文件写入、读回和主会话交付，但只有第一路真实 child 得到 14，第二路没有 child。非法规划输出被旧通用降级分配成“审查角色”，导致用户每路职责未完成，故该阶段整体失败；最终正确数值不能代替真实 child。另有决策递归搜索项目文件名的任务偏差。该历史结果保留在 [修复阶段真实模型摘要](docs/real-model-0.3.2-recheck-summary.json)，不会因后续通过而改写。
-
-最新实测包（SHA256 前缀 `701fbd1b`）完成了两路核心验收。两条 depth-0 Max worker 各恰好一次前台普通 subagent 调用，对应 depth-1 Max child 均完成、0 工具调用，结果及标记为 14/30，并与父路线工具返回逐字一致；父路线分别逐项和闭式复算正确。两路活跃区间重叠 9.377 秒、主任务总计 50.314 秒，属于 SDK 事件时序，不能当作精确 HTTP 时序。
-
-同一 decision 完成 1 次规划、3 次协调、1 次最终实施共 5 个 turn。初始严格规划有效，真实运行没有触发格式 repair；3 次协调全部返回空方向，这个短任务不证明新的改向采纳。一次正常 allowed-once 审批等待 11.057 秒，同目标同内容的写入从正常权限拒绝后重试成功，10 行记录、工具读回和实际文件逐字节一致；主会话交付最终标记，没有重复工具。存在性检查还做了 outputs 的非递归通配列表，未限定精确文件名，保留这一任务偏差；没有递归 repo 搜索、源码读取、命令或联网。详见 [最终真实验收摘要](docs/real-model-0.3.2-final-summary.json)。
-
-当前构建与 host/client 严格类型检查通过，6 个目标测试文件 **97/97** 通过，辅助为 15/15。实际编译 SDK 离线规划场景另验证了格式 repair、每路原生 child、改向准入与最终工具恢复；格式 repair 的触发证据仍是脚本 fixture，不能冒称本次真实运行触发过它。旧 SDK 阶段与退出失败单独保留。正式交付收尾只更新文档；最终包会核对编译文件与已实测包一致，不将新 TGZ 的整包 hash 写成已经真实模型实测。当前自动化工具阻止 DSH 原生应用及现有 Web 界面访问，未绕过；用户手动运行的日志核验、本机构建和 fixture 检查分别记录。GitHub CI、Release 创建与上传状态待实际发布操作确认。
-
-宿主 peer：Cordis `~4.0.4`、Schemastery `~3.18.4`、DSH agents/tools/llm/session/scope `0.2.0-rc.2`；Web 客户端依赖同版本 UI renderer、connection、locale、session-controller，以及 React 18/19。未宣称兼容旧 0.1.x API。
-
-## 消耗
-
-并发模式的 N + 1 指活跃的独立路线数量，不代表只发 N + 1 个 API 请求。decision 至少有规划、收敛两轮，worker 可以多步用工具和子代理，主会话还有呈现请求；报告与上下文也会重复发送。辅助模式保留主 Agent 的请求，并额外发出独立 Max 辅助请求；反复建议会增加请求与上下文消耗。实际 Token、时间和配额消耗随任务变化，按钮没有额度估算。
-
-开头的“每多一路约增加 125%”仅供粗略预算，来源为用户提供的参考，不是本插件的计量结果或固定计费规则；不能据此推算确定费用。
-
-## 许可
-
-BSD-3-Clause。
+本项目采用 [BSD-3-Clause](LICENSE) 许可。

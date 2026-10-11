@@ -1,0 +1,1086 @@
+{
+  "schemaVersion": 1,
+  "inputCounts": {
+    "orders": 24,
+    "payments": 50,
+    "refunds": 22
+  },
+  "report": {
+    "schemaVersion": 1,
+    "totals": {
+      "paymentCents": 94470,
+      "refundCents": 8154,
+      "netCents": 86316,
+      "keptEvents": 51,
+      "excludedRecords": 21
+    },
+    "daily": [
+      {
+        "date": "2026-04-01",
+        "paymentCents": 64770,
+        "refundCents": 2046,
+        "netCents": 62724,
+        "eventCount": 22
+      },
+      {
+        "date": "2026-04-02",
+        "paymentCents": 21042,
+        "refundCents": 2918,
+        "netCents": 18124,
+        "eventCount": 12
+      },
+      {
+        "date": "2026-04-03",
+        "paymentCents": 8658,
+        "refundCents": 3190,
+        "netCents": 5468,
+        "eventCount": 17
+      }
+    ],
+    "orders": [
+      {
+        "orderId": "0001",
+        "customerId": "C01",
+        "paymentCents": 2111,
+        "refundCents": 493,
+        "netCents": 1618,
+        "eventCount": 4
+      },
+      {
+        "orderId": "0002",
+        "customerId": "C02",
+        "paymentCents": 2803,
+        "refundCents": 0,
+        "netCents": 2803,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0003",
+        "customerId": "C03",
+        "paymentCents": 3495,
+        "refundCents": 186,
+        "netCents": 3309,
+        "eventCount": 3
+      },
+      {
+        "orderId": "0004",
+        "customerId": "C04",
+        "paymentCents": 2411,
+        "refundCents": 0,
+        "netCents": 2411,
+        "eventCount": 1
+      },
+      {
+        "orderId": "0005",
+        "customerId": "C05",
+        "paymentCents": 2548,
+        "refundCents": 279,
+        "netCents": 2269,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0006",
+        "customerId": "C06",
+        "paymentCents": 2907,
+        "refundCents": 0,
+        "netCents": 2907,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0007",
+        "customerId": "C01",
+        "paymentCents": 3599,
+        "refundCents": 572,
+        "netCents": 3027,
+        "eventCount": 4
+      },
+      {
+        "orderId": "0008",
+        "customerId": "C02",
+        "paymentCents": 4291,
+        "refundCents": 0,
+        "netCents": 4291,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0009",
+        "customerId": "C03",
+        "paymentCents": 3096,
+        "refundCents": 465,
+        "netCents": 2631,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0010",
+        "customerId": "C04",
+        "paymentCents": 3233,
+        "refundCents": 0,
+        "netCents": 3233,
+        "eventCount": 1
+      },
+      {
+        "orderId": "0011",
+        "customerId": "C05",
+        "paymentCents": 3703,
+        "refundCents": 558,
+        "netCents": 3145,
+        "eventCount": 3
+      },
+      {
+        "orderId": "0012",
+        "customerId": "C06",
+        "paymentCents": 4395,
+        "refundCents": 0,
+        "netCents": 4395,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0013",
+        "customerId": "C01",
+        "paymentCents": 3644,
+        "refundCents": 651,
+        "netCents": 2993,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0014",
+        "customerId": "C02",
+        "paymentCents": 3781,
+        "refundCents": 0,
+        "netCents": 3781,
+        "eventCount": 1
+      },
+      {
+        "orderId": "0015",
+        "customerId": "C03",
+        "paymentCents": 3918,
+        "refundCents": 744,
+        "netCents": 3174,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0016",
+        "customerId": "C04",
+        "paymentCents": 4499,
+        "refundCents": 0,
+        "netCents": 4499,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0017",
+        "customerId": "C05",
+        "paymentCents": 5191,
+        "refundCents": 837,
+        "netCents": 4354,
+        "eventCount": 3
+      },
+      {
+        "orderId": "0018",
+        "customerId": "C06",
+        "paymentCents": 4329,
+        "refundCents": 0,
+        "netCents": 4329,
+        "eventCount": 1
+      },
+      {
+        "orderId": "0019",
+        "customerId": "C01",
+        "paymentCents": 4466,
+        "refundCents": 930,
+        "netCents": 3536,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0020",
+        "customerId": "C02",
+        "paymentCents": 4603,
+        "refundCents": 0,
+        "netCents": 4603,
+        "eventCount": 1
+      },
+      {
+        "orderId": "0021",
+        "customerId": "C03",
+        "paymentCents": 5295,
+        "refundCents": 1023,
+        "netCents": 4272,
+        "eventCount": 3
+      },
+      {
+        "orderId": "0022",
+        "customerId": "C04",
+        "paymentCents": 5987,
+        "refundCents": 0,
+        "netCents": 5987,
+        "eventCount": 2
+      },
+      {
+        "orderId": "0023",
+        "customerId": "C05",
+        "paymentCents": 5014,
+        "refundCents": 1116,
+        "netCents": 3898,
+        "eventCount": 2
+      },
+      {
+        "orderId": "7",
+        "customerId": "C06",
+        "paymentCents": 5151,
+        "refundCents": 300,
+        "netCents": 4851,
+        "eventCount": 2
+      }
+    ],
+    "anomalies": [
+      {
+        "recordId": "payments-a.csv#23",
+        "code": "duplicate_conflict",
+        "eventId": "p-conflict",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-a.csv#24",
+        "code": "orphan_order",
+        "eventId": "p-orphan",
+        "orderId": "9999"
+      },
+      {
+        "recordId": "payments-a.csv#25",
+        "code": "invalid_amount",
+        "eventId": "p-negative",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-a.csv#26",
+        "code": "non_settled",
+        "eventId": "p-pending",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-a.csv#27",
+        "code": "invalid_timestamp",
+        "eventId": "p-bad-date",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#11",
+        "code": "duplicate",
+        "eventId": "p020",
+        "orderId": "0020"
+      },
+      {
+        "recordId": "payments-b.csv#16",
+        "code": "duplicate",
+        "eventId": "p030",
+        "orderId": "0002"
+      },
+      {
+        "recordId": "payments-b.csv#20",
+        "code": "duplicate",
+        "eventId": "p003",
+        "orderId": "0003"
+      },
+      {
+        "recordId": "payments-b.csv#21",
+        "code": "duplicate_conflict",
+        "eventId": "p-conflict",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#22",
+        "code": "invalid_amount",
+        "eventId": "p-fraction",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#23",
+        "code": "invalid_currency",
+        "eventId": "p-currency",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#24",
+        "code": "invalid_timestamp",
+        "eventId": "p-no-zone",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#25",
+        "code": "invalid_amount",
+        "eventId": "p-zero",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "payments-b.csv#8",
+        "code": "duplicate",
+        "eventId": "p014",
+        "orderId": "0014"
+      },
+      {
+        "recordId": "refunds.json#15",
+        "code": "duplicate",
+        "eventId": "r010",
+        "orderId": "0019"
+      },
+      {
+        "recordId": "refunds.json#19",
+        "code": "orphan_order",
+        "eventId": "r-orphan",
+        "orderId": "9999"
+      },
+      {
+        "recordId": "refunds.json#2",
+        "code": "duplicate",
+        "eventId": "r002",
+        "orderId": "0003"
+      },
+      {
+        "recordId": "refunds.json#20",
+        "code": "invalid_amount",
+        "eventId": "r-amount",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "refunds.json#21",
+        "code": "non_settled",
+        "eventId": "r-pending",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "refunds.json#22",
+        "code": "invalid_representation",
+        "eventId": "r-representation",
+        "orderId": "0001"
+      },
+      {
+        "recordId": "refunds.json#7",
+        "code": "duplicate",
+        "eventId": "r007",
+        "orderId": "0013"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "eventKey": "payment:p001",
+      "eventId": "p001",
+      "kind": "payment",
+      "orderId": "0001",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2000,
+      "sourceRecordIds": [
+        "payments-a.csv#2"
+      ]
+    },
+    {
+      "eventKey": "payment:p002",
+      "eventId": "p002",
+      "kind": "payment",
+      "orderId": "0002",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 2137,
+      "sourceRecordIds": [
+        "payments-b.csv#2"
+      ]
+    },
+    {
+      "eventKey": "payment:p003",
+      "eventId": "p003",
+      "kind": "payment",
+      "orderId": "0003",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:02:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2274,
+      "sourceRecordIds": [
+        "payments-a.csv#3",
+        "payments-b.csv#20"
+      ]
+    },
+    {
+      "eventKey": "payment:p004",
+      "eventId": "p004",
+      "kind": "payment",
+      "orderId": "0004",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:03:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2411,
+      "sourceRecordIds": [
+        "payments-b.csv#3"
+      ]
+    },
+    {
+      "eventKey": "payment:p005",
+      "eventId": "p005",
+      "kind": "payment",
+      "orderId": "0005",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2548,
+      "sourceRecordIds": [
+        "payments-a.csv#4"
+      ]
+    },
+    {
+      "eventKey": "payment:p006",
+      "eventId": "p006",
+      "kind": "payment",
+      "orderId": "0006",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 2685,
+      "sourceRecordIds": [
+        "payments-b.csv#4"
+      ]
+    },
+    {
+      "eventKey": "payment:p007",
+      "eventId": "p007",
+      "kind": "payment",
+      "orderId": "0007",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:06:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2822,
+      "sourceRecordIds": [
+        "payments-a.csv#5"
+      ]
+    },
+    {
+      "eventKey": "payment:p008",
+      "eventId": "p008",
+      "kind": "payment",
+      "orderId": "0008",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:07:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 2959,
+      "sourceRecordIds": [
+        "payments-b.csv#5"
+      ]
+    },
+    {
+      "eventKey": "payment:p009",
+      "eventId": "p009",
+      "kind": "payment",
+      "orderId": "0009",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 3096,
+      "sourceRecordIds": [
+        "payments-a.csv#6"
+      ]
+    },
+    {
+      "eventKey": "payment:p010",
+      "eventId": "p010",
+      "kind": "payment",
+      "orderId": "0010",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 3233,
+      "sourceRecordIds": [
+        "payments-b.csv#6"
+      ]
+    },
+    {
+      "eventKey": "payment:p011",
+      "eventId": "p011",
+      "kind": "payment",
+      "orderId": "0011",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:10:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 3370,
+      "sourceRecordIds": [
+        "payments-a.csv#7"
+      ]
+    },
+    {
+      "eventKey": "payment:p012",
+      "eventId": "p012",
+      "kind": "payment",
+      "orderId": "0012",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:11:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 3507,
+      "sourceRecordIds": [
+        "payments-b.csv#7"
+      ]
+    },
+    {
+      "eventKey": "payment:p013",
+      "eventId": "p013",
+      "kind": "payment",
+      "orderId": "0013",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 3644,
+      "sourceRecordIds": [
+        "payments-a.csv#8"
+      ]
+    },
+    {
+      "eventKey": "payment:p014",
+      "eventId": "p014",
+      "kind": "payment",
+      "orderId": "0014",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 3781,
+      "sourceRecordIds": [
+        "payments-a.csv#20",
+        "payments-b.csv#8"
+      ]
+    },
+    {
+      "eventKey": "payment:p015",
+      "eventId": "p015",
+      "kind": "payment",
+      "orderId": "0015",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:14:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 3918,
+      "sourceRecordIds": [
+        "payments-a.csv#9"
+      ]
+    },
+    {
+      "eventKey": "payment:p016",
+      "eventId": "p016",
+      "kind": "payment",
+      "orderId": "0016",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 4055,
+      "sourceRecordIds": [
+        "payments-b.csv#9"
+      ]
+    },
+    {
+      "eventKey": "payment:p017",
+      "eventId": "p017",
+      "kind": "payment",
+      "orderId": "0017",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 4192,
+      "sourceRecordIds": [
+        "payments-a.csv#10"
+      ]
+    },
+    {
+      "eventKey": "payment:p018",
+      "eventId": "p018",
+      "kind": "payment",
+      "orderId": "0018",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 4329,
+      "sourceRecordIds": [
+        "payments-b.csv#10"
+      ]
+    },
+    {
+      "eventKey": "payment:p019",
+      "eventId": "p019",
+      "kind": "payment",
+      "orderId": "0019",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:18:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 4466,
+      "sourceRecordIds": [
+        "payments-a.csv#11"
+      ]
+    },
+    {
+      "eventKey": "payment:p020",
+      "eventId": "p020",
+      "kind": "payment",
+      "orderId": "0020",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:19:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 4603,
+      "sourceRecordIds": [
+        "payments-a.csv#21",
+        "payments-b.csv#11"
+      ]
+    },
+    {
+      "eventKey": "payment:p021",
+      "eventId": "p021",
+      "kind": "payment",
+      "orderId": "0021",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:15:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 4740,
+      "sourceRecordIds": [
+        "payments-a.csv#12"
+      ]
+    },
+    {
+      "eventKey": "payment:p022",
+      "eventId": "p022",
+      "kind": "payment",
+      "orderId": "0022",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:45:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": 4877,
+      "sourceRecordIds": [
+        "payments-b.csv#12"
+      ]
+    },
+    {
+      "eventKey": "payment:p023",
+      "eventId": "p023",
+      "kind": "payment",
+      "orderId": "0023",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:22:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 5014,
+      "sourceRecordIds": [
+        "payments-a.csv#13"
+      ]
+    },
+    {
+      "eventKey": "payment:p024",
+      "eventId": "p024",
+      "kind": "payment",
+      "orderId": "7",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T15:23:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": 5151,
+      "sourceRecordIds": [
+        "payments-b.csv#13"
+      ]
+    },
+    {
+      "eventKey": "payment:p025",
+      "eventId": "p025",
+      "kind": "payment",
+      "orderId": "0001",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:00:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 111,
+      "sourceRecordIds": [
+        "payments-a.csv#14"
+      ]
+    },
+    {
+      "eventKey": "payment:p026",
+      "eventId": "p026",
+      "kind": "payment",
+      "orderId": "0006",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:01:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 222,
+      "sourceRecordIds": [
+        "payments-b.csv#14"
+      ]
+    },
+    {
+      "eventKey": "payment:p027",
+      "eventId": "p027",
+      "kind": "payment",
+      "orderId": "0011",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:02:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 333,
+      "sourceRecordIds": [
+        "payments-a.csv#15"
+      ]
+    },
+    {
+      "eventKey": "payment:p028",
+      "eventId": "p028",
+      "kind": "payment",
+      "orderId": "0016",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:03:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 444,
+      "sourceRecordIds": [
+        "payments-b.csv#15"
+      ]
+    },
+    {
+      "eventKey": "payment:p029",
+      "eventId": "p029",
+      "kind": "payment",
+      "orderId": "0021",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:04:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 555,
+      "sourceRecordIds": [
+        "payments-a.csv#16"
+      ]
+    },
+    {
+      "eventKey": "payment:p030",
+      "eventId": "p030",
+      "kind": "payment",
+      "orderId": "0002",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:05:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 666,
+      "sourceRecordIds": [
+        "payments-a.csv#22",
+        "payments-b.csv#16"
+      ]
+    },
+    {
+      "eventKey": "payment:p031",
+      "eventId": "p031",
+      "kind": "payment",
+      "orderId": "0007",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:06:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 777,
+      "sourceRecordIds": [
+        "payments-a.csv#17"
+      ]
+    },
+    {
+      "eventKey": "payment:p032",
+      "eventId": "p032",
+      "kind": "payment",
+      "orderId": "0012",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:07:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 888,
+      "sourceRecordIds": [
+        "payments-b.csv#17"
+      ]
+    },
+    {
+      "eventKey": "payment:p033",
+      "eventId": "p033",
+      "kind": "payment",
+      "orderId": "0017",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:08:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 999,
+      "sourceRecordIds": [
+        "payments-a.csv#18"
+      ]
+    },
+    {
+      "eventKey": "payment:p034",
+      "eventId": "p034",
+      "kind": "payment",
+      "orderId": "0022",
+      "customerId": "C04",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:09:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 1110,
+      "sourceRecordIds": [
+        "payments-b.csv#18"
+      ]
+    },
+    {
+      "eventKey": "payment:p035",
+      "eventId": "p035",
+      "kind": "payment",
+      "orderId": "0003",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:10:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 1221,
+      "sourceRecordIds": [
+        "payments-a.csv#19"
+      ]
+    },
+    {
+      "eventKey": "payment:p036",
+      "eventId": "p036",
+      "kind": "payment",
+      "orderId": "0008",
+      "customerId": "C02",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T09:11:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": 1332,
+      "sourceRecordIds": [
+        "payments-b.csv#19"
+      ]
+    },
+    {
+      "eventKey": "refund:r001",
+      "eventId": "r001",
+      "kind": "refund",
+      "orderId": "0001",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:10:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": -93,
+      "sourceRecordIds": [
+        "refunds.json#1"
+      ]
+    },
+    {
+      "eventKey": "refund:r002",
+      "eventId": "r002",
+      "kind": "refund",
+      "orderId": "0003",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:10:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -186,
+      "sourceRecordIds": [
+        "refunds.json#13",
+        "refunds.json#2"
+      ]
+    },
+    {
+      "eventKey": "refund:r003",
+      "eventId": "r003",
+      "kind": "refund",
+      "orderId": "0005",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T12:02:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": -279,
+      "sourceRecordIds": [
+        "refunds.json#3"
+      ]
+    },
+    {
+      "eventKey": "refund:r004",
+      "eventId": "r004",
+      "kind": "refund",
+      "orderId": "0007",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:10:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": -372,
+      "sourceRecordIds": [
+        "refunds.json#4"
+      ]
+    },
+    {
+      "eventKey": "refund:r005",
+      "eventId": "r005",
+      "kind": "refund",
+      "orderId": "0009",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:10:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -465,
+      "sourceRecordIds": [
+        "refunds.json#5"
+      ]
+    },
+    {
+      "eventKey": "refund:r006",
+      "eventId": "r006",
+      "kind": "refund",
+      "orderId": "0011",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T12:05:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": -558,
+      "sourceRecordIds": [
+        "refunds.json#6"
+      ]
+    },
+    {
+      "eventKey": "refund:r007",
+      "eventId": "r007",
+      "kind": "refund",
+      "orderId": "0013",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:10:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": -651,
+      "sourceRecordIds": [
+        "refunds.json#14",
+        "refunds.json#7"
+      ]
+    },
+    {
+      "eventKey": "refund:r008",
+      "eventId": "r008",
+      "kind": "refund",
+      "orderId": "0015",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:10:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -744,
+      "sourceRecordIds": [
+        "refunds.json#8"
+      ]
+    },
+    {
+      "eventKey": "refund:r009",
+      "eventId": "r009",
+      "kind": "refund",
+      "orderId": "0017",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T12:08:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": -837,
+      "sourceRecordIds": [
+        "refunds.json#9"
+      ]
+    },
+    {
+      "eventKey": "refund:r010",
+      "eventId": "r010",
+      "kind": "refund",
+      "orderId": "0019",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-01T16:10:00.000Z",
+      "date": "2026-04-01",
+      "deltaCents": -930,
+      "sourceRecordIds": [
+        "refunds.json#10",
+        "refunds.json#15"
+      ]
+    },
+    {
+      "eventKey": "refund:r011",
+      "eventId": "r011",
+      "kind": "refund",
+      "orderId": "0021",
+      "customerId": "C03",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T04:10:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -1023,
+      "sourceRecordIds": [
+        "refunds.json#11"
+      ]
+    },
+    {
+      "eventKey": "refund:r012",
+      "eventId": "r012",
+      "kind": "refund",
+      "orderId": "0023",
+      "customerId": "C05",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T12:11:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": -1116,
+      "sourceRecordIds": [
+        "refunds.json#12"
+      ]
+    },
+    {
+      "eventKey": "refund:r013",
+      "eventId": "r013",
+      "kind": "refund",
+      "orderId": "0007",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T20:00:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -200,
+      "sourceRecordIds": [
+        "refunds.json#16"
+      ]
+    },
+    {
+      "eventKey": "refund:r014",
+      "eventId": "r014",
+      "kind": "refund",
+      "orderId": "7",
+      "customerId": "C06",
+      "currency": "USD",
+      "occurredAt": "2026-04-02T16:30:00.000Z",
+      "date": "2026-04-02",
+      "deltaCents": -300,
+      "sourceRecordIds": [
+        "refunds.json#17"
+      ]
+    },
+    {
+      "eventKey": "refund:r015",
+      "eventId": "r015",
+      "kind": "refund",
+      "orderId": "0001",
+      "customerId": "C01",
+      "currency": "USD",
+      "occurredAt": "2026-04-03T11:00:00.000Z",
+      "date": "2026-04-03",
+      "deltaCents": -400,
+      "sourceRecordIds": [
+        "refunds.json#18"
+      ]
+    }
+  ]
+}

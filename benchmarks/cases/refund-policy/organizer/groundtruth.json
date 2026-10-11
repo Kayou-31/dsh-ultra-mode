@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "policyRevision": "14-day-prorated",
+  "checks": [
+    {
+      "id": "window-day-10",
+      "category": "window-update",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-05T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 10000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "window-exact-day-14",
+      "category": "window-boundary",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-01T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 10000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "window-14-days-plus-1ms",
+      "category": "window-boundary",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-01T11:59:59.999Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "expected": {
+        "eligible": false,
+        "refundCents": 0,
+        "reason": "consumer-expired"
+      },
+      "critical": true
+    },
+    {
+      "id": "default-fixed-clock",
+      "category": "fixed-clock",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-05T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 10000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "equivalent-zone-boundary",
+      "category": "timezone",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-01T20:00:00+08:00",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 10000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "consumption-three-of-ten",
+      "category": "proration",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 3
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 7000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "money-fraction-two-thirds",
+      "category": "rounding",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 5,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 3,
+        "consumedUnits": 1
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 3,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "money-exact-half-up",
+      "category": "rounding",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 1,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 2,
+        "consumedUnits": 1
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 1,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "fully-consumed",
+      "category": "proration",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 10
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 0,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "large-money-boundary",
+      "category": "rounding",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 1000000000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 1000000,
+        "consumedUnits": 999999
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 1000,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "zero-paid",
+      "category": "money-boundary",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 0,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 5
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 0,
+        "reason": "consumer-window"
+      },
+      "critical": true
+    },
+    {
+      "id": "enterprise-aged-consumed-contract",
+      "category": "enterprise-regression",
+      "input": {
+        "customerType": "enterprise",
+        "paidCents": 10000,
+        "purchasedAt": "2025-10-01T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 10,
+        "contractRefundCents": 3611
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 3611,
+        "reason": "contract"
+      },
+      "critical": true
+    },
+    {
+      "id": "enterprise-zero-contract",
+      "category": "enterprise-regression",
+      "input": {
+        "customerType": "enterprise",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0,
+        "contractRefundCents": 0
+      },
+      "expected": {
+        "eligible": true,
+        "refundCents": 0,
+        "reason": "contract"
+      },
+      "critical": true
+    },
+    {
+      "id": "reject-fractional-money",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 1.25,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-negative-money",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": -1,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-overconsumption",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 11
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-zero-total",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 0,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-impossible-date",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-02-30T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-zone-missing",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-request-before-purchase",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "consumer",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-16T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0
+      },
+      "throws": true,
+      "critical": true
+    },
+    {
+      "id": "reject-enterprise-contract-overpaid",
+      "category": "invalid-input",
+      "input": {
+        "customerType": "enterprise",
+        "paidCents": 10000,
+        "purchasedAt": "2026-01-10T12:00:00Z",
+        "requestedAt": "2026-01-15T12:00:00Z",
+        "totalUnits": 10,
+        "consumedUnits": 0,
+        "contractRefundCents": 10001
+      },
+      "throws": true,
+      "critical": true
+    }
+  ]
+}

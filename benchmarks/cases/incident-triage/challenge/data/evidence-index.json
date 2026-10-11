@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "evidence": [
+    {"id":"gateway-requests","file":"gateway-log.jsonl","description":"Fixed four-request incident replay, with per-attempt statuses"},
+    {"id":"tenant-probes","file":"tenant-probes.json","description":"Single-tenant controls and mixed-tenant comparison"},
+    {"id":"pool-metrics","file":"database-metrics.csv","description":"Session reads, pool occupancy and wait queue"},
+    {"id":"deployment","file":"deployments.json","description":"Recent pool configuration change"}
+  ]
+}

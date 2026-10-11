@@ -1,0 +1,68 @@
+name: Bug 反馈
+description: 提交可复现的加载、调度、界面或结果问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请提供最短复现，区分 mock、实际 SDK 脚本、真实模型与 UI 证据。
+        请勿上传密钥、个人绝对路径、原始会话 ID、完整 journal／请求正文或原始思维链。敏感问题请看 SECURITY.md。
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境与版本
+      description: 插件版本／来源、DSH Desktop 和 Host 版本、系统；模型／provider 名称可提供，禁止填写密钥。
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 发生问题时的模式
+      options:
+        - 关闭／安装加载
+        - Agent + 决策
+        - 2 路
+        - 3 路
+        - 4 路
+        - 5 路
+        - 手动 ultra_task
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 最短复现
+      description: 提供步骤和必要的脱敏配置；说明是否重启、是否审批、是否取消。可用合成任务代替私人正文。
+    validations:
+      required: true
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: 预期与实际结果
+      description: 描述预期、实际错误与影响；若是子代理或改向问题，分别注明创建、完成、入队、准入及采纳证据。
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence_type
+    attributes:
+      label: 证据来源
+      multiple: true
+      options:
+        - 源码／静态检查
+        - mock／离线 fixture
+        - 实际 SDK 脚本 adapter
+        - 真实模型／provider
+        - 实际 DSH 界面
+        - 尚未确定
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 最小脱敏证据
+      description: 错误文本、命令退出状态或截图即可；缺 SDK 跳过与退出失败须保留，禁止完整私人日志。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 公开材料检查
+      options:
+        - label: 已移除密钥、个人绝对路径、原始会话身份、敏感任务内容及原始思维链。
+          required: true

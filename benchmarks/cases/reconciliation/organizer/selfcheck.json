@@ -1,0 +1,244 @@
+{
+  "caseId": "reconciliation",
+  "nodeVersion": "v24.18.0",
+  "result": "passed",
+  "groundtruthSource": "Independent hand-frozen integer and UTC event blueprints",
+  "inputRecords": 96,
+  "baseline": {
+    "caseId": "reconciliation",
+    "passed": 3,
+    "total": 11,
+    "checks": [
+      {
+        "id": "artifacts",
+        "passed": true,
+        "category": "execution",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "report-schema",
+        "passed": false,
+        "category": "schema",
+        "message": "字段、类型、唯一身份或整数金额不符合 SPEC"
+      },
+      {
+        "id": "event-identities",
+        "passed": false,
+        "category": "identity",
+        "message": "经济事件数量/顺序/身份错误，或前导零订单丢失"
+      },
+      {
+        "id": "event-money",
+        "passed": false,
+        "category": "money",
+        "message": "逐事件金额不符，重复入账或退款方向错误"
+      },
+      {
+        "id": "utc-days",
+        "passed": false,
+        "category": "timezone",
+        "message": "绝对时间、UTC 日期或日净收入不符"
+      },
+      {
+        "id": "overall-totals",
+        "passed": false,
+        "category": "money",
+        "message": "支付/退款/净额或保留、排除计数不符"
+      },
+      {
+        "id": "separate-orders",
+        "passed": false,
+        "category": "identity",
+        "message": "不同订单被合并、客户维度替代订单，或订单金额错误"
+      },
+      {
+        "id": "anomaly-recall",
+        "passed": false,
+        "category": "anomalies",
+        "message": "遗漏预先冻结的重复、冲突或无效来源记录"
+      },
+      {
+        "id": "anomaly-precision",
+        "passed": true,
+        "category": "anomalies",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "source-traceability",
+        "passed": false,
+        "category": "traceability",
+        "message": "来源记录丢失、混淆或重复来源未关联至同一事件"
+      },
+      {
+        "id": "repeatable-output",
+        "passed": true,
+        "category": "determinism",
+        "message": "符合冻结的期望值"
+      }
+    ],
+    "criticalFailures": [
+      "report-schema",
+      "event-identities",
+      "event-money",
+      "utc-days",
+      "overall-totals",
+      "separate-orders",
+      "anomaly-recall",
+      "source-traceability"
+    ],
+    "accepted": false
+  },
+  "reference": {
+    "caseId": "reconciliation",
+    "passed": 11,
+    "total": 11,
+    "checks": [
+      {
+        "id": "artifacts",
+        "passed": true,
+        "category": "execution",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "report-schema",
+        "passed": true,
+        "category": "schema",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "event-identities",
+        "passed": true,
+        "category": "identity",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "event-money",
+        "passed": true,
+        "category": "money",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "utc-days",
+        "passed": true,
+        "category": "timezone",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "overall-totals",
+        "passed": true,
+        "category": "money",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "separate-orders",
+        "passed": true,
+        "category": "identity",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "anomaly-recall",
+        "passed": true,
+        "category": "anomalies",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "anomaly-precision",
+        "passed": true,
+        "category": "anomalies",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "source-traceability",
+        "passed": true,
+        "category": "traceability",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "repeatable-output",
+        "passed": true,
+        "category": "determinism",
+        "message": "符合冻结的期望值"
+      }
+    ],
+    "criticalFailures": [],
+    "accepted": true
+  },
+  "singleDefect": {
+    "defect": "UTC business day reverted to local timestamp prefix only",
+    "caseId": "reconciliation",
+    "passed": 10,
+    "total": 11,
+    "checks": [
+      {
+        "id": "artifacts",
+        "passed": true,
+        "category": "execution",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "report-schema",
+        "passed": true,
+        "category": "schema",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "event-identities",
+        "passed": true,
+        "category": "identity",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "event-money",
+        "passed": true,
+        "category": "money",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "utc-days",
+        "passed": false,
+        "category": "timezone",
+        "message": "绝对时间、UTC 日期或日净收入不符"
+      },
+      {
+        "id": "overall-totals",
+        "passed": true,
+        "category": "money",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "separate-orders",
+        "passed": true,
+        "category": "identity",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "anomaly-recall",
+        "passed": true,
+        "category": "anomalies",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "anomaly-precision",
+        "passed": true,
+        "category": "anomalies",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "source-traceability",
+        "passed": true,
+        "category": "traceability",
+        "message": "符合冻结的期望值"
+      },
+      {
+        "id": "repeatable-output",
+        "passed": true,
+        "category": "determinism",
+        "message": "符合冻结的期望值"
+      }
+    ],
+    "criticalFailures": [
+      "utc-days"
+    ],
+    "accepted": false
+  }
+}

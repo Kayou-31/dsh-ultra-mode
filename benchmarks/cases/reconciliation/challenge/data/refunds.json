@@ -1,0 +1,222 @@
+[
+  {
+    "source": "shop",
+    "eventId": "r001",
+    "orderId": "0001",
+    "currency": "USD",
+    "amount": "0.93",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r002",
+    "orderId": "0003",
+    "currency": "USD",
+    "amount": "-1.86",
+    "occurredAt": "2026-04-01T23:10:00-05:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r003",
+    "orderId": "0005",
+    "currency": "USD",
+    "amount": "2.79",
+    "occurredAt": "2026-04-03T12:02:00Z",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r004",
+    "orderId": "0007",
+    "currency": "USD",
+    "amount": "-3.72",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r005",
+    "orderId": "0009",
+    "currency": "USD",
+    "amount": "4.65",
+    "occurredAt": "2026-04-01T23:10:00-05:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r006",
+    "orderId": "0011",
+    "currency": "USD",
+    "amount": "-5.58",
+    "occurredAt": "2026-04-03T12:05:00Z",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r007",
+    "orderId": "0013",
+    "currency": "USD",
+    "amount": "6.51",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r008",
+    "orderId": "0015",
+    "currency": "USD",
+    "amount": "-7.44",
+    "occurredAt": "2026-04-01T23:10:00-05:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r009",
+    "orderId": "0017",
+    "currency": "USD",
+    "amount": "8.37",
+    "occurredAt": "2026-04-03T12:08:00Z",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r010",
+    "orderId": "0019",
+    "currency": "USD",
+    "amount": "-9.30",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r011",
+    "orderId": "0021",
+    "currency": "USD",
+    "amount": "10.23",
+    "occurredAt": "2026-04-01T23:10:00-05:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r012",
+    "orderId": "0023",
+    "currency": "USD",
+    "amount": "-11.16",
+    "occurredAt": "2026-04-03T12:11:00Z",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r002",
+    "orderId": "0003",
+    "currency": "USD",
+    "amount": "1.86",
+    "occurredAt": "2026-04-01T23:10:00-05:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r007",
+    "orderId": "0013",
+    "currency": "USD",
+    "amount": "-6.51",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r010",
+    "orderId": "0019",
+    "currency": "USD",
+    "amount": "9.30",
+    "occurredAt": "2026-04-02T00:10:00+08:00",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r013",
+    "orderId": "0007",
+    "currency": "USD",
+    "amount": "2.00",
+    "occurredAt": "2026-04-02T20:00:00Z",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "eventId": "r014",
+    "orderId": "7",
+    "currency": "USD",
+    "amount": "-3.00",
+    "occurredAt": "2026-04-03T00:30:00+08:00",
+    "status": "settled",
+    "representation": "signed"
+  },
+  {
+    "source": "shop",
+    "eventId": "r015",
+    "orderId": "0001",
+    "currency": "USD",
+    "amount": "4.00",
+    "occurredAt": "2026-04-03T11:00:00Z",
+    "status": "settled",
+    "representation": "positive"
+  },
+  {
+    "source": "shop",
+    "orderId": "9999",
+    "currency": "USD",
+    "amount": "2.00",
+    "occurredAt": "2026-04-03T11:00:00Z",
+    "status": "settled",
+    "representation": "positive",
+    "eventId": "r-orphan"
+  },
+  {
+    "source": "shop",
+    "orderId": "0001",
+    "currency": "USD",
+    "amount": "NaN",
+    "occurredAt": "2026-04-03T11:00:00Z",
+    "status": "settled",
+    "representation": "positive",
+    "eventId": "r-amount"
+  },
+  {
+    "source": "shop",
+    "orderId": "0001",
+    "currency": "USD",
+    "amount": "2.00",
+    "occurredAt": "2026-04-03T11:00:00Z",
+    "status": "pending",
+    "representation": "positive",
+    "eventId": "r-pending"
+  },
+  {
+    "source": "shop",
+    "orderId": "0001",
+    "currency": "USD",
+    "amount": "2.00",
+    "occurredAt": "2026-04-03T11:00:00Z",
+    "status": "settled",
+    "representation": "absolute",
+    "eventId": "r-representation"
+  }
+]

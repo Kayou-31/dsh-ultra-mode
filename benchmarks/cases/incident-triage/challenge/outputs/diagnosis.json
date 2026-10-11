@@ -1,0 +1,11 @@
+{
+  "schemaVersion":1,
+  "summary":"The pool deployment coincides with the incident; increase the connection pool to resolve it.",
+  "rootCause":{"code":"DATABASE_POOL","evidenceIds":["deployment"]},
+  "causalChain":["POOL_EXHAUSTION","HTTP_429","EXTRA_DB_SESSION_READS"],
+  "rejectedHypotheses":[{"code":"LIMITER_SCOPE","evidenceIds":["deployment"],"reason":"No recent limiter deployment."}],
+  "beforeReplay":{"httpStatuses":[200,200,429,429],"gatewayAttempts":8,"dbSessionReads":8},
+  "afterReplay":{"httpStatuses":[200,200,429,429],"gatewayAttempts":8,"dbSessionReads":8},
+  "fixes":["INCREASE_POOL"],
+  "limitations":["A real database was not contacted."]
+}

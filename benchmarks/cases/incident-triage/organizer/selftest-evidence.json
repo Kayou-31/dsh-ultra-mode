@@ -1,0 +1,1185 @@
+{
+  "caseId": "incident-triage",
+  "nodeVersion": "v24.18.0",
+  "result": "passed",
+  "noModelOrNetworkCalls": true,
+  "scope": "One local selftest run: frozen baseline, reference overlay, isolated limiter/retry/diagnosis reversions, capability-disable escapes and invalid candidate reporting.",
+  "sourceHashes": {
+    "grade.mjs": "a2968c5ff439941f53274b693ac88f7f5db9124bddb5df00d6c143b065f913e9",
+    "../challenge/src/limiter.mjs": "b085e6cb54bcc7c88fb0530f8ea0e26e9fcfac1c22ee41d86854a388f41082c5",
+    "../challenge/src/retry.mjs": "bd408be748e78c4b7ad849744448ba3bff02d0fcd05036e330e0b1298f02bb42",
+    "../challenge/outputs/diagnosis.json": "42ec28970ff85d972ac3bef99e03d9da55b12c709f717224d5338648e7f1ff4f",
+    "reference/src/limiter.mjs": "189f689aea45cba679e11fbb32977f9f82ea0e1240acf147fc9a1acbdf991560",
+    "reference/src/retry.mjs": "105fcab3b0ba455b2d98e417e64ef1cdf79ce52a4928dcf5dcc25194b9ceae99",
+    "reference/outputs/diagnosis.json": "b4f77b1caf975c842b7e938bdfdf13db630d7e79dd8d154674d48812f99a6345"
+  },
+  "results": [
+    {
+      "variant": "faulty-baseline",
+      "caseId": "incident-triage",
+      "passed": 6,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": false,
+          "category": "root-cause",
+          "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'DATABASE_POOL'\n- 'LIMITER_SCOPE'\n"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": false,
+          "category": "evidence",
+          "message": "Use both traffic observation and tenant controls"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'POOL_EXHAUSTION',\n-   'SHARED_BUDGET',\n    'HTTP_429',\n-   'RETRY_429',\n    'EXTRA_DB_SESSION_READS'\n  ]\n"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": false,
+          "category": "false-lead",
+          "message": "Must explicitly distinguish pool deployment from root cause"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   dbSessionReads: 8,\n+   gatewayAttempts: 8,\n-   dbSessionReads: 4,\n-   gatewayAttempts: 4,\n    httpStatuses: [\n      200,\n      200,\n+     429,\n+     429\n-     200,\n-     200\n    ]\n  }\n"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'INCREASE_POOL'\n-   'NO_RETRY_429',\n-   'TENANT_SCOPED_BUDGET'\n  ]\n"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   dbSessionReads: 8,\n+   gatewayAttempts: 8,\n-   dbSessionReads: 4,\n-   gatewayAttempts: 4,\n    httpStatuses: [\n      200,\n      200,\n+     429,\n+     429\n-     200,\n-     200\n    ]\n  }\n"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    accepted: 2,\n+   dbSessionReads: 5,\n+   gatewayAttempts: 5,\n+   rejected: 3\n-   dbSessionReads: 3,\n-   gatewayAttempts: 3,\n-   rejected: 1\n  }\n"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Expected values to be strictly equal:\n\n5 !== 1\n"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+        }
+      ],
+      "criticalFailures": [
+        "root-cause-not-coincident-deployment",
+        "root-to-secondary-causal-order",
+        "after-replay-agrees-with-working-patch",
+        "mixed-tenants-reverse-order",
+        "quota-still-enforced-per-tenant",
+        "429-does-not-amplify-database-reads",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "reference",
+      "caseId": "incident-triage",
+      "passed": 17,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [],
+      "accepted": true
+    },
+    {
+      "variant": "only-limiter-scope-reverted",
+      "caseId": "incident-triage",
+      "passed": 13,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    dbSessionReads: 4,\n    gatewayAttempts: 4,\n    httpStatuses: [\n      200,\n      200,\n+     429,\n+     429\n-     200,\n-     200\n    ]\n  }\n"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    dbSessionReads: 4,\n    gatewayAttempts: 4,\n    httpStatuses: [\n      200,\n      200,\n+     429,\n+     429\n-     200,\n-     200\n    ]\n  }\n"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+        }
+      ],
+      "criticalFailures": [
+        "after-replay-agrees-with-working-patch",
+        "mixed-tenants-reverse-order",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "only-429-retry-reverted",
+      "caseId": "incident-triage",
+      "passed": 15,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    accepted: 2,\n+   dbSessionReads: 5,\n+   gatewayAttempts: 5,\n+   rejected: 3\n-   dbSessionReads: 3,\n-   gatewayAttempts: 3,\n-   rejected: 1\n  }\n"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Expected values to be strictly equal:\n\n5 !== 1\n"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "quota-still-enforced-per-tenant",
+        "429-does-not-amplify-database-reads"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "only-diagnosis-reverted",
+      "caseId": "incident-triage",
+      "passed": 11,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": false,
+          "category": "root-cause",
+          "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'DATABASE_POOL'\n- 'LIMITER_SCOPE'\n"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": false,
+          "category": "evidence",
+          "message": "Use both traffic observation and tenant controls"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'POOL_EXHAUSTION',\n-   'SHARED_BUDGET',\n    'HTTP_429',\n-   'RETRY_429',\n    'EXTRA_DB_SESSION_READS'\n  ]\n"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": false,
+          "category": "false-lead",
+          "message": "Must explicitly distinguish pool deployment from root cause"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   dbSessionReads: 8,\n+   gatewayAttempts: 8,\n-   dbSessionReads: 4,\n-   gatewayAttempts: 4,\n    httpStatuses: [\n      200,\n      200,\n+     429,\n+     429\n-     200,\n-     200\n    ]\n  }\n"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'INCREASE_POOL'\n-   'NO_RETRY_429',\n-   'TENANT_SCOPED_BUDGET'\n  ]\n"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "root-cause-not-coincident-deployment",
+        "root-to-secondary-causal-order",
+        "after-replay-agrees-with-working-patch"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "escape-disable-limiter",
+      "caseId": "incident-triage",
+      "passed": 12,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    200,\n    200,\n+   200\n-   429\n  ]\n"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   allowed: true,\n+   remaining: -1,\n+   retryAfterMs: 0\n-   allowed: false,\n-   remaining: 0,\n-   retryAfterMs: 1\n  }\n"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+        }
+      ],
+      "criticalFailures": [
+        "quota-still-enforced-per-tenant",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "escape-disable-all-retries",
+      "caseId": "incident-triage",
+      "passed": 15,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Expected values to be strictly equal:\n\n503 !== 200\n"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": false,
+          "category": "regression",
+          "message": "Expected values to be strictly equal:\n\n1 !== 2\n"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "upstream-transient-retry-retained"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "missing-candidate",
+      "caseId": "incident-triage",
+      "passed": 0,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": false,
+          "category": "root-cause",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": false,
+          "category": "evidence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": false,
+          "category": "false-lead",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        }
+      ],
+      "criticalFailures": [
+        "typed-diagnosis-contract",
+        "root-cause-not-coincident-deployment",
+        "root-to-secondary-causal-order",
+        "after-replay-agrees-with-working-patch",
+        "mixed-tenants-reverse-order",
+        "quota-still-enforced-per-tenant",
+        "429-does-not-amplify-database-reads",
+        "upstream-transient-retry-retained",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "syntax-error",
+      "caseId": "incident-triage",
+      "passed": 7,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": true,
+          "category": "root-cause",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": true,
+          "category": "evidence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": true,
+          "category": "false-lead",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": true,
+          "category": "reproduction",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": true,
+          "category": "diagnosis",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        }
+      ],
+      "criticalFailures": [
+        "after-replay-agrees-with-working-patch",
+        "mixed-tenants-reverse-order",
+        "quota-still-enforced-per-tenant",
+        "429-does-not-amplify-database-reads",
+        "upstream-transient-retry-retained",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "invalid-diagnosis-json",
+      "caseId": "incident-triage",
+      "passed": 9,
+      "total": 17,
+      "checks": [
+        {
+          "id": "typed-diagnosis-contract",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-cause-not-coincident-deployment",
+          "passed": false,
+          "category": "root-cause",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-cause-independent-evidence",
+          "passed": false,
+          "category": "evidence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "root-to-secondary-causal-order",
+          "passed": false,
+          "category": "secondary-effects",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "connection-pool-false-lead-rejected",
+          "passed": false,
+          "category": "false-lead",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "frozen-before-replay-reported",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "after-replay-agrees-with-working-patch",
+          "passed": false,
+          "category": "reproduction",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "remediation-preserves-required-capabilities",
+          "passed": false,
+          "category": "diagnosis",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "mixed-tenants-reverse-order",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "quota-still-enforced-per-tenant",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "429-does-not-amplify-database-reads",
+          "passed": true,
+          "category": "secondary-effects",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "new-window-recovers-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "routes-have-independent-budget",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "upstream-transient-retry-retained",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "nontransient-and-attempt-ceiling",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-tenant-route-keys",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "arbitrary-tenant-and-quota-matrix",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "typed-diagnosis-contract",
+        "root-cause-not-coincident-deployment",
+        "root-to-secondary-causal-order",
+        "after-replay-agrees-with-working-patch"
+      ],
+      "accepted": false
+    }
+  ],
+  "messagesSanitized": true
+}

@@ -1,0 +1,8 @@
+{"requestId":"r1","tenantId":"red","route":"/checkout","atMs":100,"attempt":1,"status":200,"dbSessionReads":1}
+{"requestId":"r2","tenantId":"red","route":"/checkout","atMs":110,"attempt":1,"status":200,"dbSessionReads":1}
+{"requestId":"r3","tenantId":"blue","route":"/checkout","atMs":120,"attempt":1,"status":429,"dbSessionReads":1}
+{"requestId":"r3","tenantId":"blue","route":"/checkout","atMs":120,"attempt":2,"status":429,"dbSessionReads":1}
+{"requestId":"r3","tenantId":"blue","route":"/checkout","atMs":120,"attempt":3,"status":429,"dbSessionReads":1}
+{"requestId":"r4","tenantId":"blue","route":"/checkout","atMs":130,"attempt":1,"status":429,"dbSessionReads":1}
+{"requestId":"r4","tenantId":"blue","route":"/checkout","atMs":130,"attempt":2,"status":429,"dbSessionReads":1}
+{"requestId":"r4","tenantId":"blue","route":"/checkout","atMs":130,"attempt":3,"status":429,"dbSessionReads":1}

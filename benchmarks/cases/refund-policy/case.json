@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "refund-policy",
+  "title": "退款规则更新与逐路义务保留",
+  "description": "将冻结的七天退款实现更新为明确揭示的十四天及按消费比例扣除规则，保留企业合同分支。初始消息不包含后续新规则，评分只针对更新消息后的最终状态。",
+  "suggestedMode": "2–5 路，按相同规则完成对照",
+  "challengeDir": "challenge",
+  "referenceDir": "organizer/reference",
+  "grader": "organizer/grade.mjs",
+  "entry": "src/refund.mjs",
+  "spec": "SPEC.md",
+  "task": "TASK.md",
+  "taskInitial": "challenge/TASK-initial.md",
+  "taskUpdate": "organizer/TASK-update.md",
+  "manualProtocol": "organizer/MANUAL.md",
+  "gradingPhase": "after-task-update",
+  "variants": ["faulty", "clean"],
+  "minimumChecks": 16
+}

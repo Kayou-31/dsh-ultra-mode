@@ -1,0 +1,953 @@
+{
+  "caseId": "payment-consistency",
+  "nodeVersion": "v24.18.0",
+  "result": "passed",
+  "noModelOrNetworkCalls": true,
+  "scope": "One local selftest run: frozen baseline, reference overlay, three isolated defect reversions, cache-disable escape and invalid candidate reporting.",
+  "sourceHashes": {
+    "grade.mjs": "f21c373aab237957cc2bc113a6c3dfd00ee68ecac2d42d73e73c01fde3845253",
+    "../challenge/src/cache.mjs": "b25f0b6b27d962def94cd652e1d016320bd554b02ac3dee995b2d1f4fa3963ce",
+    "../challenge/src/webhook.mjs": "2b514b2b7f2ced00171e5b6b2113d39d7c529a438174c8ded029fcdf9c33b25d",
+    "reference/src/cache.mjs": "24195034e56b657751e9a055e77658bbeb101bfcba8dabbd7a0f444e624eb813",
+    "reference/src/webhook.mjs": "15b22912396cb988d3d231f7c40d3d7f8eb4692ff7a4de653424f814c5298cd7"
+  },
+  "results": [
+    {
+      "variant": "faulty-baseline",
+      "caseId": "payment-consistency",
+      "passed": 6,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 750,\n+   status: 'applied'\n-   balanceCents: 875,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 900,\n+   status: 'duplicate'\n-   balanceCents: 800,\n-   status: 'applied'\n  }\n"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\n1000 !== 250\n"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\n200 !== 900\n"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Expected values to be strictly equal:\n\n900 !== 1000\n"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 700,\n+   status: 'applied'\n-   balanceCents: 850,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n900 !== 250\n"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 1150,\n+   status: 'applied'\n-   balanceCents: 1075,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Expected values to be strictly equal:\n\n1075 !== 1000\n"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Missing expected rejection."
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n710 !== 250\n"
+        }
+      ],
+      "criticalFailures": [
+        "stable-event-new-request-retry",
+        "tenant-visible-balance-isolation",
+        "failed-commit-no-visible-phantom",
+        "failed-event-retry-then-redelivery",
+        "failure-does-not-poison-other-tenant",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "reference",
+      "caseId": "payment-consistency",
+      "passed": 17,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [],
+      "accepted": true
+    },
+    {
+      "variant": "only-idempotency-reverted",
+      "caseId": "payment-consistency",
+      "passed": 11,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 750,\n+   status: 'applied'\n-   balanceCents: 875,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 900,\n+   status: 'duplicate'\n-   balanceCents: 800,\n-   status: 'applied'\n  }\n"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 700,\n+   status: 'applied'\n-   balanceCents: 850,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   balanceCents: 1150,\n+   status: 'applied'\n-   balanceCents: 1075,\n-   status: 'duplicate'\n  }\n"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Missing expected rejection."
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n660 !== 750\n"
+        }
+      ],
+      "criticalFailures": [
+        "stable-event-new-request-retry",
+        "failed-event-retry-then-redelivery",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "only-tenant-cache-reverted",
+      "caseId": "payment-consistency",
+      "passed": 13,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\n1000 !== 250\n"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Expected values to be strictly equal:\n\n200 !== 900\n"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n1000 !== 250\n"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n800 !== 250\n"
+        }
+      ],
+      "criticalFailures": [
+        "tenant-visible-balance-isolation",
+        "failure-does-not-poison-other-tenant",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "only-precommit-cache-reverted",
+      "caseId": "payment-consistency",
+      "passed": 14,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": true,
+          "category": "required-capability",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Expected values to be strictly equal:\n\n900 !== 1000\n"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Expected values to be strictly equal:\n\n900 !== 1000\n"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Expected values to be strictly equal:\n\n1075 !== 1000\n"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "failed-commit-no-visible-phantom",
+        "failure-does-not-poison-other-tenant"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "escape-disable-cache",
+      "caseId": "payment-consistency",
+      "passed": 15,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "normal-refund",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Unchanged second read must use cache\n\n2 !== 1\n"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": true,
+          "category": "tenant-isolation",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Expected values to be strictly equal:\n\n2 !== 1\n"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": true,
+          "category": "atomicity",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": true,
+          "category": "idempotency",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": true,
+          "category": "regression",
+          "message": "Business assertion satisfied"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": true,
+          "category": "coupled-sequence",
+          "message": "Business assertion satisfied"
+        }
+      ],
+      "criticalFailures": [
+        "cache-remains-effective"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "missing-candidate",
+      "caseId": "payment-consistency",
+      "passed": 0,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "normal-refund",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        }
+      ],
+      "criticalFailures": [
+        "normal-payment",
+        "normal-refund",
+        "cache-remains-effective",
+        "stable-event-new-request-retry",
+        "tenant-visible-balance-isolation",
+        "failed-commit-no-visible-phantom",
+        "failed-event-retry-then-redelivery",
+        "failure-does-not-poison-other-tenant",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "accepted": false
+    },
+    {
+      "variant": "syntax-error",
+      "caseId": "payment-consistency",
+      "passed": 0,
+      "total": 17,
+      "checks": [
+        {
+          "id": "normal-payment",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "normal-refund",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "cache-remains-effective",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "stable-event-new-request-retry",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "distinct-events-reused-request-id",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "tenant-visible-balance-isolation",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "same-event-id-across-tenants",
+          "passed": false,
+          "category": "tenant-isolation",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "zero-balance-is-cacheable",
+          "passed": false,
+          "category": "required-capability",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-commit-no-visible-phantom",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-event-retry-then-redelivery",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failure-does-not-poison-other-tenant",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "refund-redelivery-once",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "failed-refund-preserves-visible-balance",
+          "passed": false,
+          "category": "atomicity",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "conflicting-stable-event-rejected",
+          "passed": false,
+          "category": "idempotency",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "invalid-and-overdraft-rejected",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "opaque-keys-and-overflow",
+          "passed": false,
+          "category": "regression",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        },
+        {
+          "id": "combined-payment-refund-rollback-retry",
+          "passed": false,
+          "category": "coupled-sequence",
+          "message": "Candidate entry or diagnosis could not load (local path details omitted from portable selftest evidence)"
+        }
+      ],
+      "criticalFailures": [
+        "normal-payment",
+        "normal-refund",
+        "cache-remains-effective",
+        "stable-event-new-request-retry",
+        "tenant-visible-balance-isolation",
+        "failed-commit-no-visible-phantom",
+        "failed-event-retry-then-redelivery",
+        "failure-does-not-poison-other-tenant",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "accepted": false
+    }
+  ],
+  "messagesSanitized": true
+}

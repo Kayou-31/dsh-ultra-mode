@@ -1,0 +1,4 @@
+period,poolMax,poolPeakInUse,poolWaitQueue,connectionErrors,gatewayRequests,gatewayAttempts,dbSessionReads
+before-single-tenant,12,2,0,0,2,2,2
+after-pool-change-single-tenant,24,2,0,0,2,2,2
+after-second-tenant,24,8,0,0,4,8,8

@@ -1,0 +1,9 @@
+{
+  "schemaVersion":1,
+  "events":[
+    {"id":"pool-change","relativeMs":-60000,"description":"Connection pool maximum raised from 12 to 24; no limiter or retry configuration changed"},
+    {"id":"second-tenant-launch","relativeMs":0,"description":"Second tenant starts using the existing checkout route"}
+  ],
+  "upstream503DuringIncident":0,
+  "databaseConnectionErrorsDuringIncident":0
+}

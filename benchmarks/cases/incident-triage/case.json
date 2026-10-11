@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "incident-triage",
+  "title": "429、数据库负载与部署记录的冲突证据定位",
+  "description": "从冻结故障证据确定因果链，修复网关限流与重试，并提交可机器核验的诊断。",
+  "suggestedMode": "parallel-3",
+  "challengeDir": "challenge",
+  "referenceDir": "organizer/reference",
+  "grader": "organizer/grade.mjs",
+  "runtime": "Node.js 24+, no dependencies",
+  "deliverables": ["src/*.mjs", "outputs/diagnosis.json"],
+  "oracleVersion": "incident-evidence-replay-v1"
+}

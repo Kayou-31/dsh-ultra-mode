@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "payment-consistency",
+  "title": "多租户付款、退款与失败重试的一致性",
+  "description": "修复可重试付款服务，保持账本、可见余额、租户边界与缓存行为一致。",
+  "suggestedMode": "parallel-3",
+  "challengeDir": "challenge",
+  "referenceDir": "organizer/reference",
+  "grader": "organizer/grade.mjs",
+  "runtime": "Node.js 24+, no dependencies",
+  "deliverables": ["src/*.mjs"],
+  "oracleVersion": "payment-fixed-sequences-v1"
+}

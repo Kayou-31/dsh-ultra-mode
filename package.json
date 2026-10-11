@@ -24,6 +24,7 @@
     "lib",
     "src",
     "test",
+    "benchmarks",
     "cordis.patch.yml",
     "README.md",
     "docs",
@@ -46,6 +47,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "test": "node --test test/*.test.mjs",
+    "test:benchmarks": "node scripts/benchmarks.mjs selftest",
+    "benchmark": "node scripts/benchmarks.mjs",
     "prepack": "npm run build",
     "build:client": "node scripts/build-client.mjs"
   },

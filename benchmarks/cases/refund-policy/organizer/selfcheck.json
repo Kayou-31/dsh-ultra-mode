@@ -1,0 +1,427 @@
+{
+  "caseId": "refund-policy",
+  "nodeVersion": "v24.18.0",
+  "result": "passed",
+  "groundtruthPredetermined": true,
+  "gradingPhase": "after-task-update",
+  "baseline": {
+    "caseId": "refund-policy",
+    "passed": 13,
+    "total": 21,
+    "checks": [
+      {
+        "id": "window-day-10",
+        "passed": false,
+        "category": "window-update",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "window-exact-day-14",
+        "passed": false,
+        "category": "window-boundary",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "window-14-days-plus-1ms",
+        "passed": true,
+        "category": "window-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "default-fixed-clock",
+        "passed": false,
+        "category": "fixed-clock",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "equivalent-zone-boundary",
+        "passed": false,
+        "category": "timezone",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "consumption-three-of-ten",
+        "passed": false,
+        "category": "proration",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "money-fraction-two-thirds",
+        "passed": false,
+        "category": "rounding",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "money-exact-half-up",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "fully-consumed",
+        "passed": false,
+        "category": "proration",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "large-money-boundary",
+        "passed": false,
+        "category": "rounding",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "zero-paid",
+        "passed": true,
+        "category": "money-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-aged-consumed-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-zero-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-fractional-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-negative-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-overconsumption",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zero-total",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-impossible-date",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zone-missing",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-request-before-purchase",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-enterprise-contract-overpaid",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      }
+    ],
+    "criticalFailures": [
+      "window-day-10",
+      "window-exact-day-14",
+      "default-fixed-clock",
+      "equivalent-zone-boundary",
+      "consumption-three-of-ten",
+      "money-fraction-two-thirds",
+      "fully-consumed",
+      "large-money-boundary"
+    ],
+    "accepted": false
+  },
+  "reference": {
+    "caseId": "refund-policy",
+    "passed": 21,
+    "total": 21,
+    "checks": [
+      {
+        "id": "window-day-10",
+        "passed": true,
+        "category": "window-update",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "window-exact-day-14",
+        "passed": true,
+        "category": "window-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "window-14-days-plus-1ms",
+        "passed": true,
+        "category": "window-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "default-fixed-clock",
+        "passed": true,
+        "category": "fixed-clock",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "equivalent-zone-boundary",
+        "passed": true,
+        "category": "timezone",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "consumption-three-of-ten",
+        "passed": true,
+        "category": "proration",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "money-fraction-two-thirds",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "money-exact-half-up",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "fully-consumed",
+        "passed": true,
+        "category": "proration",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "large-money-boundary",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "zero-paid",
+        "passed": true,
+        "category": "money-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-aged-consumed-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-zero-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-fractional-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-negative-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-overconsumption",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zero-total",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-impossible-date",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zone-missing",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-request-before-purchase",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-enterprise-contract-overpaid",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      }
+    ],
+    "criticalFailures": [],
+    "accepted": true
+  },
+  "singleDefect": {
+    "defect": "14-day window reverted to seven days only",
+    "caseId": "refund-policy",
+    "passed": 17,
+    "total": 21,
+    "checks": [
+      {
+        "id": "window-day-10",
+        "passed": false,
+        "category": "window-update",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "window-exact-day-14",
+        "passed": false,
+        "category": "window-boundary",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "window-14-days-plus-1ms",
+        "passed": true,
+        "category": "window-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "default-fixed-clock",
+        "passed": false,
+        "category": "fixed-clock",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "equivalent-zone-boundary",
+        "passed": false,
+        "category": "timezone",
+        "message": "结果或输入保留不符合预先冻结的期望值"
+      },
+      {
+        "id": "consumption-three-of-ten",
+        "passed": true,
+        "category": "proration",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "money-fraction-two-thirds",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "money-exact-half-up",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "fully-consumed",
+        "passed": true,
+        "category": "proration",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "large-money-boundary",
+        "passed": true,
+        "category": "rounding",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "zero-paid",
+        "passed": true,
+        "category": "money-boundary",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-aged-consumed-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "enterprise-zero-contract",
+        "passed": true,
+        "category": "enterprise-regression",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-fractional-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-negative-money",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-overconsumption",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zero-total",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-impossible-date",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-zone-missing",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-request-before-purchase",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      },
+      {
+        "id": "reject-enterprise-contract-overpaid",
+        "passed": true,
+        "category": "invalid-input",
+        "message": "符合冻结的最终规则"
+      }
+    ],
+    "criticalFailures": [
+      "window-day-10",
+      "window-exact-day-14",
+      "default-fixed-clock",
+      "equivalent-zone-boundary"
+    ],
+    "accepted": false
+  }
+}

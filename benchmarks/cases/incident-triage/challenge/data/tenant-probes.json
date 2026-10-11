@@ -1,0 +1,11 @@
+{
+  "schemaVersion":1,
+  "configuration":{"limit":2,"windowMs":1000,"maxAttempts":3},
+  "controls":[
+    {"id":"red-alone","tenants":["red","red"],"route":"/checkout","atMs":[100,110],"statuses":[200,200],"gatewayAttempts":2},
+    {"id":"blue-alone","tenants":["blue","blue"],"route":"/checkout","atMs":[100,110],"statuses":[200,200],"gatewayAttempts":2},
+    {"id":"mixed-red-first","tenants":["red","red","blue","blue"],"route":"/checkout","atMs":[100,110,120,130],"statuses":[200,200,429,429],"gatewayAttempts":8},
+    {"id":"mixed-blue-first","tenants":["blue","blue","red","red"],"route":"/checkout","atMs":[100,110,120,130],"statuses":[200,200,429,429],"gatewayAttempts":8},
+    {"id":"new-window","tenants":["red","red","blue"],"route":"/checkout","atMs":[100,110,1000],"statuses":[200,200,200],"gatewayAttempts":3}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion":1,
+  "summary":"A shared limiter budget couples tenants on the same route and window. The first tenant consumes it; immediate 429 retries amplify database session reads. Pool capacity is a coincident deployment, with no queue or connection errors in the controls.",
+  "rootCause":{"code":"LIMITER_SCOPE","evidenceIds":["gateway-requests","tenant-probes"]},
+  "causalChain":["SHARED_BUDGET","HTTP_429","RETRY_429","EXTRA_DB_SESSION_READS"],
+  "rejectedHypotheses":[{"code":"DATABASE_POOL","evidenceIds":["pool-metrics","deployment"],"reason":"The post-deployment single-tenant control remains healthy; peak use is below capacity, queue and connection errors remain zero. Reversing tenant order reverses the victim."}],
+  "beforeReplay":{"httpStatuses":[200,200,429,429],"gatewayAttempts":8,"dbSessionReads":8},
+  "afterReplay":{"httpStatuses":[200,200,200,200],"gatewayAttempts":4,"dbSessionReads":4},
+  "fixes":["TENANT_SCOPED_BUDGET","NO_RETRY_429"],
+  "limitations":["Deterministic in-memory sequential replay only; no real database, network transport, distributed clock or simultaneous-thread race was exercised."]
+}

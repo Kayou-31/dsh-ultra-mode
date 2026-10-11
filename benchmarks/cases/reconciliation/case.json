@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "reconciliation",
+  "title": "多来源支付与退款对账",
+  "description": "96 条固定输入记录，覆盖同一支付重复上报、退款两种表示、前导零订单号、跨午夜时区及同客户不同订单。按逐事件、日净收入、异常和来源追踪评分。",
+  "suggestedMode": "2–5 路，最终由一处生成交付文件",
+  "challengeDir": "challenge",
+  "referenceDir": "organizer/reference",
+  "grader": "organizer/grade.mjs",
+  "entry": "src/cli.mjs",
+  "spec": "SPEC.md",
+  "task": "TASK.md",
+  "variants": ["faulty", "clean"],
+  "minimumChecks": 11
+}

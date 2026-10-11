@@ -1,0 +1,27 @@
+name: 功能建议
+description: 说明使用场景、期望行为和验证方式
+title: "[Feature] "
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景与现有困难
+      description: 请用脱敏场景说明；不要附完整私人任务或日志。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期望行为
+      description: 涉及辅助、并发、子代理、决策、界面或安装的哪些行为？有什么应保持的边界？
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 如何判断实现有效
+      description: 给出可复现任务、结果或操作标准；注明是否需要真实模型／UI、是否会增加费用或权限。
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已尝试的方式或补充说明
