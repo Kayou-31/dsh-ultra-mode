@@ -7,10 +7,11 @@ import { agentCarrier, type Agent } from '@deepseek-ai/dsh-agent'
 import { runUltra, type RunConfig, type UltraResult } from './orchestrator.js'
 import { researchToolDenial, routeParentOf } from './runtime.js'
 import { routeCount, resolveSessionKey, snapshotOf, renderUltraSection, type UltraState } from './ultra.js'
+import type { CoordinationSummary } from './coordination.js'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
-    'ultra-mode': { kind: 'ultra-mode'; form: 'notice'; summary: string; runId: string; routeIds: string[]; decisionId: string }
+    'ultra-mode': { kind: 'ultra-mode'; form: 'notice'; summary: string; runId: string; routeIds: string[]; decisionId: string; coordination?: CoordinationSummary }
   }
 }
 export const name = '@dsh-external/dsh-ultra-mode'
@@ -22,6 +23,8 @@ export const Config = z.object({
   maxSessions: z.number().step(1).min(1).default(64),
   timeoutMs: z.number().step(1).min(1000).max(86400000).default(900000),
   reportChars: z.number().step(1).min(1000).max(100000).default(20000),
+  coordinationIntervalMs: z.number().step(1).min(100).max(60000).default(1000),
+  coordinationMaxRounds: z.number().step(1).min(-1).max(1000).default(-1),
   researchTools: z.array(z.string()).default(['read', 'read_image', 'glob', 'grep', 'web_search', 'web_fetch', 'subagent', 'subagent_fork', 'wait', 'list_agents', 'send_message', 'interrupt_agent']),
   jevEnabled: z.boolean().default(false),
   jevKeyEnv: z.string().default('TYPESAFE_API_KEY'),
@@ -119,11 +122,19 @@ export function apply(ctx: Context, config: Config): void {
     },
   }))
   host.on('agent/pre-step', (async (payload: PreStep, next: () => Promise<Decision>) => {
-    if (payload.step === 1) deliveryOnly.delete(payload.agent)
     const decision = await next()
-    if (decision.kind !== 'enter' || payload.step !== 1 || routeParentOf(payload.agent) !== undefined || !stateFor(payload.agent.id)?.enabled) return decision
-    const user = decision.messages.filter(m => m.source.kind === 'user')
+    if (decision.kind !== 'enter' || routeParentOf(payload.agent) !== undefined) return decision
+    // The SDK claims fresh inbox input at every step, including user steering
+    // within the current turn. Step 1 is therefore not the user-task boundary.
+    // Only messages actually claimed here and admitted by the remaining hooks
+    // can release the prior delivery lock or start another Ultra run. Context
+    // notices and historical user messages added by middleware are not input.
+    const claimed = payload.messages.filter(m => m.source.kind === 'user')
+    const claimedIds = new Set(claimed.map(m => m.id).filter(id => typeof id === 'string' && id !== ''))
+    const user = decision.messages.filter(m => m.source.kind === 'user' && (claimed.includes(m) || claimedIds.has(m.id)))
     if (user.length === 0) return decision
+    deliveryOnly.delete(payload.agent)
+    if (!stateFor(payload.agent.id)?.enabled) return decision
     const content = user.flatMap(m => [...m.content])
     const task = content.filter((b): b is Extract<ContentBlock, { type: 'text' }> => b.type === 'text').map(b => b.text).join('\n')
     const dispatch = payload.agent.ctx as unknown as { waterfall(carrier: unknown, event: string, value: unknown, next: () => Promise<unknown>): Promise<Record<string, unknown>> }
@@ -132,7 +143,8 @@ export function apply(ctx: Context, config: Config): void {
     const result = await execute(payload.agent, task || '处理用户附带的材料', content, payload.signal, undefined, route)
     return { ...decision, messages: [...decision.messages, createUserMessage({
       content: [{ type: 'text', text: '【Ultra 决策结果】\n' + result.output + '\n\n以上是本轮决策路线的交付结果。直接转述给用户，保持事实、路径与验证边界。不要调用工具重新实施或再开启 Ultra。' }],
-      source: { kind: 'ultra-mode', form: 'notice', summary: `Ultra ${result.requested} + 1：成功 ${result.succeeded} 条执行路线`, runId: result.runId, routeIds: result.routeIds, decisionId: result.decisionId },
+      source: { kind: 'ultra-mode', form: 'notice', summary: `Ultra ${result.requested} + 1：已返回 ${result.succeeded} 条有效路线报告`, runId: result.runId, routeIds: result.routeIds, decisionId: result.decisionId,
+        ...(result.coordination === undefined ? {} : { coordination: result.coordination }) },
     })] }
   }) as never)
   host.inject(['systemPrompt'], owner => {

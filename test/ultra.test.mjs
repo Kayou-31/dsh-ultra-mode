@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   MIN_CONCURRENCY, MAX_CONCURRENCY, routeCount, resolveSessionKey, snapshotOf,
-  planMerge, parseAssignments, buildPlanPrompt, buildWorkerBrief,
+  planMerge, parseAssignments, ULTRA_DECISION_INSTRUCTIONS, buildPlanPrompt, buildWorkerBrief,
   buildDecisionPrompt, fallbackJoin, renderUltraSection,
 } from '../lib/ultra.js'
 
@@ -57,15 +57,37 @@ test('planning/worker briefs preserve task, descendant research limits, and suba
   assert.match(plan, /可以派子代理/)
   assert.match(plan, /不能修改共享文件/)
   const worker = buildWorkerBrief('Original user task', 'Check the evidence', 1, 4, 'Planner context')
-  for (const phrase of ['Original user task', 'Check the evidence', 'Planner context', '2/4', '后代', '不要写共享文件', '不要调用 ultra_task']) assert.ok(worker.includes(phrase), phrase)
+  for (const phrase of ['Original user task', 'Check the evidence', 'Planner context', '2/4', '后代', '不要写共享文件', '不要调用 ultra_task', '直接推理、心算', '命令被拒绝不等于不能思考', '禁止为替代受限命令继续套子代理', '委派深度限制', '无法恢复就报告证据缺失']) assert.ok(worker.includes(phrase), phrase)
 })
 
 test('decision brief names partial outcomes and does not expand authorization', () => {
   const outcomes = [ok('A'.repeat(100), 'r1'), bad('creation failed', 'r2'), ok('third evidence', 'r3')]
+  outcomes[0].subagents = [{ sessionId: 'observed-child', parentSession: 'r1', origin: 'subagent', delegationDepth: 1 }]
   const prompt = buildDecisionPrompt('User task', outcomes, planMerge(outcomes, 3), 'Jev advisory', 12)
-  for (const phrase of ['请求 3 条执行路线，成功 2，失败 1', 'r1', 'r2', 'creation failed', 'Jev advisory', '唯一提交者', '不具备新的用户授权', '不要停在研究报告']) assert.ok(prompt.includes(phrase), phrase)
+  for (const phrase of ['请求 3 条执行路线，完成报告 2，未取得有效完成报告 1', '不代表业务任务成功数或验证通过数', '完成报告（待核对）', 'r1', 'r2', 'creation failed', 'Jev advisory', '唯一提交者', '不具备新的用户授权', '不要停在研究报告']) assert.ok(prompt.includes(phrase), phrase)
+  assert.doesNotMatch(prompt, /成功 2/)
   assert.ok(prompt.includes('A'.repeat(12)))
   assert.equal(prompt.includes('A'.repeat(13)), false)
+  assert.match(prompt, /observed-child/)
+  assert.match(prompt, /只证明宿主观察到创建/)
+  assert.match(prompt, /不能据此计为成功/)
+})
+
+test('built-in decision policy governs planning and final review with or without Jev', () => {
+  for (const count of [3, 4, 5]) {
+    const outcomes = Array.from({ length: count }, (_, i) => ok('Could not verify the requested task', `r${i}`))
+    const plan = buildPlanPrompt('Unspecified task', count)
+    const decision = buildDecisionPrompt('Unspecified task', outcomes, planMerge(outcomes, count), '', 100)
+    assert.ok(plan.startsWith(ULTRA_DECISION_INSTRUCTIONS))
+    assert.ok(decision.startsWith(ULTRA_DECISION_INSTRUCTIONS))
+    for (const phrase of ['不依赖 Jev', '独立的 Max agent loop', '不计入执行并发数', '不能通过继续套子代理', '不等于用户任务成功', '不得猜造 ID、输出或成功状态', '唯一提交者', '不得擅自增加原任务没有的命令执行条件', '直接心算是有效的独立计算']) assert.ok(plan.includes(phrase), phrase)
+    assert.match(decision, new RegExp(`完成报告 ${count}，未取得有效完成报告 0`))
+    assert.doesNotMatch(decision, /【可选 Jev 辅助意见/)
+  }
+  const blank = buildDecisionPrompt('Task', [ok('   ', 'blank')], planMerge([ok('   ')], 3), 'Jev advisory', 10)
+  assert.match(blank, /【可选 Jev 辅助意见，待核对】/)
+  assert.match(blank, /未取得有效完成报告：无有效输出/)
+  assert.doesNotMatch(blank, /完成报告（待核对）/)
 })
 
 test('decision failure fallback discloses incomplete delivery and retains useful evidence', () => {

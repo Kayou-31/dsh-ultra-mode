@@ -20,6 +20,12 @@ export interface WorkerOutcome {
     text: string;
     error?: string;
     sessionId: string;
+    subagents?: {
+        sessionId: string;
+        parentSession?: string;
+        origin: 'subagent';
+        delegationDepth?: number;
+    }[];
 }
 export interface MergePlan {
     requested: number;
@@ -51,6 +57,8 @@ export declare function snapshotOf(state: UltraState): {
 export declare function planMerge(outcomes: readonly WorkerOutcome[], requested: number): MergePlan;
 /** Parse assignments, retaining work when the planner returns prose. */
 export declare function parseAssignments(text: string, count: number): string[];
+/** Built-in decision policy; optional evaluators never replace this route. */
+export declare const ULTRA_DECISION_INSTRUCTIONS: string;
 /** Plan in the decision loop that later implements and synthesizes. */
 export declare function buildPlanPrompt(task: string, count: number): string;
 /** Share user context while giving each route a different assignment. */

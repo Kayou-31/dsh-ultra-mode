@@ -113,7 +113,7 @@ test('automatic dispatch follows actual enter contract and selected model', asyn
   h.rpc('set', { sessionId: 'root', enabled: true, concurrency: 4 })
   const user = { source: { kind: 'user' }, content: [{ type: 'text', text: 'do authorized task' }] }
   const decision = { kind: 'enter', messages: [user], keep: true }
-  const payload = { agent: agent(), step: 1, turn: 1, signal: exec().signal, messages: [] }
+  const payload = { agent: agent(), step: 1, turn: 1, signal: exec().signal, messages: [user] }
   const result = await h.record.events.get('agent/pre-step')(payload, async () => decision)
   assert.equal(h.record.calls.length, 1)
   assert.equal(h.record.calls[0].concurrency, 4)
@@ -125,15 +125,15 @@ test('automatic dispatch follows actual enter contract and selected model', asyn
   assert.match(result.messages[1].content[0].text, /Verified decision output/)
   assert.equal(h.rpc('get', { sessionId: 'root' }).value.activeRuns, 0)
 })
-test('off, later steps, child loops, commands and non-enter decisions skip dispatch', async () => {
+test('off, steps without fresh user input, child loops, commands and non-enter decisions skip dispatch', async () => {
   const h = boot()
   const hook = h.record.events.get('agent/pre-step')
   const user = { source: { kind: 'user' }, content: [{ type: 'text', text: 'test' }] }
   const enter = { kind: 'enter', messages: [user] }
-  const payload = { agent: agent(), step: 1, signal: exec().signal }
+  const payload = { agent: agent(), step: 1, signal: exec().signal, messages: [user] }
   assert.equal(await hook(payload, async () => enter), enter)
   h.rpc('set', { sessionId: 'root', enabled: true })
-  for (const [p, d] of [[{ ...payload, step: 2 }, enter], [{ ...payload, agent: { ...agent(), owner: agent() } }, enter],
+  for (const [p, d] of [[{ ...payload, step: 2, messages: [] }, enter], [{ ...payload, agent: { ...agent(), owner: agent() } }, enter],
     [payload, { kind: 'stop', messages: [user] }], [payload, { kind: 'enter', messages: [{ source: { kind: 'command' }, content: [] }] }]]) {
     assert.equal(await hook(p, async () => d), d)
   }
@@ -184,15 +184,88 @@ test('decision failure is visibly marked and guard forbids recursion', async () 
 })
 
 
-test('completed Ultra locks all root tools until the next user turn', async () => {
+test('completed Ultra locks all root tools until fresh admitted user input', async () => {
   const h = boot()
   const root = agent()
   await h.tool.execute({ task: 'test' }, exec(root))
   for (const name of ['write', 'run_code', 'ultra_task', 'subagent']) assert.match(h.record.guards[0]({ agent: root, name }), /禁止重复/)
   await assert.rejects(h.tool.execute({ task: 'repeat' }, exec(root)), /已交付/)
   const enter = { kind: 'enter', messages: [{ source: { kind: 'user' }, content: [{ type: 'text', text: 'next task' }] }] }
-  await h.record.events.get('agent/pre-step')({ agent: root, step: 1, signal: exec().signal }, async () => enter)
+  await h.record.events.get('agent/pre-step')({ agent: root, step: 1, signal: exec().signal, messages: enter.messages }, async () => enter)
   assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+})
+
+test('a fresh next-step user task in the same turn starts its own Ultra and retains delivery protection', async () => {
+  let runs = 0
+  const h = boot({ runner: async (_config, options) => ({
+    runId: `run-${++runs}`, requested: options.concurrency, succeeded: options.concurrency, decided: true,
+    output: `Decision ${runs}: ${options.task}`, routeIds: [`worker-${runs}`], decisionId: `decision-${runs}`,
+  }) })
+  const root = agent()
+  h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 5 })
+  const hook = h.record.events.get('agent/pre-step')
+  const input = (id, text) => ({ id, source: { kind: 'user' }, content: [{ type: 'text', text }] })
+  const first = input('math-input', 'first arithmetic task')
+  const second = input('review-input', 'second read-only review')
+  const signal = exec().signal
+  const firstDecision = await hook({ agent: root, turn: 1, step: 1, messages: [first], signal }, async () => ({ kind: 'enter', messages: [first] }))
+  assert.equal(firstDecision.messages.at(-1).source.runId, 'run-1')
+  assert.match(h.record.guards[0]({ agent: root, name: 'read' }), /禁止重复/)
+  const secondDecision = await hook({ agent: root, turn: 1, step: 2, messages: [second], signal }, async () => ({ kind: 'enter', messages: [second] }))
+  assert.equal(h.record.calls.length, 2)
+  assert.deepEqual(h.record.calls.map(call => call.task), ['first arithmetic task', 'second read-only review'])
+  assert.equal(secondDecision.messages[0], second)
+  assert.equal(secondDecision.messages.at(-1).source.runId, 'run-2')
+  assert.match(secondDecision.messages.at(-1).content[0].text, /Decision 2: second read-only review/)
+  assert.match(h.record.guards[0]({ agent: root, name: 'ultra_task' }), /禁止重复/)
+  const delivery = { kind: 'enter', messages: [first, firstDecision.messages.at(-1)] }
+  assert.equal(await hook({ agent: root, turn: 1, step: 3, messages: [], signal }, async () => delivery), delivery)
+  assert.equal(h.record.calls.length, 2, 'old decision/context cannot trigger a third run')
+  assert.match(h.record.guards[0]({ agent: root, name: 'subagent' }), /禁止重复/)
+})
+
+test('a fresh same-turn task with Ultra off releases the old lock without dispatching', async () => {
+  const h = boot()
+  const root = agent()
+  await h.tool.execute({ task: 'completed task' }, exec(root))
+  const user = { id: 'new-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'ordinary next task' }] }
+  const enter = { kind: 'enter', messages: [user] }
+  assert.equal(await h.record.events.get('agent/pre-step')({ agent: root, turn: 1, step: 2, signal: exec().signal, messages: [user] }, async () => enter), enter)
+  assert.equal(h.record.calls.length, 1)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'read' }), undefined)
+})
+
+test('step reset, non-user feedback and filtered-out user input cannot unlock or replay a delivered task', async () => {
+  const h = boot()
+  const root = agent()
+  h.rpc('set', { sessionId: root.id, enabled: true })
+  await h.tool.execute({ task: 'completed task' }, exec(root))
+  const hook = h.record.events.get('agent/pre-step')
+  const user = { id: 'unclaimed-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'historical task' }] }
+  const notice = { id: 'feedback', source: { kind: 'ultra-mode' }, content: [{ type: 'text', text: 'delivery feedback' }] }
+  for (const [step, claimed, decision] of [
+    [1, [], { kind: 'enter', messages: [user] }],
+    [2, [notice], { kind: 'enter', messages: [user, notice] }],
+    [3, [user], { kind: 'enter', messages: [notice] }],
+    [4, [user], { kind: 'reject', messages: [user] }],
+  ]) {
+    assert.equal(await hook({ agent: root, turn: 2, step, signal: exec().signal, messages: claimed }, async () => decision), decision)
+    assert.match(h.record.guards[0]({ agent: root, name: 'read' }), /禁止重复/)
+  }
+  assert.equal(h.record.calls.length, 1)
+})
+
+test('admitted user copies retain identity while unrelated user messages cannot enlarge the new task', async () => {
+  const h = boot()
+  const root = agent()
+  h.rpc('set', { sessionId: root.id, enabled: true })
+  const user = { id: 'claimed-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'authorized read-only task' }] }
+  const admitted = { ...user }
+  const history = { id: 'historical-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'unrelated write request' }] }
+  const enter = { kind: 'enter', messages: [history, admitted] }
+  await h.record.events.get('agent/pre-step')({ agent: root, turn: 1, step: 2, signal: exec().signal, messages: [user] }, async () => enter)
+  assert.equal(h.record.calls.length, 1)
+  assert.equal(h.record.calls[0].task, 'authorized read-only task')
 })
 test('plugin teardown aborts and drains in-flight orchestration', async () => {
   let aborted = false

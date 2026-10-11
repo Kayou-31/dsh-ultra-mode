@@ -12,5 +12,8 @@
         # 提示词段插入顺序
         sectionOrder: 117.5
         timeoutMs: 900000
+        # 仅进展变化触发跨路决策；-1 不限轮数，0 关闭运行中协调
+        coordinationIntervalMs: 1000
+        coordinationMaxRounds: -1
         # 可选 Typesafe Jev 决策辅助；密钥只从 Host 环境变量读取
         jevEnabled: false

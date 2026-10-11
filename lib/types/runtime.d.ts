@@ -1,14 +1,23 @@
 import { type Agent } from '@deepseek-ai/dsh-agent';
 import { type ContentBlock } from '@deepseek-ai/dsh-llm';
 import { type SessionEvent } from '@deepseek-ai/dsh-session';
+import type { RouteProgress } from './coordination.js';
 export type AgentLike = Agent;
 export type { ContentBlock, SessionEvent };
 /** One settled route turn, with the internal log identity retained for diagnostics. */
+export interface SubagentIdentity {
+    sessionId: string;
+    parentSession?: string;
+    origin: 'subagent';
+    delegationDepth?: number;
+}
 export interface RouteOutcome {
     ok: boolean;
     text: string;
     error?: string;
     sessionId: string;
+    /** Observed creation identities only; these do not establish completion. */
+    subagents?: SubagentIdentity[];
 }
 /** Route creation inputs; the signal controls creation and every later turn. */
 export interface RouteOptions {
@@ -28,6 +37,8 @@ export interface RouteHandle {
     id: string;
     run(prompt: ContentBlock[]): Promise<RouteOutcome>;
     setReadOnly(readOnly: boolean): void;
+    subscribeProgress?(listener: (progress: RouteProgress) => void): () => void;
+    steer?(instruction: string): boolean;
     dispose(): Promise<void>;
 }
 /** Whether an identity is a directly owned ULTRA loop rather than its coordinator. */

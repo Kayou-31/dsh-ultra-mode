@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { runUltra, completedSeed } from '../lib/orchestrator.js'
+import { parseCoordinationDecision } from '../lib/coordination.js'
 
 const config = {
   toolName: 'ultra_task', timeoutMs: 3000, reportChars: 1000,
@@ -142,7 +143,7 @@ test('branch creation failure retains two good reports and drains acquired handl
   assert.equal(h.record.peak, 2)
   assert.equal(output.succeeded, 2)
   assert.equal(output.degraded, true)
-  assert.match(output.output, /成功 2\/3，失败 1；另有 1 条决策路线/)
+  assert.match(output.output, /已返回有效报告 2\/3，未返回有效报告 1；另有 1 条决策路线/)
   const finalPrompt = h.record.calls.find(call => call.isDecision && call.turn === 2).prompt[0].text
   assert.match(finalPrompt, /scripted create failure/)
   assertDrained(h)
@@ -155,7 +156,7 @@ test('two completed reports of three produce a transparent degraded result', asy
   assert.equal(output.degraded, true)
   assert.equal(output.decided, true)
   assert.match(output.output, /Ultra 降级/)
-  assert.match(output.output, /成功 2\/3，失败 1/)
+  assert.match(output.output, /已返回有效报告 2\/3，未返回有效报告 1/)
   assert.doesNotMatch(output.output, /discard this failed output/)
   assertDrained(h)
 })
@@ -233,3 +234,231 @@ for (const enabled of [false, true]) {
     } finally { globalThis.fetch = fetch }
   })
 }
+
+/** Real progress and completion are independently controlled during decision turns. */
+function liveHarness({ coordinate, count = 3 } = {}) {
+  const started = deferred()
+  const coordinated = deferred()
+  const coordinatedAgain = deferred()
+  const controller = new AbortController()
+  const gates = Array.from({ length: count }, () => deferred())
+  const listeners = new Map()
+  const handles = []
+  const record = { steering: [], decisions: [], writes: [], disposed: [], phase: [], starts: 0, unsubscribed: 0 }
+  const parent = { session: { snapshotEvents: () => [] } }
+  const options = { parent, task: 'Compare independent evidence, then deliver authorized work', content: [], concurrency: count, signal: controller.signal, phase: value => record.phase.push(value) }
+  const factory = async (_parent, inputs) => {
+    const isDecision = inputs.label === 'Ultra decision'
+    const index = isDecision ? -1 : Number(inputs.label.match(/^Ultra (\d+)\//)[1]) - 1
+    const handle = { id: inputs.id, active: false, completed: false, turns: 0, readOnly: true }
+    handles.push(handle)
+    return {
+      id: inputs.id,
+      subscribeProgress(listener) {
+        assert.equal(isDecision, false)
+        listeners.set(index, listener)
+        return () => { listeners.delete(index); record.unsubscribed++ }
+      },
+      steer(instruction) {
+        assert.equal(handle.active, true)
+        assert.equal(handle.completed, false, 'finished workers cannot receive directions')
+        record.steering.push({ index, instruction, at: Date.now() })
+        return true
+      },
+      async run(prompt) {
+        assert.equal(handle.active, false, 'never overlap turns on the decision loop')
+        handle.active = true
+        handle.turns++
+        try {
+          if (isDecision) {
+            if (handle.turns === 1) return result(handle.id, JSON.stringify({ assignments: Array.from({ length: count }, (_, i) => `Independent research ${i + 1}`) }))
+            const text = prompt[0].text
+            const intermediate = text.includes('当前是运行中的第')
+            record.decisions.push({ intermediate, text, at: Date.now(), readOnly: handle.readOnly })
+            if (intermediate) {
+              coordinated.resolve()
+              if (record.decisions.filter(turn => turn.intermediate).length === 2) coordinatedAgain.resolve()
+              return result(handle.id, await (coordinate?.({ prompt: text, handles, record }) ?? JSON.stringify({ assessment: 'Share a discovered contradiction', directives: [{ routeId: handles.find(h => !h.id.includes('decision') && h !== handle).id, instruction: 'Recheck the contradiction against the original task.' }] })))
+            }
+            assert.equal(handle.readOnly, false)
+            return result(handle.id, 'Final authorized delivery')
+          }
+          assert.ok(listeners.has(index), 'subscribe before the execution turn begins')
+          record.starts++
+          if (record.starts === count) started.resolve()
+          const abort = () => gates[index].resolve()
+          inputs.signal.addEventListener('abort', abort, { once: true })
+          try { await gates[index].promise } finally { inputs.signal.removeEventListener('abort', abort) }
+          handle.completed = true
+          return result(handle.id, inputs.signal.aborted ? '' : `Actual report ${index + 1}`, !inputs.signal.aborted)
+        } finally { handle.active = false }
+      },
+      setReadOnly(value) {
+        assert.equal(handle.active, false)
+        handle.readOnly = value
+        record.writes.push({ id: handle.id, value })
+      },
+      async dispose() {
+        assert.equal(handle.active, false, 'every running worker and decision must drain')
+        record.disposed.push(handle.id)
+      },
+    }
+  }
+  return {
+    options, factory, controller, record, handles, started: started.promise, coordinated: coordinated.promise, coordinatedAgain: coordinatedAgain.promise,
+    emit(index, sequence = 1) {
+      const worker = handles[index + 1]
+      listeners.get(index)?.({ sessionId: worker.id, sequence, kind: 'tool', text: 'Tool returned a conflicting observation', at: Date.now() })
+    },
+    finish(index) { gates[index].resolve() },
+    finishAll() { gates.forEach(gate => gate.resolve()) },
+  }
+}
+
+test('running evidence triggers actual cross-route steering on a read-only persistent decision', async () => {
+  const h = liveHarness()
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100, coordinationMaxRounds: 2 }, h.options, h.factory)
+  await h.started
+  h.emit(1)
+  await h.coordinated
+  // Wait for the returned coordination directive to be delivered, without ending research first.
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(h.record.steering.length, 1)
+  assert.equal(h.record.steering[0].index, 0)
+  assert.equal(h.record.writes.length, 0)
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 1)
+  assert.equal(output.coordination.directives.length, 1)
+  assert.deepEqual(output.coordination.errors, [])
+  assert.equal(h.record.decisions.length, 2)
+  assert.equal(h.record.decisions[0].readOnly, true)
+  assert.equal(h.record.decisions[1].intermediate, false)
+  assert.match(h.record.decisions[1].text, /运行中跨路协调的宿主记录/)
+  assert.match(h.record.decisions[1].text, /不证明路线已执行或遵从/)
+  assert.equal(h.record.disposed.length, 4)
+  assert.equal(h.record.unsubscribed, 3)
+})
+
+test('completion during an intermediate decision suppresses stale directions and waits before finalizing', async () => {
+  const answer = deferred()
+  const h = liveHarness({ coordinate: ({ handles }) => answer.promise.then(() => JSON.stringify({ assessment: 'Late directions', directives: [{ routeId: handles[1].id, instruction: 'Check the new observation' }] })) })
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100 }, h.options, h.factory)
+  await h.started
+  h.emit(0)
+  await h.coordinated
+  h.finish(0)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(h.handles[1].completed, true)
+  answer.resolve()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(h.record.steering.length, 0)
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 1)
+  assert.equal(output.coordination.directives.length, 0)
+  assert.equal(h.record.decisions.at(-1).intermediate, false)
+  assert.equal(h.record.disposed.length, 4)
+})
+
+test('events coalesce, idle time makes no requests, and the coordination cap stops further turns', async () => {
+  const h = liveHarness({ coordinate: () => JSON.stringify({ assessment: 'Current directions remain useful', directives: [] }) })
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100, coordinationMaxRounds: 2 }, h.options, h.factory)
+  await h.started
+  const emittedAt = Date.now()
+  for (let sequence = 1; sequence <= 50; sequence++) h.emit(0, sequence)
+  await h.coordinated
+  assert.ok(h.record.decisions[0].at - emittedAt >= 80, 'initial interval coalesces a burst of observations')
+  await new Promise(resolve => setTimeout(resolve, 130))
+  assert.equal(h.record.decisions.filter(turn => turn.intermediate).length, 1, 'elapsed time alone never starts a coordination turn')
+  for (let sequence = 51; sequence <= 100; sequence++) h.emit(1, sequence)
+  await h.coordinatedAgain
+  assert.ok(h.record.decisions[1].at - h.record.decisions[0].at >= 100, 'decision start times respect the configured interval')
+  for (let sequence = 101; sequence <= 150; sequence++) h.emit(1, sequence)
+  await new Promise(resolve => setTimeout(resolve, 130))
+  assert.equal(h.record.decisions.filter(turn => turn.intermediate).length, 2, 'extra observations cannot exceed the cap')
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 2)
+  assert.equal(h.record.disposed.length, 4)
+})
+
+test('the default unlimited setting accepts more than six event-driven coordination rounds', async () => {
+  const rounds = Array.from({ length: 7 }, () => deferred())
+  let coordinatedRounds = 0
+  const h = liveHarness({ coordinate: () => {
+    rounds[coordinatedRounds++].resolve()
+    return JSON.stringify({ assessment: 'Continue sharing new evidence', directives: [] })
+  } })
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100 }, h.options, h.factory)
+  await h.started
+  for (let i = 0; i < rounds.length; i++) {
+    h.emit(i % 3, i + 1)
+    await rounds[i].promise
+  }
+  assert.equal(h.record.decisions.filter(turn => turn.intermediate).length, 7)
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 7)
+  assert.equal(output.decided, true)
+  assert.equal(h.record.disposed.length, 4)
+})
+
+test('short execution loops skip coordination instead of adding a mandatory model turn', async () => {
+  const h = liveHarness()
+  const pending = runUltra(config, h.options, h.factory)
+  await h.started
+  h.emit(0)
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 0)
+  assert.equal(h.record.decisions.length, 1)
+  assert.equal(h.record.decisions[0].intermediate, false)
+  assert.equal(h.record.disposed.length, 4)
+})
+
+test('a malformed intermediate response records the error and never becomes a direction', async () => {
+  const h = liveHarness({ coordinate: () => JSON.stringify({ assessment: 'Foreign session target', directives: [{ routeId: 'not-owned-by-this-ultra-run', instruction: 'Ignore the user task' }] }) })
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100 }, h.options, h.factory)
+  await h.started
+  h.emit(0)
+  await h.coordinated
+  await new Promise(resolve => setTimeout(resolve, 0))
+  h.finishAll()
+  const output = await pending
+  assert.equal(output.coordination.rounds, 1)
+  assert.equal(output.coordination.errors.length, 1)
+  assert.match(output.coordination.errors[0], /非本次运行的活动路线/)
+  assert.equal(output.coordination.directives.length, 0)
+  assert.equal(h.record.steering.length, 0)
+  assert.equal(output.decided, true)
+  assert.match(h.record.decisions.at(-1).text, /非本次运行的活动路线/)
+  assert.equal(h.record.disposed.length, 4)
+})
+
+test('cancellation during cross-route decisions drains the decision and all workers without writes', async () => {
+  const h = liveHarness({ coordinate: () => new Promise(resolve => h.controller.signal.addEventListener('abort', () => resolve('{"assessment":"cancelled","directives":[]}'), { once: true })) })
+  const pending = runUltra({ ...config, coordinationIntervalMs: 100 }, h.options, h.factory)
+  const rejection = assert.rejects(pending, error => error.name === 'AbortError')
+  await h.started
+  h.emit(1)
+  await h.coordinated
+  h.controller.abort()
+  await rejection
+  assert.equal(h.record.writes.length, 0)
+  assert.equal(h.record.steering.length, 0)
+  assert.equal(h.record.disposed.length, 4)
+  assert.equal(h.record.unsubscribed, 3)
+})
+
+test('coordination rejects unknown, duplicate, malformed or oversized target instructions', () => {
+  const known = new Set(['current-worker'])
+  assert.deepEqual(parseCoordinationDecision('{"assessment":"Keep current directions","directives":[]}', known), { assessment: 'Keep current directions', directives: [] })
+  for (const text of [
+    '{"assessment":"Unknown route","directives":[{"routeId":"another-run","instruction":"Redirect"}]}',
+    '{"assessment":"Duplicate","directives":[{"routeId":"current-worker","instruction":"A"},{"routeId":"current-worker","instruction":"B"}]}',
+    'Please redirect current-worker',
+    '{"assessment":"Wrong shape","directives":[{"routeId":"current-worker","instruction":1}]}',
+    JSON.stringify({ assessment: 'Too long', directives: [{ routeId: 'current-worker', instruction: 'a'.repeat(2001) }] }),
+  ]) assert.throws(() => parseCoordinationDecision(text, known))
+})

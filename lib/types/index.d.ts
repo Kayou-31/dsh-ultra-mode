@@ -2,6 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { type RunConfig } from './orchestrator.js';
+import type { CoordinationSummary } from './coordination.js';
 declare module '@deepseek-ai/dsh-llm' {
     interface MessageSourceMap {
         'ultra-mode': {
@@ -11,6 +12,7 @@ declare module '@deepseek-ai/dsh-llm' {
             runId: string;
             routeIds: string[];
             decisionId: string;
+            coordination?: CoordinationSummary;
         };
     }
 }
@@ -23,6 +25,8 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;
     reportChars: z<number, number, "defined">;
+    coordinationIntervalMs: z<number, number, "defined">;
+    coordinationMaxRounds: z<number, number, "defined">;
     researchTools: z<string[], string[], "defined">;
     jevEnabled: z<boolean, boolean, "defined">;
     jevKeyEnv: z<string, string, "defined">;
@@ -36,6 +40,8 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;
     reportChars: z<number, number, "defined">;
+    coordinationIntervalMs: z<number, number, "defined">;
+    coordinationMaxRounds: z<number, number, "defined">;
     researchTools: z<string[], string[], "defined">;
     jevEnabled: z<boolean, boolean, "defined">;
     jevKeyEnv: z<string, string, "defined">;

@@ -1,4 +1,5 @@
 import type { AgentLike as RouteParent, ContentBlock, createRoute } from './runtime.js';
+import { type CoordinationSummary } from './coordination.js';
 export interface RunConfig {
     toolName: string;
     timeoutMs: number;
@@ -9,6 +10,10 @@ export interface RunConfig {
     jevModel: string;
     jevBaseUrl: string;
     jevTimeoutMs: number;
+    /** Event-driven coordination; no model request occurs merely because time passed. */
+    coordinationIntervalMs?: number;
+    /** -1 removes the round cap, 0 disables coordination, positives set a cap. */
+    coordinationMaxRounds?: number;
 }
 export interface RunOptions {
     parent: RouteParent;
@@ -31,8 +36,9 @@ export interface UltraResult {
     output: string;
     routeIds: string[];
     decisionId: string;
+    coordination: CoordinationSummary;
 }
 /** Keep only complete turns as context seed, as required by DSH session replay. */
 export declare function completedSeed(parent: RouteParent): import("@deepseek-ai/dsh-session/types").SessionEvent[];
-/** One persistent decision loop plans, waits for parallel research, then implements. */
+/** One persistent decision loop plans, coordinates active research, then implements. */
 export declare function runUltra(config: RunConfig, options: RunOptions, factory?: typeof createRoute): Promise<UltraResult>;

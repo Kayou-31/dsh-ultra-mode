@@ -237,13 +237,15 @@ test('a poll begun before a successful selection cannot overwrite its newer resu
   ui.dispose()
 })
 
-test('decision phase, active run count and invalid wire responses have visible status', async () => {
-  const ui = harness(async () => response({ enabled: true, running: true, activeRuns: 1, phase: 'deciding' }))
-  ui.render('session-a')
-  await ui.settle()
-  ui.open()
-  assert.match(ui.text(), /决策中 · 1 个任务/)
-  ui.dispose()
+test('decision and live coordination phases, active count and invalid responses have visible status', async () => {
+  for (const [phase, label] of [['deciding', '决策中'], ['coordinating', '跨路协调中']]) {
+    const ui = harness(async () => response({ enabled: true, running: true, activeRuns: 1, phase }))
+    ui.render('session-a')
+    await ui.settle()
+    ui.open()
+    assert.ok(ui.text().includes(label + ' · 1 个任务'))
+    ui.dispose()
+  }
   const broken = harness(async () => ({ ok: true, value: { enabled: true } }))
   broken.render('session-a')
   await broken.settle()

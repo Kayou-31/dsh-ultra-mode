@@ -1,0 +1,82 @@
+{
+  "scope": "Isolated React 18 browser fixture, not native DSH",
+  "relativeColorSupported": true,
+  "light": {
+    "hostMenuToken": "rgba(255,255,255,.55)",
+    "surfaces": [
+      {
+        "background": "color(srgb 0.931373 0.941176 0.979608)",
+        "class": "dsh-ultra-trigger",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 1 1 1)",
+        "class": "dsh-ultra-menu",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 1 1 1)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 1 1 1)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 1 1 1)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 1 1 1)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      }
+    ],
+    "theme": "light"
+  },
+  "dark": {
+    "hostMenuToken": "rgba(35,39,47,.55)",
+    "surfaces": [
+      {
+        "background": "color(srgb 0.186667 0.208627 0.265882)",
+        "class": "dsh-ultra-trigger",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 0.137255 0.152941 0.184314)",
+        "class": "dsh-ultra-menu",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 0.137255 0.152941 0.184314)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 0.137255 0.152941 0.184314)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 0.137255 0.152941 0.184314)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      },
+      {
+        "background": "color(srgb 0.137255 0.152941 0.184314)",
+        "class": "dsh-ultra-option",
+        "opacity": "1"
+      }
+    ],
+    "theme": "dark"
+  },
+  "error": {
+    "errorBackground": "color(srgb 0.214902 0.19 0.221373)",
+    "errorOpacity": "1",
+    "errorText": "模拟保存失败：配置未改变",
+    "selection": "true"
+  }
+}

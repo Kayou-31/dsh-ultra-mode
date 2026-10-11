@@ -4,16 +4,26 @@ import { agentCarrier, type Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId, type ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionId, SessionLogOffset, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { scopeParentOf } from '@deepseek-ai/dsh-scope'
+import type { RouteProgress } from './coordination.js'
 
 export type AgentLike = Agent
 export type { ContentBlock, SessionEvent }
 
 /** One settled route turn, with the internal log identity retained for diagnostics. */
+export interface SubagentIdentity {
+  sessionId: string
+  parentSession?: string
+  origin: 'subagent'
+  delegationDepth?: number
+}
 export interface RouteOutcome {
   ok: boolean
   text: string
   error?: string
   sessionId: string
+  /** Observed creation identities only; these do not establish completion. */
+  subagents?: SubagentIdentity[]
 }
 
 /** Route creation inputs; the signal controls creation and every later turn. */
@@ -32,6 +42,8 @@ export interface RouteHandle {
   id: string
   run(prompt: ContentBlock[]): Promise<RouteOutcome>
   setReadOnly(readOnly: boolean): void
+  subscribeProgress?(listener: (progress: RouteProgress) => void): () => void
+  steer?(instruction: string): boolean
   dispose(): Promise<void>
 }
 
@@ -43,6 +55,14 @@ interface RouteState {
   parentPresentation: ToolPresentation
   attachedAgents: Set<Agent>
   presentations: Map<Agent, { mode: ToolPresentation; dispose: () => void }>
+  restrictions: Map<Agent, () => void>
+  questionBridges: Map<Agent, { definition: ToolDefinition; dispose?: () => void }>
+  subagents: SubagentIdentity[]
+  signal: AbortSignal
+  running: boolean
+  acceptingSteering: boolean
+  sequence: number
+  progressListeners: Set<(progress: RouteProgress) => void>
 }
 
 interface PresetService {
@@ -51,9 +71,10 @@ interface PresetService {
 
 type ToolPresentation = 'native' | 'ptc' | 'both'
 interface ToolService {
-  get(name: string, scope?: Agent): ToolDefinition | undefined
+  get(name: string, scope?: object): ToolDefinition | undefined
+  schemas(scope?: object): { name: string }[]
   register(definition: ToolDefinition): () => void
-  restrict(filter: { deny?: string[] }): () => void
+  restrict(filter: { allow?: readonly string[]; deny?: readonly string[] }): () => void
   modeFor(scope?: Agent): ToolPresentation
   presentAs(mode: ToolPresentation): () => void
 }
@@ -134,21 +155,45 @@ function composeRoute(childCtx: Context, parent: Agent, child: Agent, toolName: 
   }))
 }
 
+/** Publish settled evidence synchronously; listeners cannot interrupt host dispatch. */
+function publishProgress(state: RouteState, sessionId: string, kind: RouteProgress['kind'], text: string): void {
+  if (!state.running || state.signal.aborted || state.agent === undefined || text.trim() === '') return
+  const source = sessionId === state.agent.id ? '' : `${state.subagents.some(identity => identity.sessionId === sessionId) ? '原生子代理' : '内部会话'} ${sessionId} 的已提交进展：\n`
+  const progress: RouteProgress = { sessionId: state.agent.id, sequence: ++state.sequence, kind, text: `${source}${text}`.slice(0, 2000), at: Date.now() }
+  for (const listener of state.progressListeners) {
+    try { listener({ ...progress }) } catch { /* Coordination must not fail tool or session logging. */ }
+  }
+}
+
 /** A delegated child joins the shared preset but does not inherit route-local hooks. */
 function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent, toolName: string, state: RouteState): void {
   const tools = childCtx.get('tools') as ToolService | undefined
   if (tools === undefined) throw new Error('ULTRA requires the DSH tools registry')
+  // Capture the inherited definition before research visibility masks it. The
+  // scoped bridge must remain available when the decision regains its tools.
+  const questionTool = tools.get('ask_user_question', child)
+  if (inheritedToolNames(tools, child).has(toolName)) tools.restrict({ deny: [toolName] })
   state.attachedAgents.add(child)
   childCtx.effect(() => () => {
     state.attachedAgents.delete(child)
     const presentation = state.presentations.get(child)
     state.presentations.delete(child)
     presentation?.dispose()
+    const restriction = state.restrictions.get(child)
+    state.restrictions.delete(child)
+    restriction?.()
+    const question = state.questionBridges.get(child)
+    state.questionBridges.delete(child)
+    question?.dispose?.()
   }, 'ultra.routePresentation()')
-  updatePresentation(state, child)
-  if (tools.get(toolName, child) !== undefined) tools.restrict({ deny: [toolName] })
 
   const events = childCtx as unknown as RuntimeEvents
+  childCtx.on('tools/result', (exec, result) => {
+    if (exec.agent?.id !== child.id) return
+    const text = result.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    publishProgress(state, child.id, 'tool', `${exec.name} (${result.isError ? 'error' : 'result'}):\n${text}`)
+    return undefined
+  })
   // The approval audit remains on the calling loop; only the visible answerer scope changes.
   events.on('approval/request', (request) => (parent.ctx as unknown as RuntimeEvents).waterfall(
     agentCarrier(parent), 'approval/request', request, () => Promise.resolve('unavailable'),
@@ -156,23 +201,51 @@ function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent,
 
   // DSH's human-question service accepts only live roots. Keep the child tool-call
   // audit, and execute its public question tool with the visible root identity.
-  const questionTool = tools.get('ask_user_question', child)
   if (questionTool !== undefined) {
     const schema = questionTool.parameters as { properties?: Record<string, unknown> }
     const timed = schema.properties?.timeout !== undefined
-    tools.register({
+    state.questionBridges.set(child, { definition: {
       ...questionTool,
       execute: (args, exec) => questionTool.execute(
         timed && typeof args === 'object' && args !== null ? { ...args, timeout: -1 } : args,
         { ...exec, agent: parent },
       ),
-    })
+    } })
   }
+  updatePresentation(state, child)
 }
 
-/** Native research schemas preserve tools/subagents while arbitrary PTC remains denied. */
+/** Public parent-scope schemas exclude agent-owned output machinery and bridges. */
+function inheritedToolNames(tools: ToolService, agent: Agent): Set<string> {
+  const names = new Set(tools.schemas().map(tool => tool.name))
+  const parentScope = scopeParentOf(agent)
+  if (parentScope !== undefined) for (const tool of tools.schemas(parentScope)) names.add(tool.name)
+  // PTC is a reserved presentation transport and cannot appear in restrict().
+  names.delete('run_code')
+  return names
+}
+
+/** Align inherited research schemas with execution policy and restore exact layers. */
 function updatePresentation(state: RouteState, agent: Agent): void {
   const tools = agent.ctx.get('tools') as unknown as ToolService
+  if (state.readOnly && !state.restrictions.has(agent)) {
+    const inherited = inheritedToolNames(tools, agent)
+    const allow = [...state.researchTools].filter(name => name !== 'run_code' && inherited.has(name))
+    state.restrictions.set(agent, tools.restrict({ allow }))
+  } else if (!state.readOnly) {
+    const restriction = state.restrictions.get(agent)
+    state.restrictions.delete(agent)
+    restriction?.()
+  }
+  const question = state.questionBridges.get(agent)
+  if (question !== undefined) {
+    if (!state.readOnly || state.researchTools.has('ask_user_question')) {
+      question.dispose ??= tools.register(question.definition)
+    } else {
+      question.dispose?.()
+      question.dispose = undefined
+    }
+  }
   const desired = state.readOnly ? 'native' : state.parentPresentation
   const previous = state.presentations.get(agent)
   if (previous?.mode === desired) return
@@ -181,6 +254,20 @@ function updatePresentation(state: RouteState, agent: Agent): void {
   // A scoped override is necessary only when the retained preset differs.
   // Its exact disposer removes both mode and any owned PTC prompt sections.
   if (tools.modeFor(agent) !== desired) state.presentations.set(agent, { mode: desired, dispose: tools.presentAs(desired) })
+}
+
+/** Teardown also releases child layers if creation or a handle's disposal failed. */
+function releaseRouteCapabilities(state: RouteState): void {
+  for (const dispose of state.restrictions.values()) dispose()
+  state.restrictions.clear()
+  for (const presentation of state.presentations.values()) presentation.dispose()
+  state.presentations.clear()
+  for (const question of state.questionBridges.values()) question.dispose?.()
+  state.questionBridges.clear()
+  state.attachedAgents.clear()
+  state.running = false
+  state.acceptingSteering = false
+  state.progressListeners.clear()
 }
 
 /** Read only this run's settled log suffix, never inherited answers or earlier decision turns. */
@@ -229,13 +316,42 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     parentPresentation: parentTools.modeFor(parent),
     attachedAgents: new Set(),
     presentations: new Map(),
+    restrictions: new Map(),
+    questionBridges: new Map(),
+    subagents: [],
+    signal: options.signal,
+    running: false,
+    acceptingSteering: false,
+    sequence: 0,
+    progressListeners: new Set(),
   }
   routes.set(options.id, state)
+  const stopSessionEvents = parent.ctx.root.on('session/event', (session, event) => {
+    if (session.id === options.id && event.type === 'turn/end') {
+      // The loop may still report running at turn/end. Never let late feedback
+      // survive completion and wake an extra turn.
+      state.acceptingSteering = false
+    }
+    if (event.type !== 'assistant/message') return
+    const observed = parent.ctx.agents.get(session.id)
+    if (observed === undefined || !state.attachedAgents.has(observed)) return
+    const message = event as SessionEvent<'assistant/message'>
+    publishProgress(state, session.id, 'assistant', message.data.message.content
+      .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
+      .map(block => block.text).join(''))
+  })
   // The registry's serial creation notification precedes the child's first turn.
   // Listen at deployment scope: lifecycle ownership is independent of preset scopes.
   const stopDescendants = (parent.ctx.root as unknown as RuntimeEvents).on('agent/created', payload => {
     const descendant = payload.agent as Agent
     if (descendant.id !== options.id && ancestorState(descendant) === state) {
+      const header = descendant.session.header
+      if (header.origin === 'subagent') state.subagents.push({
+        sessionId: descendant.id,
+        ...(header.parentSession === undefined ? {} : { parentSession: header.parentSession }),
+        origin: header.origin,
+        ...(header.delegationDepth === undefined ? {} : { delegationDepth: header.delegationDepth }),
+      })
       attachRouteCapabilities(descendant.ctx, parent, descendant, config.toolName, state)
     }
   })
@@ -274,17 +390,38 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     })
   } catch (error) {
     stopDescendants()
+    stopSessionEvents()
+    releaseRouteCapabilities(state)
     routes.delete(options.id)
     throw error
   }
   const child = handle.agent
   let active = false
   let disposal: Promise<void> | undefined
-  const onAbort = (): void => { child.cancel({ kind: 'parent' }) }
+  const onAbort = (): void => {
+    state.acceptingSteering = false
+    child.cancel({ kind: 'parent' })
+  }
   options.signal.addEventListener('abort', onAbort, { once: true })
   if (options.signal.aborted) onAbort()
   return {
     id: options.id,
+    subscribeProgress(listener) {
+      if (disposal !== undefined) return () => {}
+      state.progressListeners.add(listener)
+      return () => { state.progressListeners.delete(listener) }
+    },
+    steer(instruction) {
+      if (!active || !state.acceptingSteering || options.signal.aborted || disposal !== undefined ||
+        child.status !== 'running' || typeof instruction !== 'string' || instruction.trim() === '') return false
+      // Public native next-step delivery keeps the same driver/turn and is
+      // durably recorded by the loop even when the current request ends in text.
+      child.steer(createUserMessage({
+        content: [{ type: 'text', text: `Ultra 决策研究改向：不扩权、原任务优先。以下仅为下一步研究反馈，继续遵守现有工具、权限和委派深度限制。\n${instruction.trim().slice(0, 2000)}` }],
+        source: { kind: 'user' },
+      }))
+      return true
+    },
     setReadOnly(readOnly) {
       if (active) throw new Error('ULTRA cannot change route access while a turn is running')
       if (disposal !== undefined) throw new Error('ULTRA route is disposed')
@@ -297,22 +434,37 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       if (active) throw new Error('ULTRA route already has an active turn')
       if (disposal !== undefined) throw new Error('ULTRA route is disposed')
       const boundary = child.session.seq
+      const subagentBoundary = state.subagents.length
+      const identities = (outcome: RouteOutcome): RouteOutcome => {
+        const observed = state.subagents.slice(subagentBoundary)
+        return observed.length === 0 ? outcome : { ...outcome, subagents: observed.map(identity => ({ ...identity })) }
+      }
       if (options.signal.aborted) return outcomeOf(child, boundary, options.label, true)
       active = true
+      state.running = true
+      state.acceptingSteering = true
+      state.sequence = 0
       try {
         child.followup(createUserMessage({ content: prompt, source: { kind: 'user' } }))
         await child.whenIdle()
-        return outcomeOf(child, boundary, options.label, options.signal.aborted)
+        return identities(outcomeOf(child, boundary, options.label, options.signal.aborted))
       } catch (error) {
-        return { ok: false, text: '', sessionId: child.id, error: `${options.label}: ${error instanceof Error ? error.message : String(error)}` }
+        return identities({ ok: false, text: '', sessionId: child.id, error: `${options.label}: ${error instanceof Error ? error.message : String(error)}` })
       } finally {
         active = false
+        state.running = false
+        state.acceptingSteering = false
       }
     },
     dispose() {
       return disposal ??= (async () => {
         options.signal.removeEventListener('abort', onAbort)
-        try { await handle.dispose() } finally { stopDescendants(); routes.delete(options.id) }
+        try { await handle.dispose() } finally {
+          stopDescendants()
+          stopSessionEvents()
+          releaseRouteCapabilities(state)
+          routes.delete(options.id)
+        }
       })()
     },
   }
