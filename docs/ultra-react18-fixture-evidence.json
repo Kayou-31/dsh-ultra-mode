@@ -1,0 +1,90 @@
+{
+  "scope": "Isolated browser fixture using repository lib/client.js and actual React + ReactDOM 18.3.1; not the DSH native window",
+  "screenshot": "ultra-react18-fixture.jpg",
+  "browser": "Chrome through CUA extension (IAB unavailable)",
+  "observedChecks": [
+    "A: off -> 3 routes",
+    "B initially off despite A enabled; B -> 5 routes; A remained 3",
+    "A -> 4 routes",
+    "Rejected A -> 5 mutation displayed alert and preserved checked 4 routes",
+    "A -> off succeeded; A -> 4 succeeded",
+    "Added internal audit record; visible sessions remained A/B",
+    "Decision phase and 1 active task appeared after polling",
+    "Unloaded plugin: button/styles removed and original route sessions returned"
+  ],
+  "dom": {
+    "audit": "可见会话 2 / 原始记录 5\n原始快照保留：true\n读取身份稳定：true",
+    "buttonHeight": 28,
+    "canvasCount": 0,
+    "menuAboveButton": true,
+    "menuRadius": "12px",
+    "modes": {
+      "session-a": {
+        "activeRuns": 1,
+        "concurrency": 4,
+        "enabled": true,
+        "error": null,
+        "lastRun": null,
+        "phase": "deciding",
+        "running": true
+      },
+      "session-b": {
+        "activeRuns": 0,
+        "concurrency": 5,
+        "enabled": true,
+        "error": null,
+        "lastRun": null,
+        "phase": "idle",
+        "running": false
+      }
+    },
+    "mutations": [
+      {
+        "concurrency": 3,
+        "enabled": true,
+        "endpoint": "set",
+        "sessionId": "session-a"
+      },
+      {
+        "concurrency": 5,
+        "enabled": true,
+        "endpoint": "set",
+        "sessionId": "session-b"
+      },
+      {
+        "concurrency": 4,
+        "enabled": true,
+        "endpoint": "set",
+        "sessionId": "session-a"
+      },
+      {
+        "concurrency": 5,
+        "enabled": true,
+        "endpoint": "set",
+        "sessionId": "session-a"
+      },
+      {
+        "concurrency": 4,
+        "enabled": false,
+        "endpoint": "set",
+        "sessionId": "session-a"
+      },
+      {
+        "concurrency": 4,
+        "enabled": true,
+        "endpoint": "set",
+        "sessionId": "session-a"
+      }
+    ],
+    "selectedOption": "4 路并发\n另加 1 路决策 · 默认 max 思考",
+    "sliderCount": 0,
+    "status": "决策中 · 1 个任务\n当前执行保持原配置；更改用于后续任务。"
+  },
+  "unload": {
+    "buttonCount": 0,
+    "pluginStyleCount": 0,
+    "routeCount": "可见会话 5 / 原始记录 5",
+    "visibleSessions": "会话 A\n内部执行路线\n会话 B\n内部决策路线\n新增审计记录"
+  },
+  "consoleWarningsAndErrors": []
+}

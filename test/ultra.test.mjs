@@ -1,151 +1,86 @@
-/**
- * Policy tests for dsh-ultra-mode (`npm test`).
- *
- * These exercise the pure policy module only — no Cordis runtime, no network,
- * no LLM. Run after `npm run build` (the tests import the compiled `lib/`).
- */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-
 import {
-  buildMergePrompt,
-  buildWorkerBrief,
-  clampConcurrency,
-  countUsable,
-  fallbackJoin,
-  isRunning,
-  planMerge,
-  renderUltraSection,
-  resolveSessionKey,
-  runBanner,
-  snapshotOf,
-  MAX_CONCURRENCY,
-  MIN_CONCURRENCY,
+  MIN_CONCURRENCY, MAX_CONCURRENCY, routeCount, resolveSessionKey, snapshotOf,
+  planMerge, parseAssignments, buildPlanPrompt, buildWorkerBrief,
+  buildDecisionPrompt, fallbackJoin, renderUltraSection,
 } from '../lib/ultra.js'
 
-const state = (over = {}) => ({ enabled: true, concurrency: 3, activeRuns: 0, lastRun: null, ...over })
-const ok = (text) => ({ ok: true, text })
-const bad = (error) => ({ ok: false, error })
+const state = extra => ({ enabled: true, concurrency: 3, activeRuns: 0, phase: 'idle', error: null, lastRun: null, ...extra })
+const ok = (text, sessionId = 'route-1') => ({ ok: true, text, sessionId })
+const bad = (error, sessionId = 'route-2') => ({ ok: false, text: '', error, sessionId })
 
-test('clampConcurrency keeps values inside [2,5]', () => {
-  assert.equal(clampConcurrency(2), 2)
-  assert.equal(clampConcurrency(5), 5)
-  assert.equal(clampConcurrency(1), MIN_CONCURRENCY)
-  assert.equal(clampConcurrency(99), MAX_CONCURRENCY)
-  assert.equal(clampConcurrency('4'), 4)
+test('execution count accepts only 3/4/5 and excludes the extra decision route', () => {
+  assert.equal(MIN_CONCURRENCY, 3)
+  assert.equal(MAX_CONCURRENCY, 5)
+  for (const value of [3, 4, 5]) assert.equal(routeCount(value), value)
+  for (const value of [2, 6, 3.5, '3', undefined, null, false, NaN, Infinity]) assert.throws(() => routeCount(value), /3、4 或 5/)
 })
 
-test('clampConcurrency falls back to 3 for junk', () => {
-  assert.equal(clampConcurrency(undefined), 3)
-  assert.equal(clampConcurrency(null), 3)
-  assert.equal(clampConcurrency(3.5), 3)
-  assert.equal(clampConcurrency('abc'), 3)
-  assert.equal(clampConcurrency(NaN), 3)
+test('blank/non-string sessions never collapse into one shared identity', () => {
+  assert.equal(resolveSessionKey('  session-a  '), 'session-a')
+  for (const value of ['', '   ', undefined, null, 42, {}]) assert.equal(resolveSessionKey(value), undefined)
 })
 
-test('resolveSessionKey rejects blank/non-string instead of sharing a bucket', () => {
-  assert.equal(resolveSessionKey('session-a'), 'session-a')
-  assert.equal(resolveSessionKey('  session-b  '), 'session-b')
-  assert.equal(resolveSessionKey(''), undefined)
-  assert.equal(resolveSessionKey('   '), undefined)
-  assert.equal(resolveSessionKey(undefined), undefined)
-  assert.equal(resolveSessionKey(null), undefined)
-  assert.equal(resolveSessionKey(42), undefined)
-})
-
-test('isRunning tracks overlapping invocations', () => {
-  assert.equal(isRunning(state({ activeRuns: 0 })), false)
-  assert.equal(isRunning(state({ activeRuns: 1 })), true)
-  assert.equal(isRunning(state({ activeRuns: 2 })), true)
-})
-
-test('snapshotOf is a detached plain object', () => {
-  const live = state({ activeRuns: 2, lastRun: { at: 1, ms: 2 } })
-  const snap = snapshotOf(live)
-  assert.deepEqual(snap, { enabled: true, concurrency: 3, running: true, activeRuns: 2, lastRun: { at: 1, ms: 2 } })
+test('snapshot owns its run metadata and reports actual active runs', () => {
+  const live = state({ activeRuns: 1, phase: 'researching', lastRun: { at: 10, ms: 20, requested: 3, succeeded: 3, runId: 'r' } })
+  const snapshot = snapshotOf(live)
+  assert.equal(snapshot.running, true)
   live.activeRuns = 0
-  assert.equal(snap.activeRuns, 2, 'snapshot must not follow later mutation')
+  live.lastRun.succeeded = 0
+  assert.equal(snapshot.activeRuns, 1)
+  assert.equal(snapshot.lastRun.succeeded, 3)
+  assert.equal(snapshotOf(state()).running, false)
 })
 
-test('countUsable ignores completed-but-empty output', () => {
-  assert.equal(countUsable([ok('x'), ok(''), ok('   '), bad('boom')]), 1)
-  assert.equal(countUsable([]), 0)
+test('completed but blank reports do not satisfy the two-report minimum', () => {
+  assert.deepEqual(planMerge([ok('one'), ok('   '), bad('failed')], 3), { requested: 3, succeeded: 1, failed: 2, strategy: 'insufficient' })
+  assert.deepEqual(planMerge([ok('one'), ok('two'), bad('failed')], 3), { requested: 3, succeeded: 2, failed: 1, strategy: 'degraded' })
+  assert.equal(planMerge([ok('one'), ok('two'), ok('three')], 3).strategy, 'full')
 })
 
-test('planMerge: <2 usable workers is insufficient (no silent degradation)', () => {
-  const plan = planMerge([ok('only one'), bad('x'), bad('y')], 3)
-  assert.deepEqual(plan, { requested: 3, succeeded: 1, failed: 2, strategy: 'insufficient' })
+test('planner JSON preserves exact assignments; invalid prose gets distinct useful fallbacks', () => {
+  const assignments = ['First concrete task', 'Second concrete task', 'Third concrete task']
+  assert.deepEqual(parseAssignments(`Plan:\n${JSON.stringify({ assignments })}\n`, 3), assignments)
+  for (const response of ['plain prose', '{"assignments":["only one"]}', '{"assignments":["a","","c"]}', '{"assignments":["a",42,"c"]}']) {
+    const fallback = parseAssignments(response, 5)
+    assert.equal(fallback.length, 5)
+    assert.equal(new Set(fallback).size, 5)
+    assert.ok(fallback.every(text => text.trim()))
+  }
 })
 
-test('planMerge: partial success degrades and is reported', () => {
-  const plan = planMerge([ok('a'), ok('b'), bad('c')], 3)
-  assert.deepEqual(plan, { requested: 3, succeeded: 2, failed: 1, strategy: 'degraded' })
-  assert.match(runBanner(plan), /启动 3 路，成功 2 路，失败 1 路/)
+test('planning/worker briefs preserve task, descendant research limits, and subagent ability', () => {
+  const plan = buildPlanPrompt('Original user task', 4)
+  assert.match(plan, /Original user task/)
+  assert.match(plan, /4 条并发执行路线/)
+  assert.match(plan, /可以派子代理/)
+  assert.match(plan, /不能修改共享文件/)
+  const worker = buildWorkerBrief('Original user task', 'Check the evidence', 1, 4, 'Planner context')
+  for (const phrase of ['Original user task', 'Check the evidence', 'Planner context', '2/4', '后代', '不要写共享文件', '不要调用 ultra_task']) assert.ok(worker.includes(phrase), phrase)
 })
 
-test('planMerge: full success has no banner', () => {
-  const plan = planMerge([ok('a'), ok('b'), ok('c')], 3)
-  assert.equal(plan.strategy, 'full')
-  assert.equal(runBanner(plan), '')
+test('decision brief names partial outcomes and does not expand authorization', () => {
+  const outcomes = [ok('A'.repeat(100), 'r1'), bad('creation failed', 'r2'), ok('third evidence', 'r3')]
+  const prompt = buildDecisionPrompt('User task', outcomes, planMerge(outcomes, 3), 'Jev advisory', 12)
+  for (const phrase of ['请求 3 条执行路线，成功 2，失败 1', 'r1', 'r2', 'creation failed', 'Jev advisory', '唯一提交者', '不具备新的用户授权', '不要停在研究报告']) assert.ok(prompt.includes(phrase), phrase)
+  assert.ok(prompt.includes('A'.repeat(12)))
+  assert.equal(prompt.includes('A'.repeat(13)), false)
 })
 
-test('planMerge counts empty completions as failures', () => {
-  const plan = planMerge([ok('a'), ok(''), ok('b')], 3)
-  assert.equal(plan.succeeded, 2)
-  assert.equal(plan.failed, 1)
+test('decision failure fallback discloses incomplete delivery and retains useful evidence', () => {
+  const fallback = fallbackJoin([ok('first report'), bad('private failure text'), ok('   '), ok('second report')])
+  assert.match(fallback, /决策路线失败/)
+  assert.match(fallback, /尚未完成统一决策或交付/)
+  assert.match(fallback, /first report/)
+  assert.match(fallback, /second report/)
+  assert.doesNotMatch(fallback, /private failure text/)
 })
 
-test('buildMergePrompt states requested vs succeeded', () => {
-  const outcomes = [ok('alpha'), bad('boom'), ok('beta')]
-  const prompt = buildMergePrompt('任务原文', outcomes, planMerge(outcomes, 3))
-  assert.match(prompt, /2 个独立 agent/)
-  assert.match(prompt, /请求 3 路，实际只有 2 路成功/)
-  assert.match(prompt, /任务原文/)
-  assert.match(prompt, /alpha/)
-  assert.doesNotMatch(prompt, /boom/)
-})
-
-test('buildMergePrompt truncates each worker at 20000 chars', () => {
-  const long = 'x'.repeat(25000)
-  const prompt = buildMergePrompt('t', [ok(long), ok('y')], planMerge([ok(long), ok('y')], 2))
-  assert.ok(prompt.length < 41000, `prompt too long: ${prompt.length}`)
-  assert.match(prompt, /x{20000}/)
-})
-
-test('fallbackJoin keeps every usable sample and drops failures', () => {
-  const joined = fallbackJoin([ok('one'), bad('nope'), ok('two')])
-  assert.match(joined, /分支 1/)
-  assert.match(joined, /one/)
-  assert.match(joined, /分支 2/)
-  assert.match(joined, /two/)
-  assert.doesNotMatch(joined, /nope/)
-})
-
-test('buildWorkerBrief embeds the task and forbids meta talk', () => {
-  const brief = buildWorkerBrief('分析架构')
-  assert.match(brief, /分析架构/)
-  assert.match(brief, /不要提及/)
-})
-
-test('renderUltraSection: no state means no section text', () => {
-  assert.equal(renderUltraSection(undefined, 'ultra_task'), '')
-})
-
-test('renderUltraSection: disabled state is explicit about being off', () => {
-  const text = renderUltraSection(state({ enabled: false }), 'ultra_task')
-  assert.match(text, /开关为关闭/)
-  assert.match(text, /明确要求/)
-})
-
-test('renderUltraSection: enabled state injects the live switch position', () => {
-  const text = renderUltraSection(state({ enabled: true, concurrency: 4 }), 'ultra_task')
-  assert.match(text, /ULTRA 当前状态：已开启/)
-  assert.match(text, /并发数：4/)
-  assert.match(text, /本轮必须先调用 ultra_task/)
-  assert.match(text, /仅调用一次/)
-})
-
-test('renderUltraSection: overlapping runs are surfaced', () => {
-  const text = renderUltraSection(state({ activeRuns: 2 }), 'ultra_task')
-  assert.match(text, /2 次 ULTRA 正在执行中/)
+test('enabled prompt states N Max executions plus one Max decision without recursion', () => {
+  assert.equal(renderUltraSection(undefined), '')
+  assert.equal(renderUltraSection(state({ enabled: false })), '')
+  const prompt = renderUltraSection(state({ concurrency: 5 }))
+  assert.match(prompt, /5 条 Max 执行路线 \+ 1 条 Max 决策路线/)
+  assert.match(prompt, /不要重做或再次调用 ultra_task/)
 })

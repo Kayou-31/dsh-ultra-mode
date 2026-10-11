@@ -5,11 +5,12 @@
     - id: ultra-mode
       name: '@dsh-external/dsh-ultra-mode'
       config:
-        # subagent provider 名（留空自动探测：spawn → 首个可用）
-        provider: ''
         # 模型可见工具名
         toolName: ultra_task
-        # 默认并发路数 2-5
+        # 执行路线 3/4/5，不包含独立决策路线；所有路线默认 Max
         concurrency: 3
         # 提示词段插入顺序
         sectionOrder: 117.5
+        timeoutMs: 900000
+        # 可选 Typesafe Jev 决策辅助；密钥只从 Host 环境变量读取
+        jevEnabled: false
