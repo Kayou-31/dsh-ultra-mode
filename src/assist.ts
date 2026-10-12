@@ -26,9 +26,15 @@ export interface DecisionAssistHandle {
   decisionId: string
   coordination: CoordinationSummary
   /** Includes the currently running decision turn and lifecycle disposal. */
-  done: Promise<void>
+  done: Promise<DecisionAssistOutcome>
   /** Stop the sidecar only, without cancelling or waking the parent. */
   stop(): void
+}
+/** Describes the sidecar lifecycle only, never the success of the parent task. */
+export interface DecisionAssistOutcome {
+  reason: 'turn-ended' | 'cancelled' | 'timeout' | 'stopped' | 'failed'
+  warnings: string[]
+  error: string | null
 }
 interface AssistProgress { sessionId: string; kind: 'tool' | 'assistant'; text: string; at: number }
 
@@ -64,20 +70,24 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   const runId = randomUUID()
   const decisionId = 'ultra-route-' + randomUUID()
   const controller = new AbortController()
-  const signal = AbortSignal.any([options.signal, controller.signal, AbortSignal.timeout(config.timeoutMs)])
+  const deadline = AbortSignal.timeout(config.timeoutMs)
+  const signal = AbortSignal.any([options.signal, controller.signal, deadline])
   const coordination: CoordinationSummary = { rounds: 0, directives: [], errors: [] }
   const progress: AssistProgress[] = []
   const pendingFeedback = new Set<UserMessage['id']>()
   const descendants = new Map<string, Agent>()
   const disposers: (() => void)[] = []
   let stopped = false
+  let endReason: DecisionAssistOutcome['reason'] | undefined
+  let currentError: string | null = null
   let revision = 1 // The new task itself triggers the initial decision.
   let consumed = 0
   let wake: (() => void) | undefined
   let purge: Promise<void> = Promise.resolve()
-  const stop = (): void => {
+  const stop = (reason: DecisionAssistOutcome['reason'] = 'stopped'): void => {
     if (stopped) return
     stopped = true
+    endReason = reason
     for (const dispose of disposers.splice(0)) {
       try { dispose() } catch (error) { coordination.errors.push(`停止进展监听失败：${String(error)}`.slice(0, 2000)) }
     }
@@ -95,12 +105,14 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
       if (failures.length > 0) throw new AggregateError(failures, 'Ultra 决策辅助未消费建议清理失败')
     })
     void purge.catch(() => {}) // The running decision may take longer to drain.
-    signal.removeEventListener('abort', stop)
+    signal.removeEventListener('abort', onAbort)
     controller.abort()
     wake?.()
   }
+  const onAbort = (): void => { stop(options.signal.aborted ? 'cancelled' : deadline.aborted ? 'timeout' : 'stopped') }
   const record = (error: unknown, stage = ''): void => {
-    coordination.errors.push(`第 ${coordination.rounds} 轮${stage}：${error instanceof Error ? error.message : String(error)}`.slice(0, 2000))
+    currentError = `第 ${coordination.rounds} 轮${stage}：${error instanceof Error ? error.message : String(error)}`.slice(0, 2000)
+    coordination.errors.push(currentError)
   }
   const observe = (sessionId: string, event: SessionEvent): void => {
     if (stopped || signal.aborted) return
@@ -124,7 +136,12 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   // Install before creation so parent completion cannot race a slow factory.
   disposers.push(parent.ctx.root.on('session/event', (session, event) => {
     if (session === parent.session) {
-      if (event.type === 'turn/end' || (event.type === 'turn/start' && (event as SessionEvent<'turn/start'>).data.turn !== turn)) { stop(); return }
+      if (event.type === 'turn/end') {
+        const reason = (event as SessionEvent<'turn/end'>).data.reason.kind
+        stop(reason === 'aborted' ? 'cancelled' : 'turn-ended')
+        return
+      }
+      if (event.type === 'turn/start' && (event as SessionEvent<'turn/start'>).data.turn !== turn) { stop('turn-ended'); return }
       if (event.type === 'user/message') pendingFeedback.delete((event as SessionEvent<'user/message'>).data.id)
       if ((event.type === 'assistant/message' || event.type === 'tool/result') && event.data.turn === turn) observe(session.id, event)
     } else if (descendants.get(session.id)?.session === session) observe(session.id, event)
@@ -135,8 +152,8 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
       (header.parentSession === parent.id || descendants.has(header.parentSession))) descendants.set(agent.id, agent)
     return undefined
   }))
-  signal.addEventListener('abort', stop, { once: true })
-  if (signal.aborted) stop()
+  signal.addEventListener('abort', onAbort, { once: true })
+  if (signal.aborted) onAbort()
   let decision: RouteHandle
   try {
     factory ??= (await import('./runtime.js')).createRoute
@@ -147,7 +164,7 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
       signal, route: options.route, researchTools: config.researchTools,
     }, config)
     if (stopped || signal.aborted) { await decision.dispose(); signal.throwIfAborted() }
-  } catch (error) { stop(); await purge; throw error }
+  } catch (error) { stop('failed'); await purge; throw error }
 
   const changed = (delay?: number): Promise<void> => new Promise(resolve => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -166,11 +183,11 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   // An enabled assist always checks the new task; zero allows that call only.
   const maxRuns = cap === -1 ? Infinity : Math.min(1000, Math.max(1, cap))
   let runCalls = 0
-  const loop = async (): Promise<void> => {
+  const loop = async (): Promise<DecisionAssistOutcome> => {
     let nextAt = 0
     try {
       while (!stopped && !signal.aborted) {
-        if (parent.status !== 'running') { stop(); break }
+        if (parent.status !== 'running') { stop('turn-ended'); break }
         // A finite decision.run cap is not a turn boundary. Keep the current turn's
         // queued feedback available until admission, end, cancellation or stop.
         if (runCalls >= maxRuns) { await changed(); continue }
@@ -206,6 +223,9 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
               continue // One correction only; wait for fresh progress afterward.
             }
           }
+          // Preserve the audit history while allowing a valid repair or later
+          // evidence to recover the current diagnostic state.
+          currentError = null
           for (const directive of parsed.directives) {
             if (stopped || signal.aborted || parent.status !== 'running') break
             const feedback = createUserMessage({
@@ -227,11 +247,17 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
         finally { descendants.clear() }
       }
     }
+    const reason = endReason === 'turn-ended' && currentError !== null ? 'failed' : endReason ?? 'turn-ended'
+    return {
+      reason,
+      warnings: coordination.errors.slice(),
+      error: reason === 'timeout' ? 'Ultra 决策辅助已超时，主 Agent 保持正常运行。' : reason === 'failed' ? currentError : null,
+    }
   }
   options.phase('assisting')
   const done = loop()
   // The owner may attach after start resolves. Preserve rejection for its drain,
   // while containing a fast disposal failure before that owner is attached.
   void done.catch(() => {})
-  return { runId, decisionId, coordination, done, stop }
+  return { runId, decisionId, coordination, done, stop: () => stop() }
 }

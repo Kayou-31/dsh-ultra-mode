@@ -1,6 +1,7 @@
 import type { AgentLike as RouteParent, ContentBlock, createRoute } from './runtime.js';
 import { type CoordinationSummary } from './coordination.js';
-export interface RunConfig {
+import type { CollaborationHostConfig } from './collaboration-host.js';
+export interface RunConfig extends CollaborationHostConfig {
     toolName: string;
     timeoutMs: number;
     reportChars: number;

@@ -9,6 +9,7 @@ import { startDecisionAssist } from './assist.js'
 import { researchToolDenial, routeParentOf } from './runtime.js'
 import { routeCount, modeCount, resolveSessionKey, snapshotOf, renderUltraSection, type UltraState } from './ultra.js'
 import type { CoordinationSummary } from './coordination.js'
+import { installCollaboration, COLLABORATION_TOOLS, type CollaborationHostHandle } from './collaboration-host.js'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -20,6 +21,9 @@ export const inject = ['agents', 'tools', 'systemPrompt']
 export const Config = z.object({
   toolName: z.string().default('ultra_task'),
   concurrency: z.number().step(1).min(1).max(5).default(3),
+  collaborationEnabled: z.boolean().default(false),
+  collaborationProvider: z.string().default('spawn'),
+  collaborationMaxAgents: z.number().step(1).min(1).max(32).default(8),
   sectionOrder: z.number().default(117.5),
   maxSessions: z.number().step(1).min(1).default(64),
   timeoutMs: z.number().step(1).min(1000).max(86400000).default(900000),
@@ -59,6 +63,30 @@ export function apply(ctx: Context, config: Config): void {
   const deliveryOnly = new WeakSet<Agent>()
   const sessions = new Map<string, UltraState>()
   const assists = new Map<Agent, { handle: Awaited<ReturnType<typeof startDecisionAssist>>; drained: Promise<void> }>()
+  const collaborations = new Map<Agent, CollaborationHostHandle>()
+  const collaborationTurns = new WeakMap<Agent, boolean>()
+  const collaborationFailures = new WeakMap<Agent, string>()
+  const collaborationReassembly = new WeakSet<Agent>()
+  const assembling = new WeakSet<object>()
+  const collaborationAbortListeners = new Map<Agent, () => void>()
+  const collaborationClosures = new Map<Agent, Promise<void>>()
+  const closeCollaboration = (agent: Agent): Promise<void> => {
+    const previous = collaborationClosures.get(agent)
+    if (previous) return previous
+    const owned = collaborations.get(agent)
+    if (!owned) return Promise.resolve()
+    collaborations.delete(agent)
+    collaborationAbortListeners.get(agent)?.()
+    collaborationAbortListeners.delete(agent)
+    // Detach ownership now, but never append native drain events reentrantly
+    // from a Session's turn/end publication.
+    const closing = Promise.resolve().then(() => owned.close()).finally(() => { pending.delete(closing); collaborationClosures.delete(agent) })
+    collaborationClosures.set(agent, closing)
+    pending.add(closing)
+    return closing
+  }
+  const runConfigFor = (state: UltraState): RunConfig => ({ ...config, collaborationEnabled: state.collaborationEnabled === true,
+    researchTools: state.collaborationEnabled ? [...new Set([...config.researchTools, ...COLLABORATION_TOOLS])] : config.researchTools })
   const stateFor = (id: string, create = false): UltraState | undefined => {
     const existing = sessions.get(id)
     if (existing !== undefined) { sessions.delete(id); sessions.set(id, existing); return existing }
@@ -68,10 +96,58 @@ export function apply(ctx: Context, config: Config): void {
       if (oldest === undefined) throw new Error('Ultra 所有状态均在运行中，请稍后再试。')
       sessions.delete(oldest[0])
     }
-    const state: UltraState = { enabled: false, concurrency: config.concurrency, activeRuns: 0, phase: 'idle', error: null, lastRun: null }
+    const state: UltraState = { enabled: false, collaborationEnabled: config.collaborationEnabled ?? false, concurrency: config.concurrency, activeRuns: 0, phase: 'idle', error: null, lastRun: null }
     sessions.set(id, state)
     return state
   }
+  const provisionCollaboration = (agent: Agent): boolean => {
+    if (shutdown.signal.aborted || collaborations.has(agent) || !collaborationTurns.get(agent) || collaborationFailures.has(agent)) return false
+    try {
+      collaborations.set(agent, installCollaboration(agent, config))
+      return true
+    } catch (error) {
+      const detail = '协作增强未启动：' + String(error) + '。继续使用宿主原有派发能力。'
+      collaborationFailures.set(agent, detail)
+      const state = stateFor(agent.id, true)!
+      state.warnings = [...(state.warnings ?? []), detail]
+      return false
+    }
+  }
+  host.on('session/event', ((session: Agent['session'], event: { type: string }) => {
+    if (event.type !== 'turn/start' && event.type !== 'turn/end') return
+    const registry = host.get('agents') as { get(id: Agent['id']): Agent | undefined; roots(): Agent[] }
+    const agent = registry.get(session.id)
+    if (!agent || agent.session !== session || !registry.roots().includes(agent) || routeParentOf(agent) !== undefined) return
+    if (event.type === 'turn/start') {
+      collaborationTurns.set(agent, stateFor(agent.id, config.collaborationEnabled === true)?.collaborationEnabled === true)
+      collaborationFailures.delete(agent)
+      // Normal path: tools are present before the SDK snapshots the first
+      // assembly. A preceding native drain is awaited by the assembly hook.
+      if (collaborationClosures.has(agent)) collaborationReassembly.add(agent)
+      else provisionCollaboration(agent)
+    } else if (event.type === 'turn/end') {
+      collaborationTurns.delete(agent)
+      void closeCollaboration(agent).catch(error => {
+        const state = sessions.get(agent.id)
+        if (state) state.warnings = [...(state.warnings ?? []), '协作收尾失败：' + String(error)]
+      })
+    }
+  }) as never)
+  host.on('system-prompt/assemble', (async (_assembly: unknown, context: { agent?: Agent; signal?: AbortSignal }, next: () => Promise<unknown>) => {
+    const agent = context.agent
+    if (!agent || routeParentOf(agent) !== undefined || assembling.has(context)) return next()
+    await collaborationClosures.get(agent)
+    context.signal?.throwIfAborted()
+    const mounted = provisionCollaboration(agent)
+    if (!mounted && !collaborationReassembly.has(agent)) return next()
+    collaborationReassembly.delete(agent)
+    // Consecutive turns can overlap the previous team's native drain. Rebuild
+    // through the public registry once after mounting, preserving toolOrder,
+    // PTC presentation and complete prompts instead of editing schema arrays.
+    assembling.add(context)
+    try { return await (host.get('systemPrompt') as { assemble(context: unknown): Promise<unknown> }).assemble(context) }
+    finally { assembling.delete(context) }
+  }) as never)
   const execute = async (agent: Agent, task: string, content: ContentBlock[], signal: AbortSignal, count?: number, route?: { provider: string; model: string }): Promise<UltraResult> => {
     shutdown.signal.throwIfAborted()
     if (routeParentOf(agent) !== undefined) throw new Error('Ultra 内部路线及其子代理不能递归开启 Ultra。')
@@ -82,10 +158,11 @@ export function apply(ctx: Context, config: Config): void {
     const startedAt = Date.now()
     state.activeRuns = 1
     state.error = null
+    state.warnings = []
     let result: UltraResult | undefined
     let drain: Promise<void> | undefined
     try {
-      const run = runUltra(config, { parent: agent, task, content, concurrency, signal: AbortSignal.any([signal, shutdown.signal]), route, phase: phase => { state.phase = phase } })
+      const run = runUltra(runConfigFor(state), { parent: agent, task, content, concurrency, signal: AbortSignal.any([signal, shutdown.signal]), route, phase: phase => { state.phase = phase } })
       drain = run.then(() => {}, () => {})
       pending.add(drain)
       result = await run
@@ -111,8 +188,9 @@ export function apply(ctx: Context, config: Config): void {
     state.activeRuns = 1
     state.phase = 'assisting'
     state.error = null
+    state.warnings = []
     try {
-      const assist = await startDecisionAssist(config, { parent: agent, task, content, signal: AbortSignal.any([signal, shutdown.signal]), route,
+      const assist = await startDecisionAssist(runConfigFor(state), { parent: agent, task, content, signal: AbortSignal.any([signal, shutdown.signal]), route,
         phase: phase => { state.phase = phase } })
       if (shutdown.signal.aborted || signal.aborted) {
         assist.stop()
@@ -120,10 +198,13 @@ export function apply(ctx: Context, config: Config): void {
         throw new Error('决策辅助启动已取消')
       }
       const tracking = { handle: assist, drained: Promise.resolve() }; assists.set(agent, tracking)
-      const drain = assist.done.then(() => {
+      const drain = assist.done.then(outcome => {
         if (assists.get(agent) !== tracking) return
-        state.phase = signal.aborted || shutdown.signal.aborted ? 'cancelled' : 'completed'
-        state.error = assist.coordination.errors.at(-1) ?? null
+        state.phase = outcome.reason === 'cancelled' ? 'cancelled'
+          : outcome.reason === 'timeout' ? 'timed-out' : outcome.reason === 'failed' ? 'failed'
+            : outcome.reason === 'stopped' ? 'stopped' : 'completed'
+        state.error = outcome.error
+        state.warnings = outcome.warnings.slice()
       }, error => {
         if (assists.get(agent) !== tracking) return
         state.phase = signal.aborted || shutdown.signal.aborted ? 'cancelled' : 'failed'
@@ -141,7 +222,8 @@ export function apply(ctx: Context, config: Config): void {
       return assist
     } catch (error) {
       state.activeRuns = 0
-      state.phase = 'failed'
+      state.phase = signal.aborted || shutdown.signal.aborted ? 'cancelled'
+        : error instanceof Error && error.name === 'TimeoutError' ? 'timed-out' : 'failed'
       state.error = error instanceof Error ? error.message : String(error)
       return undefined
     }
@@ -179,7 +261,18 @@ export function apply(ctx: Context, config: Config): void {
     const user = decision.messages.filter(m => m.source.kind === 'user' && (claimed.includes(m) || claimedIds.has(m.id)))
     if (user.length === 0) return decision
     deliveryOnly.delete(payload.agent)
-    const state = stateFor(payload.agent.id)
+    const state = stateFor(payload.agent.id, config.collaborationEnabled === true)
+    if (collaborations.has(payload.agent) && !collaborationAbortListeners.has(payload.agent)) {
+      const stop = () => { void closeCollaboration(payload.agent).catch(error => {
+        if (state) state.warnings = [...(state.warnings ?? []), '协作收尾失败：' + String(error)]
+      }) }
+      payload.signal.addEventListener('abort', stop, { once: true })
+      collaborationAbortListeners.set(payload.agent, () => payload.signal.removeEventListener('abort', stop))
+      if (payload.signal.aborted) stop()
+    }
+    const detail = collaborationFailures.get(payload.agent)
+    if (detail) decision.messages = [...decision.messages, createUserMessage({ content: [{ type: 'text', text: detail }],
+      source: { kind: 'ultra-mode', form: 'notice', summary: '协作增强不可用', runId: '', routeIds: [], decisionId: '' } })]
     if (!state?.enabled) {
       const previous = assists.get(payload.agent)
       if (previous !== undefined) { previous.handle.stop(); await previous.drained }
@@ -221,6 +314,16 @@ export function apply(ctx: Context, config: Config): void {
   })
   host.inject(['commands'], owner => {
     const commands = owner.get('commands') as { register(value: unknown): unknown }
+    commands.register({ name: 'team', description: '独立开关：增强子代理协作，不改变 Ultra 模式或主 Agent 思考档位', input: { hint: '[on|off]', attachments: false },
+      handler: ({ agent, rawInput }: { agent?: Agent; rawInput?: string }) => {
+        const id = resolveSessionKey(agent?.id)
+        if (!id || !agent || routeParentOf(agent)) return { kind: 'error', text: '/team 只能用于主会话。' }
+        const input = (rawInput ?? '').trim().toLowerCase()
+        if (input !== 'on' && input !== 'off' && input !== '') return { kind: 'error', text: '用法：/team on | off' }
+        const state = stateFor(id, true)!
+        if (input) state.collaborationEnabled = input === 'on'
+        return { kind: 'success', text: state.collaborationEnabled ? '子代理协作增强已开启；后续任务生效，Ultra 选项保持原值。' : '子代理协作增强已关闭；后续任务生效，Ultra 选项保持原值。' }
+      } })
     commands.register({ name: 'ultra', description: 'Ultra：正常 Agent + 自动决策，或 2–5 条 Max 执行路线 + 1 条决策路线', input: { hint: '[on|off|assist|2|3|4|5]', attachments: false },
       handler: ({ agent, rawInput }: { agent?: Agent; rawInput?: string }) => {
         const id = resolveSessionKey(agent?.id)
@@ -247,12 +350,14 @@ export function apply(ctx: Context, config: Config): void {
       try {
         if (endpoint === 'set') {
           if (data.enabled !== undefined && typeof data.enabled !== 'boolean') throw new Error('enabled must be boolean')
+          if (data.collaborationEnabled !== undefined && typeof data.collaborationEnabled !== 'boolean') throw new Error('collaborationEnabled must be boolean')
           if (data.concurrency !== undefined) modeCount(data.concurrency)
           const state = stateFor(id, true)!
           if (typeof data.enabled === 'boolean') state.enabled = data.enabled
+          if (typeof data.collaborationEnabled === 'boolean') state.collaborationEnabled = data.collaborationEnabled
           if (typeof data.concurrency === 'number') state.concurrency = data.concurrency
         }
-        const state = stateFor(id) ?? { enabled: false, concurrency: config.concurrency, activeRuns: 0, phase: 'idle', error: null, lastRun: null }
+        const state = stateFor(id) ?? { enabled: false, collaborationEnabled: config.collaborationEnabled ?? false, concurrency: config.concurrency, activeRuns: 0, phase: 'idle', error: null, lastRun: null }
         return { ok: true, value: snapshotOf(state) }
       } catch (error) {
         return { ok: false, error: { code: 'invalid-setting', message: error instanceof Error ? error.message : String(error) } }
@@ -262,6 +367,7 @@ export function apply(ctx: Context, config: Config): void {
   // Register last so scoped teardown cancels and drains in-flight routes first.
   host.effect(() => async () => {
     shutdown.abort(new Error('Ultra plugin unloaded'))
+    await Promise.allSettled([...collaborations.keys()].map(agent => closeCollaboration(agent)))
     await Promise.allSettled([...pending])
   })
 }

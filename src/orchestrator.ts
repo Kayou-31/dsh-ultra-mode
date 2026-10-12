@@ -4,8 +4,9 @@ import type { RouteHandle, AgentLike as RouteParent, ContentBlock, createRoute }
 import { decideWithJev, JevError } from './jev.js'
 import { buildPlanPrompt, buildPlanRepairPrompt, buildWorkerBrief, buildDecisionPrompt, tryParseAssignments, parseAssignments, planMerge, fallbackJoin, type WorkerOutcome } from './ultra.js'
 import { buildCoordinationPrompt, parseCoordinationDecision, renderCoordinationSummary, type CoordinationSnapshot, type CoordinationSummary, type RouteProgress } from './coordination.js'
+import type { CollaborationHostConfig } from './collaboration-host.js'
 
-export interface RunConfig {
+export interface RunConfig extends CollaborationHostConfig {
   toolName: string
   timeoutMs: number
   reportChars: number

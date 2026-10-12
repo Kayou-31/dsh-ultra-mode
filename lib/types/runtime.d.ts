@@ -2,6 +2,7 @@ import { type Agent } from '@deepseek-ai/dsh-agent';
 import { type ContentBlock } from '@deepseek-ai/dsh-llm';
 import { type SessionEvent } from '@deepseek-ai/dsh-session';
 import type { RouteProgress } from './coordination.js';
+import { type CollaborationHostConfig } from './collaboration-host.js';
 export type AgentLike = Agent;
 export type { ContentBlock, SessionEvent };
 /** One settled route turn, with the internal log identity retained for diagnostics. */
@@ -52,7 +53,7 @@ export declare function researchToolDenial(agent: Agent | undefined, toolName: s
 /** Create a loop without subagent origin or additional delegation depth. */
 export declare function createRoute(parent: Agent, options: RouteOptions, config: {
     toolName: string;
-}): Promise<RouteHandle>;
+} & CollaborationHostConfig): Promise<RouteHandle>;
 /** Execute a single route turn and drain its owned loop even after cancellation or failure. */
 export declare function runRoute(parent: Agent, options: RouteOptions & {
     prompt: ContentBlock[];

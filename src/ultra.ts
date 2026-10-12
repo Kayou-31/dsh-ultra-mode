@@ -3,7 +3,9 @@ export const MIN_CONCURRENCY = 2
 export const MAX_CONCURRENCY = 5
 export interface UltraState {
   enabled: boolean
+  collaborationEnabled?: boolean
   concurrency: number
+  warnings?: string[]
   activeRuns: number
   phase: string
   error: string | null
@@ -34,7 +36,7 @@ export function resolveSessionKey(value: unknown): string | undefined {
 }
 /** Snapshot state without exposing mutable host records. */
 export function snapshotOf(state: UltraState) {
-  return { ...state, running: state.activeRuns > 0, lastRun: state.lastRun === null ? null : { ...state.lastRun } }
+  return { ...state, ...(state.warnings === undefined ? {} : { warnings: [...state.warnings] }), running: state.activeRuns > 0, lastRun: state.lastRun === null ? null : { ...state.lastRun } }
 }
 /** Count only completed, nonblank route output. */
 export function planMerge(outcomes: readonly WorkerOutcome[], requested: number): MergePlan {
@@ -109,7 +111,7 @@ export function buildDecisionPrompt(task: string, outcomes: readonly WorkerOutco
 /** Never present failed decision output as a completed consensus. */
 export function fallbackJoin(outcomes: readonly WorkerOutcome[]): string {
   return '[ULTRA：决策路线失败] 以下仅为已完成的路线报告，尚未完成统一决策或交付。\n\n' +
-    outcomes.filter(o => o.ok && o.text.trim() !== '').map((o, i) => `【路线 ${i + 1}】\n${o.text}`).join('\n\n')
+    outcomes.flatMap((o, i) => o.ok && o.text.trim() !== '' ? [`【路线 ${i + 1} / ${o.sessionId}】\n${o.text}`] : []).join('\n\n')
 }
 /** Advertise state without recursively starting more routes. */
 export function renderUltraSection(state: UltraState | undefined): string {
