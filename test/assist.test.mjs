@@ -30,7 +30,7 @@ const config = { toolName: 'ultra_task', timeoutMs: 5000, reportChars: 20000, re
   jevEnabled: false, coordinationIntervalMs: 100, coordinationMaxRounds: -1 }
 const answer = (parentId, instruction) => JSON.stringify({ assessment: 'Observed useful next step', directives: instruction ? [{ routeId: parentId, instruction }] : [] })
 
-function harness({ respond, create, timeoutMs, maxRounds } = {}) {
+function harness({ respond, create, timeoutMs, maxRounds, onFeedback } = {}) {
   const listeners = new Map()
   const controller = new AbortController()
   const events = [{ type: 'turn/start', data: { turn: 7 } }]
@@ -62,7 +62,7 @@ function harness({ respond, create, timeoutMs, maxRounds } = {}) {
   } }
   const original = { provider: 'fixture', model: 'normal-model', reasoningEffort: 'medium', permissions: { write: true }, tools: ['write', 'subagent'] }
   const parent = { id: session.id, session, status: 'running', options: original,
-    inbox, ctx: { root: { on } }, steer: message => { record.steering.push(message); inbox.nextStep.push(message) },
+    inbox, ctx: { root: { on } }, steer: message => { record.steering.push(message); inbox.nextStep.push(message); onFeedback?.(message) },
     cancel: () => { record.parentCancels++ }, followup: () => { record.followups++ } }
   const options = { parent, task: 'Implement the authorized change and deliver it normally', content: [], signal: controller.signal, phase: value => record.phases.push(value) }
   const factory = async (owner, inputs) => {
@@ -105,7 +105,17 @@ function harness({ respond, create, timeoutMs, maxRounds } = {}) {
 
 test('normal parent proceeds while one read-only decision is held, then receives non-human next-step feedback', async () => {
   const response = deferred()
-  const h = harness({ respond: () => response.promise })
+  const queued = deferred()
+  const h = harness({ onFeedback: message => queued.resolve(message), respond: ({ round, inputs }) => {
+    if (round === 1) return response.promise
+    // New progress may already permit a second review on a busy CI runner.
+    // Give that review its own held response; never replay the first directive.
+    return new Promise(resolve => {
+      const aborted = () => resolve(answer('main'))
+      if (inputs.signal.aborted) aborted()
+      else inputs.signal.addEventListener('abort', aborted, { once: true })
+    })
+  } })
   const sidecar = await h.start()
   assert.equal(h.record.calls.length, 1, 'start returns while the first response remains pending')
   assert.equal(h.record.created.length, 1)
@@ -117,9 +127,9 @@ test('normal parent proceeds while one read-only decision is held, then receives
   assert.equal(h.original.reasoningEffort, 'medium')
   assert.deepEqual(h.original.tools, ['write', 'subagent'])
   response.resolve(answer(h.parent.id, 'Check the resulting file against the original requirement'))
-  await delay(0)
+  const feedback = await queued.promise
   assert.equal(h.record.steering.length, 1)
-  const feedback = h.record.steering[0]
+  assert.equal(feedback, h.record.steering[0])
   assert.equal(feedback.source.kind, 'ultra-assist', 'middleware must not recognize feedback as fresh human input')
   assert.equal(feedback.source.form, 'feedback')
   assert.equal(feedback.source.runId, sidecar.runId)
@@ -128,6 +138,7 @@ test('normal parent proceeds while one read-only decision is held, then receives
   assert.match(h.record.calls[0][0].text, /不能代替主 Agent 执行或交付/)
   assert.doesNotMatch(h.record.calls[0][0].text, /唯一提交者/)
   h.finish(); await sidecar.done
+  assert.equal(h.record.steering.length, 1, 'a later review cannot replay the first feedback while draining')
   assert.equal(h.record.parentCancels, 0)
   assert.equal(h.record.followups, 0)
   assert.equal(h.record.disposed.length, 1)
