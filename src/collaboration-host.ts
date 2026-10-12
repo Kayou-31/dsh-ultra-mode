@@ -126,7 +126,9 @@ export function installCollaboration(parent: Agent, config: CollaborationHostCon
     tool('ultra_list_agents', '查看当前协作中真实子代理的任务、运行状态和结果。完成状态只表示该 turn 结束，业务正确性仍需主 Agent 核对。',
       {}, () => ({ agents: team.listAgents(agent.id) }))
     tool('ultra_wait_agent', '事件驱动等待 1–8 个子代理中首个新完成/失败/取消。先推进独立工作再等待；超时不取消子代理。用返回 cursor 防重复读取旧结果。',
-      { targets: { type: 'array', required: true, items: { type: 'string' } }, timeout_ms: { type: 'integer' }, after_cursor: { type: 'string' } },
+      { targets: { type: 'array', required: true, items: { type: 'string' }, description: '本次团队的真实子代理 ID，1–8 个；任一有新终态即可返回。' },
+        timeout_ms: { type: 'integer', description: '等待毫秒数，只允许 0–60000，省略默认 30000。0 只读取当前状态。超时不取消代理；不能传入宿主其他 wait 工具的 120000 等值。' },
+        after_cursor: { type: 'string', description: '复用上次 ultra_wait_agent 返回的 cursor，避免重复收取旧终态。' } },
       (args, exec) => team.waitAgents(agent.id, args.targets as string[], { timeoutMs: args.timeout_ms as number | undefined, afterCursor: args.after_cursor as string | undefined }, exec.signal))
     const prompts = agent.ctx.get('systemPrompt') as { section(value: unknown): () => void } | undefined
     if (prompts) releases.push(prompts.section({ name: 'ultra-collaboration-' + runId, order: 117.4,

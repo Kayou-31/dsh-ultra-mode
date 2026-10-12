@@ -12,10 +12,24 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/index.ts', impo
 const CONFIG = { toolName: 'ultra_task', concurrency: 3, sectionOrder: 117.5, maxSessions: 64,
   timeoutMs: 10000, reportChars: 20000, researchTools: ['read', 'subagent'], jevEnabled: false }
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
-function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
-  const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], assists: [], pending: [], disposers: [], injections: [] }
+const cooperationToolNames = ['ultra_spawn_agent', 'ultra_send_message', 'ultra_followup_task', 'ultra_wait_agent', 'ultra_interrupt_agent', 'ultra_list_agents']
+function boot({ runner, assistRunner, config, lateConnection = false, collaborationClose, beforeAssemblyWaterfall } = {}) {
+  const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], assists: [], pending: [], disposers: [], injections: [],
+    agents: new Map(), cooperationMounts: new Map(), assemblies: [] }
   const services = {
-    systemPrompt: { section: value => record.sections.push(value) },
+    agents: { get: id => record.agents.get(id), roots: () => [...record.agents.values()].filter(a => !a.runtimeOwner) },
+    systemPrompt: { section: value => record.sections.push(value), async assemble(context) {
+      // Installed SDK SystemPrompt collects schemas BEFORE its assembly
+      // waterfall; AgentLoop awaits this assembly BEFORE agent/pre-step.
+      const mounted = record.cooperationMounts.get(context.agent)
+      const assembly = { sections: [{ name: 'original-complete-prompt', text: 'Keep the original complete prompt' }], contexts: [],
+        tools: ['read', 'subagent', ...(mounted ? cooperationToolNames : [])].map(name => ({ name })),
+        variables: { original: 'unchanged', fixtureGeneration: mounted?.generation ?? null } }
+      record.assemblies.push(assembly)
+      await beforeAssemblyWaterfall?.({ assembly, index: record.assemblies.length, context })
+      const hook = record.events.get('system-prompt/assemble')
+      return hook ? hook(assembly, context, async () => assembly) : assembly
+    } },
     commands: { register: value => record.commands.push(value) },
     connection: { register: (owner, channel, handler) => { assert.equal(owner, ctx); record.handlers.set(channel, handler); return () => record.handlers.delete(channel) } },
   }
@@ -38,9 +52,15 @@ function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
     '@deepseek-ai/dsh-llm': { createUserMessage: value => value },
     '@deepseek-ai/dsh-agent': { agentCarrier: agent => ({ agent }) },
     './ultra.js': policy,
-    './collaboration-host.js': { COLLABORATION_TOOLS: [], installCollaboration() {
+    './collaboration-host.js': { COLLABORATION_TOOLS: cooperationToolNames, installCollaboration(agent) {
       record.collaborationStarts = (record.collaborationStarts ?? 0) + 1
-      return { async close() { record.collaborationStops = (record.collaborationStops ?? 0) + 1 } }
+      const mounted = { generation: record.collaborationStarts }
+      record.cooperationMounts.set(agent, mounted)
+      return { async close() {
+        record.collaborationStops = (record.collaborationStops ?? 0) + 1
+        await collaborationClose?.({ agent, generation: mounted.generation })
+        if (record.cooperationMounts.get(agent) === mounted) record.cooperationMounts.delete(agent)
+      } }
     } },
     './assist.js': { async startDecisionAssist(config, options) {
       record.assists.push(options)
@@ -64,7 +84,14 @@ function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
   vm.runInNewContext(compiled, { exports, require: name => { if (!(name in imported)) throw new Error(name); return imported[name] }, Date, Map, Set, Error, String, Number, AbortController, AbortSignal })
   exports.apply(ctx, { ...CONFIG, ...config })
   return { record, tool: record.tools[0], section: record.sections[0], command: record.commands.find(value => value.name === 'ultra'), teamCommand: record.commands.find(value => value.name === 'team'),
-    rpc: (...args) => record.handlers.get('/dsh-ultra-mode')(...args), mountConnection: () => record.pending.forEach(fn => fn(ctx)) }
+    rpc: (...args) => record.handlers.get('/dsh-ultra-mode')(...args), mountConnection: () => record.pending.forEach(fn => fn(ctx)),
+    startTurn(root, turn = 1) {
+      root.session ??= { id: root.id }
+      record.agents.set(root.id, root)
+      record.events.get('session/event')(root.session, { type: 'turn/start', data: { turn } })
+    },
+    endTurn(root, turn = 1) { record.events.get('session/event')(root.session, { type: 'turn/end', data: { turn } }) },
+    assemble: context => services.systemPrompt.assemble(context) }
 }
 const agent = (id = 'root') => ({ id, ctx: { waterfall: async (_carrier, event, _payload, next) => {
   assert.equal(event, 'agent/request'); return { ...await next(), provider: 'selected-provider', model: 'selected-model' }
@@ -421,6 +448,7 @@ test('collaboration alone keeps normal parent settings and tools without startin
   root.options.reasoningEffort = 'medium'
   const original = { ...root.options }
   h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  h.startTurn(root)
   const user = { id: 'ordinary-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'normal task' }] }
   const decision = { kind: 'enter', messages: [user] }
   const result = await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec(root).signal, messages: [user] }, async () => decision)
@@ -430,7 +458,7 @@ test('collaboration alone keeps normal parent settings and tools without startin
   assert.equal(h.record.assists.length, 0)
   assert.equal(h.record.collaborationStarts, 1)
   assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
-  h.record.events.get('session/event')(root.session, { type: 'turn/end' })
+  h.endTurn(root)
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(h.record.collaborationStops, 1)
 })
@@ -440,10 +468,125 @@ test('Ultra dispatch inherits the current independent cooperation setting', asyn
   const root = agent()
   const user = { id: 'combined-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'parallel task' }] }
   h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 2, collaborationEnabled: true })
+  h.startTurn(root)
   await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec(root).signal, messages: [user] }, async () => ({ kind: 'enter', messages: [user] }))
   assert.equal(h.record.runtimeConfigs[0].collaborationEnabled, true)
   assert.equal(h.record.calls[0].concurrency, 2)
   await h.record.disposers.at(-1)()
+})
+
+test('turn-start provisioning puts all cooperation tools in the first assembly before pre-step', async () => {
+  const h = boot()
+  const root = agent('first-request-root')
+  root.options.reasoningEffort = 'medium'
+  const original = { ...root.options }
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  h.startTurn(root)
+  const assembly = await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  assert.deepEqual(assembly.tools.map(tool => tool.name).filter(name => name.startsWith('ultra_')), cooperationToolNames)
+  assert.equal(h.record.collaborationStarts, 1)
+  assert.equal(h.record.assemblies.length, 1, 'normal first-turn installation does not require recursive assembly')
+  const user = { id: 'first-request-human', source: { kind: 'user' }, content: [{ type: 'text', text: 'Use the first-request cooperation tools' }] }
+  const decision = { kind: 'enter', messages: [user], assembly }
+  await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec(root).signal, messages: [user] }, async () => decision)
+  assert.equal(h.record.collaborationStarts, 1, 'pre-step does not install a second team after the snapshot')
+  assert.deepEqual(root.options, original)
+  assert.equal(h.record.calls.length, 0)
+  assert.equal(h.record.assists.length, 0)
+  h.endTurn(root)
+  await h.record.disposers.at(-1)()
+})
+
+test('next turn waits for the old native drain and rebuilds its already-captured assembly exactly once', async () => {
+  const gate = deferred()
+  const h = boot({ collaborationClose: ({ generation }) => generation === 1 ? gate.promise : Promise.resolve() })
+  const root = agent('adjacent-turn-root')
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  h.startTurn(root)
+  await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  h.endTurn(root)
+  h.startTurn(root, 2)
+  let settled = false
+  const next = h.assemble({ agent: root, scope: root, signal: exec(root).signal }).then(value => { settled = true; return value })
+  try {
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(settled, false, 'schema publication awaits the native close')
+    assert.equal(h.record.collaborationStarts, 1)
+    assert.equal(h.record.assemblies.at(-1).variables.fixtureGeneration, 1, 'outer assembly initially captured the old team')
+    gate.resolve()
+    const assembly = await next
+    assert.equal(h.record.collaborationStarts, 2)
+    assert.equal(assembly.variables.fixtureGeneration, 2)
+    assert.equal(assembly.variables.original, 'unchanged')
+    assert.deepEqual(assembly.sections, [{ name: 'original-complete-prompt', text: 'Keep the original complete prompt' }])
+    assert.deepEqual(assembly.tools.map(tool => tool.name).filter(name => name.startsWith('ultra_')), cooperationToolNames)
+    assert.equal(h.record.assemblies.length, 3, 'first turn + stale outer cut + one fresh public assembly')
+  } finally { gate.resolve(); await next; h.endTurn(root, 2); await h.record.disposers.at(-1)() }
+})
+
+test('disabled next turn removes captured old schemas even when the native close settles before the assembly hook', async () => {
+  const gate = deferred()
+  const h = boot({
+    collaborationClose: ({ generation }) => generation === 1 ? gate.promise : Promise.resolve(),
+    beforeAssemblyWaterfall: async ({ index }) => {
+      if (index === 2) { gate.resolve(); await new Promise(resolve => setImmediate(resolve)) }
+    },
+  })
+  const root = agent('disabled-next-turn-root')
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  h.startTurn(root)
+  await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  h.endTurn(root)
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: false })
+  h.startTurn(root, 2)
+  try {
+    const assembly = await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+    assert.equal(h.record.assemblies[1].tools.some(tool => tool.name.startsWith('ultra_')), true, 'outer cut really captured stale tools')
+    assert.equal(h.record.collaborationStarts, 1)
+    assert.equal(assembly.variables.fixtureGeneration, null)
+    assert.equal(assembly.variables.original, 'unchanged')
+    assert.deepEqual(assembly.tools.map(tool => tool.name), ['read', 'subagent'])
+    assert.equal(h.record.assemblies.length, 3, 'turn-start remembers the stale cut after the close promise was removed')
+  } finally { gate.resolve(); h.endTurn(root, 2); await h.record.disposers.at(-1)() }
+})
+
+test('changing collaboration during a turn changes the next turn without retracting this turn tools', async () => {
+  const h = boot()
+  const root = agent('turn-snapshot-root')
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  h.startTurn(root)
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: false })
+  const current = await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  assert.equal(current.tools.filter(tool => tool.name.startsWith('ultra_')).length, 6)
+  assert.equal(h.rpc('get', { sessionId: root.id }).value.collaborationEnabled, false)
+  h.endTurn(root)
+  await new Promise(resolve => setImmediate(resolve))
+  h.startTurn(root, 2)
+  const next = await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  assert.deepEqual(next.tools.map(tool => tool.name), ['read', 'subagent'])
+  assert.equal(h.record.collaborationStarts, 1)
+  h.endTurn(root, 2)
+  await h.record.disposers.at(-1)()
+})
+
+test('globally enabled cooperation provisions runtime roots without mounting a second team on their native children', async () => {
+  const h = boot({ config: { collaborationEnabled: true } })
+  const root = agent('owned-tree-root')
+  h.startTurn(root)
+  await h.assemble({ agent: root, scope: root, signal: exec(root).signal })
+  assert.equal(h.record.collaborationStarts, 1)
+  const child = agent('ordinary-native-child')
+  child.runtimeOwner = root
+  h.startTurn(child)
+  const assembly = await h.assemble({ agent: child, scope: child, signal: exec(child).signal })
+  assert.deepEqual(assembly.tools.map(tool => tool.name), ['read', 'subagent'])
+  assert.equal(h.record.collaborationStarts, 1)
+  h.endTurn(child)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(h.record.collaborationStops ?? 0, 0, 'a native child ending does not close its parent team')
+  h.endTurn(root)
+  await h.record.disposers.at(-1)()
+  assert.equal(h.record.collaborationStops, 1)
 })
 
 test('plugin teardown aborts and drains in-flight orchestration', async () => {

@@ -10,7 +10,7 @@
 
 **当前正式版：[v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
 
-**本次候选升级为 0.4.0-rc.1：新增独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。[协作使用说明](docs/collaboration.md) 描述当前候选源码；新增能力尚无真实模型收益验收，不将它写成已发布正式版。
+**本次候选升级为 0.4.0-rc.2：独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。rc.1 首请求缺工具的失败已修复：rc.2 真实基础派发得到 210／56，主 Agent 的 97 合计 363；信息排队后同 ID 续作也已实际得到 46。基础任务保留一次等待参数越界拒绝及恢复，最终包重装后的新会话复核通过。[协作使用说明](docs/collaboration.md) 与 [rc.2 验证记录](docs/verification-0.4.0-rc.2.md) 描述当前候选状态，不将它写成已发布正式版。
 
 [![verify](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml/badge.svg)](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml)
 
@@ -74,6 +74,7 @@ flowchart LR
 | 证据 | 已证明 | 重要限制 |
 | --- | --- | --- |
 | v0.3.2 发布与 CI | 正式 Release；发布 CI 构建、类型检查成功，97 通过／0 失败／5 跳过 | 公开 SDK 的运行时依赖不可用，不能用跳过代替集成验收 |
+| rc.2 真实普通 Agent 协作 | 首请求六工具；2 个 depth 1 子代理继承 High；210／56／97 合计 363，2 次成功等待含 cursor；续作任务实际得到 46 | 一次 120000 毫秒等待被 0–60000 范围拒绝后恢复；续作账本独立核对通过，最终包重装的新会话复核通过，工具错误为 0 |
 | v0.3.2 真实两路 | 两个独立 Max worker 各完成一个普通 Max child，结果 14／30；正常审批后唯一写入、10 行读回与实际文件一致 | 3 次协调均为空方向；这次短任务没有证明新改向采纳，也未触发格式 repair |
 | v0.3.2 真实辅助 | 主 Agent 保持一个 turn；普通 child 得到 140；同一只读 Max 辅助 7 条建议在原 turn 准入，并核对具体采纳行为 | 记录选写 2 条，不把 7 次准入当 7 次正确采纳；建议超验收的 80 字要求，一项存在性检查时序偏差保留 |
 | 历史 3／4／5 路真实任务 | 独立 Max 路线、普通子代理和跨路协调有实际宿主证据；0.3.0 长任务核对 17 条方向准入 | 只独立核对部分具体采纳；历史越界读取尝试及后台 child 晚到边界保留 |
@@ -84,6 +85,7 @@ v0.3.2 正式包的 23 个编译文件与真实验收包 `701fbd1b` 阶段逐字
 
 详细证据按版本保留：
 
+- [rc.2 当前候选验证](docs/verification-0.4.0-rc.2.md)：记录真实基础派发和实际续作链、等待参数错误及恢复，最终包重装的新会话复核通过，工具错误为 0。[rc.1 离线阶段记录](docs/verification-0.4.0-rc.1.md) 的统计与后续首请求失败继续归属 rc.1。
 - [0.3.2 验证记录](docs/verification-0.3.2.md)、[最终真实摘要](docs/real-model-0.3.2-final-summary.json)、[SDK 聚合摘要](docs/sdk-verification-0.3.2.json)。历史记录中的“准备发布”是写入当时状态，当前正式发布状态以首页和 Release 为准。
 - [首候选失败](docs/real-model-0.3.2-candidate-summary.json) 与 [修复阶段复验](docs/real-model-0.3.2-recheck-summary.json)：保留审批超时、非法 JSON、缺 child 等历史失败。
 - [0.3.1 未发布历史](docs/verification-0.3.1.md)、[0.3.0 验证](docs/verification-0.3.0.md)、[0.2.0 验证](docs/verification-0.2.0.md)、[0.2.0 真实模型记录](docs/real-model-0.2.0.md)。
