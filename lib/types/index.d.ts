@@ -21,6 +21,9 @@ export declare const inject: string[];
 export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     toolName: z<string, string, "defined">;
     concurrency: z<number, number, "defined">;
+    collaborationEnabled: z<boolean, boolean, "defined">;
+    collaborationProvider: z<string, string, "defined">;
+    collaborationMaxAgents: z<number, number, "defined">;
     sectionOrder: z<number, number, "defined">;
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;
@@ -36,6 +39,9 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
 }>>, Schemastery.ObjectT<NoInfer<{
     toolName: z<string, string, "defined">;
     concurrency: z<number, number, "defined">;
+    collaborationEnabled: z<boolean, boolean, "defined">;
+    collaborationProvider: z<string, string, "defined">;
+    collaborationMaxAgents: z<number, number, "defined">;
     sectionOrder: z<number, number, "defined">;
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;

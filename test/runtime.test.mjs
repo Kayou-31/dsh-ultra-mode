@@ -23,6 +23,171 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/runtime.ts', im
   compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS },
 }).outputText
 
+/** Exercise ownership and failure ordering without optional SDK peers or a model. */
+function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
+  const runtime = {}, agents = new Map(), hooks = new Map(), record = []
+  const subscribe = (name, callback) => {
+    const listeners = hooks.get(name) ?? new Set()
+    hooks.set(name, listeners)
+    listeners.add(callback)
+    return () => { record.push(`off:${name}`); listeners.delete(callback) }
+  }
+  const root = { on: subscribe }
+  const registry = { get: id => agents.get(id) }
+  const services = {
+    agentPresets: { composeFrom() {} },
+    subagents: { async drainContinuableDescendants(parents) {
+      record.push('drain:start')
+      assert.equal(parents.length, 1)
+      assert.equal(agents.get(parents[0].id), parents[0], 'drain receives the exact published route')
+      if (drain) await drain({ route: parents[0], agents, record, disposeAgent })
+      else for (const agent of [...agents.values()]) {
+        if (agent.session.header.parentSession === parents[0].id) await disposeAgent(agent)
+      }
+      record.push('drain:end')
+    } },
+  }
+  function makeAgent(id, header = {}) {
+    const effects = []
+    const tools = {
+      schemas: () => ['read', 'write', 'ultra_task'].map(name => ({ name })),
+      get: () => undefined,
+      modeFor: () => 'native',
+      restrict(filter) {
+        let released = false
+        const release = () => {
+          if (released) return
+          released = true
+          record.push(`${filter.allow ? 'restriction' : 'deny'}:release:${id}`)
+        }
+        effects.push(release)
+        return release
+      },
+    }
+    const agent = {
+      id, options: { provider: 'offline', model: 'fixture' }, status: 'idle',
+      session: { header: { id, ...header }, seq: 0, snapshotEvents: () => [], requestHeader: () => undefined },
+      cancel() { record.push(`cancel:${id}`) },
+      ctx: { root, agents: registry, get: name => name === 'tools' ? tools : services[name], on: subscribe,
+        effect(callback) { const dispose = callback(); effects.push(dispose); return dispose } },
+      effects,
+    }
+    return agent
+  }
+  async function disposeAgent(agent) {
+    for (const dispose of agent.effects) await dispose?.()
+    agents.delete(agent.id)
+  }
+  const parent = makeAgent('visible-root')
+  agents.set(parent.id, parent)
+  registry.create = async options => {
+    const child = makeAgent(options.sessionId, options.meta)
+    await options.setup(child.ctx, child)
+    if (unpublishedFailure) throw unpublishedFailure
+    agents.set(child.id, child)
+    return { agent: child, async dispose() {
+      record.push('handle:dispose')
+      if (handleDispose) await handleDispose({ route: child, agents, record, disposeAgent })
+      else await disposeAgent(child)
+    } }
+  }
+  const imported = {
+    '@deepseek-ai/dsh-agent': { agentCarrier: agent => agent },
+    '@deepseek-ai/dsh-llm': { ReasoningEffortId: value => value, createUserMessage: value => value },
+    '@deepseek-ai/dsh-session': { SessionId: value => value, SessionLogOffset: value => value },
+    '@deepseek-ai/dsh-scope': { scopeParentOf: () => undefined },
+  }
+  vm.runInNewContext(compiled, { exports: runtime, require: name => imported[name], AggregateError, Error, Map, Set, WeakMap, Promise })
+  return {
+    runtime, record, agents, parent, services, disposeAgent,
+    create: () => runtime.createRoute(parent, { id: 'ultra-route-lifecycle', label: 'Offline lifecycle',
+      readOnly: true, researchTools: ['read'], signal: new AbortController().signal }, { toolName: 'ultra_task' }),
+    async descendant(routeId, id = 'native-continuable-child') {
+      const child = makeAgent(id, { parentSession: routeId, origin: 'subagent', delegationDepth: 1 })
+      agents.set(id, child)
+      for (const listener of hooks.get('agent/created') ?? []) await listener({ agent: child })
+      return child
+    },
+  }
+}
+
+test('route teardown drains native continuations before releasing the route and its research guard', async () => {
+  let releaseDrain
+  const held = new Promise(resolve => { releaseDrain = resolve })
+  const f = lifecycleFixture({ drain: async ({ route, agents, disposeAgent }) => {
+    await held
+    for (const agent of [...agents.values()]) if (agent.session.header.parentSession === route.id) await disposeAgent(agent)
+  } })
+  const route = await f.create()
+  const child = await f.descendant(route.id)
+  const disposal = route.dispose()
+  assert.deepEqual(f.record, ['drain:start'])
+  assert.equal(f.runtime.isUltraRoute(route.id), true)
+  assert.match(f.runtime.researchToolDenial(child, 'write'), /cannot execute/)
+  releaseDrain()
+  await disposal
+  assert.ok(f.record.indexOf('drain:end') < f.record.indexOf('handle:dispose'))
+  assert.ok(f.record.indexOf('drain:end') < f.record.indexOf(`restriction:release:${route.id}`))
+  assert.equal(f.agents.has(child.id), false)
+  assert.equal(f.runtime.isUltraRoute(route.id), false)
+  await route.dispose()
+  assert.equal(f.record.filter(entry => entry === 'drain:start').length, 1, 'disposal is idempotent')
+})
+
+test('native drain and route failures are both preserved and still stop observers', async () => {
+  const drainFailure = new Error('native descendant teardown failed')
+  const routeFailure = new Error('route handle teardown failed')
+  const f = lifecycleFixture({ drain: async () => { throw drainFailure }, handleDispose: async () => { throw routeFailure } })
+  const route = await f.create()
+  const child = await f.descendant(route.id)
+  await assert.rejects(route.dispose(), error => {
+    assert.ok(error instanceof AggregateError)
+    assert.deepEqual(error.errors, [drainFailure, routeFailure])
+    return true
+  })
+  assert.ok(f.record.includes('handle:dispose'), 'route disposal is attempted after native failure')
+  assert.ok(f.record.includes('off:agent/created'))
+  assert.ok(f.record.includes('off:session/event'))
+  assert.match(f.runtime.researchToolDenial(child, 'write'), /cannot execute/)
+  assert.equal(f.record.includes(`restriction:release:${child.id}`), false, 'live failed child remains guarded')
+  await f.disposeAgent(child)
+  assert.equal(f.record.includes(`restriction:release:${child.id}`), true)
+  await f.disposeAgent(f.agents.get(route.id))
+  assert.equal(f.runtime.isUltraRoute(route.id), false)
+})
+
+test('orphan research guard survives route removal when native descendant draining fails', async () => {
+  const f = lifecycleFixture({ drain: async () => { throw new Error('native child still live') } })
+  const route = await f.create()
+  const child = await f.descendant(route.id)
+  await assert.rejects(route.dispose(), /teardown failed/)
+  assert.equal(f.agents.has(route.id), false)
+  assert.equal(f.runtime.isUltraRoute(route.id), false)
+  assert.match(f.runtime.researchToolDenial(child, 'write'), /cannot execute/)
+  assert.equal(f.record.includes(`restriction:release:${child.id}`), false)
+  await f.disposeAgent(child)
+  assert.equal(f.record.includes(`restriction:release:${child.id}`), true)
+})
+
+test('creation failure does not drain an unpublished setup object', async () => {
+  const original = new Error('unpublished creation failed')
+  const f = lifecycleFixture({ unpublishedFailure: original })
+  await assert.rejects(f.create(), error => error === original)
+  assert.equal(f.record.includes('drain:start'), false)
+  assert.equal(f.runtime.isUltraRoute('ultra-route-lifecycle'), false)
+  assert.equal(f.record.includes('restriction:release:ultra-route-lifecycle'), true)
+})
+
+test('route teardown remains available without the optional native subagent service', async () => {
+  const f = lifecycleFixture()
+  delete f.services.subagents
+  const route = await f.create()
+  await route.dispose()
+  assert.equal(f.record.includes('drain:start'), false)
+  assert.equal(f.record.includes('handle:dispose'), true)
+  assert.equal(f.runtime.isUltraRoute(route.id), false)
+})
+
 async function loadSdk(name) {
   return import(process.env.DSH_ULTRA_TEST_SDK
     ? pathToFileURL(resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai', name, 'lib', 'index.js')).href
@@ -93,6 +258,7 @@ async function fixture(presentation = 'native') {
       await options.setup(scope.ctx, child)
       if (failCreation) {
         await scope.dispose()
+        agents.delete(child.id)
         throw new Error('Fixture creation failed after setup')
       }
       await ctx.serial('agent/created', { agent: child })
@@ -108,11 +274,24 @@ async function fixture(presentation = 'native') {
     // Native child composition joins the preset rather than the parent's own layer.
     const scope = createScope(ctx, child, { parent: presetKey })
     child.ctx = scope.ctx
+    child.fixtureScope = scope
     if (ownName) child.ctx.get('tools').register(tool(ownName, async () => { mutations++; return [{ type: 'text', text: 'mutated' }] }))
     await ctx.serial('agent/created', { agent: child })
     identities.push(child)
     return child
   }
+  // The native continuation manager owns background handles independently of
+  // the route handle. Model that public drain contract in this offline fixture.
+  ctx.provide('subagents', {
+    async drainContinuableDescendants(parents) {
+      const ids = new Set(parents.map(parent => parent.id))
+      for (const child of identities) {
+        if (!ids.has(child.session.header.parentSession)) continue
+        await child.fixtureScope.dispose()
+        agents.delete(child.id)
+      }
+    },
+  })
   return {
     ctx, runtime, parent, agents, identities, questions,
     get mutations() { return mutations },

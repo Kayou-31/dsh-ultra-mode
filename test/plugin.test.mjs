@@ -38,16 +38,21 @@ function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
     '@deepseek-ai/dsh-llm': { createUserMessage: value => value },
     '@deepseek-ai/dsh-agent': { agentCarrier: agent => ({ agent }) },
     './ultra.js': policy,
+    './collaboration-host.js': { COLLABORATION_TOOLS: [], installCollaboration() {
+      record.collaborationStarts = (record.collaborationStarts ?? 0) + 1
+      return { async close() { record.collaborationStops = (record.collaborationStops ?? 0) + 1 } }
+    } },
     './assist.js': { async startDecisionAssist(config, options) {
       record.assists.push(options)
       if (assistRunner) return assistRunner(config, options)
       const gate = deferred()
-      const stop = () => gate.resolve()
+      const stop = () => gate.resolve({ reason: options.signal.aborted ? 'cancelled' : 'stopped', warnings: [], error: null })
       options.signal.addEventListener('abort', stop, { once: true })
       return { runId: 'assist-run', decisionId: 'assist-decision', coordination: { rounds: 0, directives: [], errors: [] }, done: gate.promise, stop }
     } },
     './runtime.js': { routeParentOf: agent => agent.owner, researchToolDenial: (agent, name) => agent?.research && name === 'write' ? 'read-only' : undefined },
     './orchestrator.js': { async runUltra(config, options) {
+      record.runtimeConfigs = [...(record.runtimeConfigs ?? []), config]
       record.calls.push(options)
       options.phase('researching')
       if (runner) return runner(config, options)
@@ -58,7 +63,7 @@ function boot({ runner, assistRunner, config, lateConnection = false } = {}) {
   const exports = {}
   vm.runInNewContext(compiled, { exports, require: name => { if (!(name in imported)) throw new Error(name); return imported[name] }, Date, Map, Set, Error, String, Number, AbortController, AbortSignal })
   exports.apply(ctx, { ...CONFIG, ...config })
-  return { record, tool: record.tools[0], section: record.sections[0], command: record.commands[0],
+  return { record, tool: record.tools[0], section: record.sections[0], command: record.commands.find(value => value.name === 'ultra'), teamCommand: record.commands.find(value => value.name === 'team'),
     rpc: (...args) => record.handlers.get('/dsh-ultra-mode')(...args), mountConnection: () => record.pending.forEach(fn => fn(ctx)) }
 }
 const agent = (id = 'root') => ({ id, ctx: { waterfall: async (_carrier, event, _payload, next) => {
@@ -173,6 +178,58 @@ test('assistant creation failure leaves the normal task and tools usable with a 
   assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
   assert.equal(h.rpc('get', { sessionId: 'root' }).value.running, false)
   assert.equal(h.record.calls.length, 0)
+})
+
+test('assistant terminal outcomes separate recovered warnings, timeout, cancellation and unresolved failure', async () => {
+  for (const [reason, expectedPhase, error] of [
+    ['turn-ended', 'completed', null],
+    ['timeout', 'timed-out', 'Ultra 决策辅助已超时，主 Agent 保持正常运行。'],
+    ['cancelled', 'cancelled', null],
+    ['stopped', 'stopped', null],
+    ['failed', 'failed', '未恢复的协议错误'],
+  ]) {
+    const gate = deferred()
+    const warnings = ['第 1 轮：已保留的格式诊断']
+    const h = boot({ assistRunner: async () => ({ runId: 'assist-outcome', decisionId: 'decision-outcome',
+      coordination: { rounds: 1, directives: [], errors: warnings }, done: gate.promise,
+      stop: () => gate.resolve({ reason: 'stopped', warnings, error: null }) }) })
+    const root = agent()
+    h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 1 })
+    const user = { id: 'human-outcome', source: { kind: 'user' }, content: [{ type: 'text', text: 'normal parent task' }] }
+    const signal = exec().signal
+    await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal, messages: [user] },
+      async () => ({ kind: 'enter', messages: [user] }))
+    gate.resolve({ reason, warnings, error })
+    for (let i = 0; i < 8; i++) await Promise.resolve()
+    const snapshot = h.rpc('get', { sessionId: root.id }).value
+    assert.equal(signal.aborted, false, 'the assist outcome cannot cancel the normal parent')
+    assert.equal(snapshot.phase, expectedPhase)
+    assert.equal(snapshot.error, error)
+    assert.equal(snapshot.running, false)
+    assert.equal(snapshot.warnings[0], warnings[0])
+    assert.equal(snapshot.lastRun.succeeded, 0, 'sidecar completion is not a task-success claim')
+    assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+    warnings.push('later mutation')
+    assert.equal(h.rpc('get', { sessionId: root.id }).value.warnings.length, 1)
+    for (const dispose of h.record.disposers) await dispose()
+  }
+})
+
+test('assistant startup deadline remains a timeout while the normal parent task proceeds', async () => {
+  const timeout = new Error('Ultra assistant creation exceeded its deadline')
+  timeout.name = 'TimeoutError'
+  const h = boot({ assistRunner: async () => { throw timeout } })
+  const root = agent()
+  const signal = exec().signal
+  h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 1 })
+  const user = { id: 'timeout-startup', source: { kind: 'user' }, content: [{ type: 'text', text: 'keep the main task running' }] }
+  const output = await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal, messages: [user] },
+    async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(output.messages[0], user)
+  assert.equal(signal.aborted, false)
+  assert.equal(h.rpc('get', { sessionId: root.id }).value.phase, 'timed-out')
+  assert.equal(h.rpc('get', { sessionId: root.id }).value.running, false)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
 })
 
 test('fresh same-turn human tasks replace assistance only after prior cleanup', async () => {
@@ -338,6 +395,57 @@ test('admitted user copies retain identity while unrelated user messages cannot 
   assert.equal(h.record.calls.length, 1)
   assert.equal(h.record.calls[0].task, 'authorized read-only task')
 })
+test('collaboration toggle and command are independent from Ultra mode and isolate sessions', () => {
+  const h = boot()
+  const root = agent()
+  h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 5 })
+  h.teamCommand.handler({ agent: root, rawInput: 'on' })
+  let snapshot = h.rpc('get', { sessionId: root.id }).value
+  assert.equal(snapshot.collaborationEnabled, true)
+  assert.equal(snapshot.enabled, true)
+  assert.equal(snapshot.concurrency, 5)
+  h.command.handler({ agent: root, rawInput: 'off' })
+  snapshot = h.rpc('get', { sessionId: root.id }).value
+  assert.equal(snapshot.collaborationEnabled, true)
+  assert.equal(snapshot.enabled, false)
+  assert.equal(snapshot.concurrency, 5)
+  assert.equal(h.rpc('get', { sessionId: 'another' }).value.collaborationEnabled, false)
+  assert.equal(h.rpc('set', { sessionId: root.id, enabled: true, collaborationEnabled: 'yes' }).ok, false)
+  assert.equal(h.rpc('get', { sessionId: root.id }).value.enabled, false, 'invalid mixed mutation is atomic')
+})
+
+test('collaboration alone keeps normal parent settings and tools without starting any Ultra route', async () => {
+  const h = boot()
+  const root = agent()
+  root.session = { id: root.id }
+  root.options.reasoningEffort = 'medium'
+  const original = { ...root.options }
+  h.rpc('set', { sessionId: root.id, collaborationEnabled: true })
+  const user = { id: 'ordinary-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'normal task' }] }
+  const decision = { kind: 'enter', messages: [user] }
+  const result = await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec(root).signal, messages: [user] }, async () => decision)
+  assert.equal(result, decision)
+  assert.deepEqual(root.options, original)
+  assert.equal(h.record.calls.length, 0)
+  assert.equal(h.record.assists.length, 0)
+  assert.equal(h.record.collaborationStarts, 1)
+  assert.equal(h.record.guards[0]({ agent: root, name: 'write' }), undefined)
+  h.record.events.get('session/event')(root.session, { type: 'turn/end' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(h.record.collaborationStops, 1)
+})
+
+test('Ultra dispatch inherits the current independent cooperation setting', async () => {
+  const h = boot()
+  const root = agent()
+  const user = { id: 'combined-user', source: { kind: 'user' }, content: [{ type: 'text', text: 'parallel task' }] }
+  h.rpc('set', { sessionId: root.id, enabled: true, concurrency: 2, collaborationEnabled: true })
+  await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: exec(root).signal, messages: [user] }, async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(h.record.runtimeConfigs[0].collaborationEnabled, true)
+  assert.equal(h.record.calls[0].concurrency, 2)
+  await h.record.disposers.at(-1)()
+})
+
 test('plugin teardown aborts and drains in-flight orchestration', async () => {
   let aborted = false
   const h = boot({ runner: async (_config, options) => new Promise((resolve, reject) => {

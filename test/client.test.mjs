@@ -129,6 +129,7 @@ function harness(handler = async () => response(), { sessionList } = {}) {
   const textOf = node => typeof node === 'string' || typeof node === 'number' ? String(node)
     : node?.children?.map(textOf).join('') ?? ''
   const trigger = () => findAll(node => node.props.className === 'dsh-ultra-trigger')[0]
+  const team = () => findAll(node => node.props.className === 'dsh-ultra-team')[0]
   const options = () => findAll(node => node.props.role === 'menuitemradio')
   const open = () => { trigger().props.onClick(); flush() }
   const select = level => { options().find(option => option.props.key === level).props.onClick(); flush() }
@@ -138,11 +139,120 @@ function harness(handler = async () => response(), { sessionList } = {}) {
     disposed = true
   }
   return {
-    calls, slots, styles, timers, list, module: module.exports, render, settle, open, select, trigger, options, dispose, flush,
+    calls, slots, styles, timers, list, module: module.exports, render, settle, open, select, trigger, team, options, dispose, flush,
+    toggleTeam: () => { team().props.onClick(); flush() },
     text: () => textOf(tree), pulse: () => { timers.forEach(fn => fn()) },
     alerts: () => findAll(node => node.props.role === 'alert').map(textOf),
   }
 }
+
+test('collaboration is an adjacent independent toggle and Ultra changes preserve its committed value', async () => {
+  let committed = { enabled: false, concurrency: 3, collaborationEnabled: false }
+  const ui = harness((endpoint, payload) => {
+    if (endpoint === 'set') { const { sessionId, ...patch } = payload; committed = { ...committed, ...patch } }
+    return response(committed)
+  })
+  ui.render('session-a')
+  await ui.settle()
+  assert.match(ui.team().props.title, /独立开关.*不强制 Max.*不改变 Ultra/)
+  assert.equal(ui.team().props['aria-pressed'], false)
+  ui.toggleTeam()
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], true)
+  assert.deepEqual({ ...ui.calls.find(call => call.endpoint === 'set').payload }, { sessionId: 'session-a', collaborationEnabled: true })
+  assert.equal(committed.enabled, false)
+  assert.equal(committed.concurrency, 3)
+  ui.open()
+  ui.select(4)
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], true)
+  assert.equal(Object.hasOwn(ui.calls.filter(call => call.endpoint === 'set').at(-1).payload, 'collaborationEnabled'), false)
+  ui.toggleTeam()
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], false)
+  assert.equal(committed.enabled, true)
+  assert.equal(committed.concurrency, 4)
+  assert.deepEqual({ ...ui.calls.filter(call => call.endpoint === 'set').at(-1).payload }, { sessionId: 'session-a', collaborationEnabled: false })
+  ui.dispose()
+})
+
+test('collaboration loading and shared mutation guards prevent duplicate or competing writes', async () => {
+  const firstRead = deferred()
+  const saved = deferred()
+  const ui = harness(endpoint => endpoint === 'set' ? saved.promise : firstRead.promise)
+  ui.render('session-a')
+  assert.equal(ui.team().props.disabled, true)
+  ui.toggleTeam()
+  assert.equal(ui.calls.filter(call => call.endpoint === 'set').length, 0)
+  firstRead.resolve(response())
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], false, 'older snapshots omit collaborationEnabled and default to off')
+  ui.toggleTeam()
+  assert.equal(ui.team().props.disabled, true)
+  ui.toggleTeam()
+  ui.open()
+  assert.ok(ui.options().every(option => option.props.disabled))
+  ui.select(5)
+  assert.equal(ui.calls.filter(call => call.endpoint === 'set').length, 1)
+  saved.resolve(response({ collaborationEnabled: true }))
+  await ui.settle()
+  assert.equal(ui.team().props.disabled, false)
+  assert.equal(ui.team().props['aria-pressed'], true)
+  ui.dispose()
+})
+
+test('late collaboration writes and old polls cannot replace the current session snapshot', async () => {
+  const oldWrite = deferred()
+  const ui = harness((endpoint, payload) => endpoint === 'set' ? oldWrite.promise
+    : response(payload.sessionId === 'session-b' ? { enabled: true, concurrency: 2, collaborationEnabled: false } : {}))
+  ui.render('session-a')
+  await ui.settle()
+  ui.toggleTeam()
+  ui.render('session-b')
+  await ui.settle()
+  oldWrite.resolve(response({ enabled: true, concurrency: 5, collaborationEnabled: true }))
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], false)
+  assert.match(ui.text(), /2 路/)
+  ui.dispose()
+
+  const oldPoll = deferred()
+  let reads = 0
+  const polled = harness(endpoint => endpoint === 'set' ? response({ collaborationEnabled: true })
+    : ++reads === 1 ? response() : oldPoll.promise)
+  polled.render('session-a')
+  await polled.settle()
+  polled.pulse()
+  polled.toggleTeam()
+  await polled.settle()
+  oldPoll.resolve(response({ collaborationEnabled: false }))
+  await polled.settle()
+  assert.equal(polled.team().props['aria-pressed'], true)
+  polled.dispose()
+})
+
+test('rejected collaboration toggle preserves both switches and invalid snapshot fields fail closed', async () => {
+  const ui = harness(endpoint => endpoint === 'set' ? { ok: false, error: { message: 'Collaboration setting unavailable' } }
+    : response({ enabled: true, concurrency: 3, collaborationEnabled: false }))
+  ui.render('session-a')
+  await ui.settle()
+  ui.toggleTeam()
+  await ui.settle()
+  assert.equal(ui.team().props['aria-pressed'], false)
+  assert.match(ui.text(), /3 路/)
+  ui.open()
+  assert.match(ui.alerts().join(''), /Collaboration setting unavailable/)
+  ui.dispose()
+  for (const collaborationEnabled of ['true', 1, null]) {
+    const broken = harness(async () => response({ collaborationEnabled }))
+    broken.render('session-a')
+    await broken.settle()
+    assert.equal(broken.team().props.disabled, true)
+    broken.open()
+    assert.match(broken.alerts().join(''), /无效的 Ultra 状态/)
+    broken.dispose()
+  }
+})
 
 test('registers a localized independent button with session injection, Agent assistance and 2/3/4/5 routes', async () => {
   const ui = harness((endpoint, payload) => endpoint === 'set'
@@ -294,6 +404,47 @@ test('settling an in-flight request after unmount does not write React state', a
   pending.resolve(response())
   await ui.settle()
   assert.equal(ui.timers.size, 0)
+})
+
+test('recovered assistant diagnostics remain inspectable without presenting successful completion as failure', async () => {
+  const ui = harness(async () => response({ enabled: true, concurrency: 1, phase: 'completed', error: null,
+    warnings: ['第 1 轮：协议格式曾无效，随后已修复'] }))
+  ui.render('session-a')
+  await ui.settle()
+  ui.open()
+  assert.match(ui.text(), /已完成/)
+  assert.match(ui.text(), /保留 1 条辅助诊断/)
+  assert.match(ui.text(), /随后已修复/)
+  assert.doesNotMatch(ui.text(), /执行失败/)
+  assert.equal(ui.alerts().length, 0, 'historical warnings are not an active error alert')
+  ui.dispose()
+})
+
+test('timeout, cancellation and explicit stop retain their distinct status even with diagnostics', async () => {
+  for (const [phase, label, error] of [
+    ['timed-out', '辅助已超时', 'Ultra 决策辅助已超时，主 Agent 保持正常运行。'],
+    ['stopped', '辅助已停止', null],
+    ['cancelled', '已取消', 'Parent cancellation during assistant cleanup'],
+  ]) {
+    const ui = harness(async () => response({ enabled: true, concurrency: 1, phase, error }))
+    ui.render('session-a')
+    await ui.settle()
+    ui.open()
+    assert.match(ui.text(), new RegExp(label))
+    assert.doesNotMatch(ui.text(), /已完成|执行失败/)
+    ui.dispose()
+  }
+})
+
+test('malformed warning metadata is rejected at the client RPC boundary', async () => {
+  for (const warnings of ['a warning', [1]]) {
+    const ui = harness(async () => response({ warnings }))
+    ui.render('session-a')
+    await ui.settle()
+    ui.open()
+    assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    ui.dispose()
+  }
 })
 
 test('internal route sessions are hidden without mutating the source or ordinary session metadata', () => {

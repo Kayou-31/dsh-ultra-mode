@@ -189,7 +189,9 @@ test('parent cancellation stops only the sidecar and done awaits real decision d
   assert.equal(h.listenerCount(), 0)
   assert.equal(h.record.disposed.length, 0)
   response.resolve(answer('main', 'Do not deliver cancelled advice'))
-  await sidecar.done
+  const outcome = await sidecar.done
+  assert.equal(outcome.reason, 'cancelled')
+  assert.equal(outcome.error, null)
   sidecar.stop(); sidecar.stop()
   assert.equal(h.record.disposed.length, 1)
   assert.equal(h.record.steering.length, 0)
@@ -200,7 +202,9 @@ test('timeout aborts the held decision and never wakes the main Agent', async ()
   const h = harness({ timeoutMs: 30, respond: ({ inputs }) => new Promise(resolve => inputs.signal.addEventListener('abort', () => resolve(answer('main', 'Expired')), { once: true })) })
   const sidecar = await h.start()
   await delay(60)
-  await sidecar.done
+  const outcome = await sidecar.done
+  assert.equal(outcome.reason, 'timeout')
+  assert.match(outcome.error, /超时/)
   assert.equal(h.record.created[0].signal.aborted, true)
   assert.equal(h.record.disposed.length, 1)
   assert.equal(h.record.steering.length, 0)
@@ -241,7 +245,14 @@ test('one strict same-context correction can recover a multiple-object response 
   assert.doesNotMatch(h.record.calls[1][0].text, /UNTRUSTED_OUTPUT_DO_NOT_COPY/)
   await delay(130)
   assert.equal(h.record.calls.length, 2, 'a successful repair does not create a timer-only next round')
-  h.finish(); await sidecar.done
+  h.finish()
+  const outcome = await sidecar.done
+  assert.equal(outcome.reason, 'turn-ended')
+  assert.equal(outcome.error, null, 'a successfully repaired protocol failure is not the final error')
+  assert.deepEqual(outcome.warnings, sidecar.coordination.errors)
+  assert.equal(outcome.warnings.length, 1, 'the recoverable diagnostic remains available for audit')
+  outcome.warnings.length = 0
+  assert.equal(sidecar.coordination.errors.length, 1, 'outcome diagnostics do not expose mutable audit history')
 })
 
 test('an invalid correction records both failures and never accepts a foreign target or retries indefinitely', async () => {
@@ -257,7 +268,11 @@ test('an invalid correction records both failures and never accepts a foreign ta
   await delay(130)
   assert.equal(h.record.calls.length, 2)
   assert.equal(h.record.peak, 1)
-  h.finish(); await sidecar.done
+  h.finish()
+  const outcome = await sidecar.done
+  assert.equal(outcome.reason, 'failed')
+  assert.match(outcome.error, /协议修复/)
+  assert.equal(outcome.warnings.length, 2)
 })
 
 test('parent end or cancellation during correction prevents late feedback and waits for the same decision to drain', async () => {
@@ -407,7 +422,8 @@ test('explicit stop, abort, and a new turn remove pending owned feedback without
     if (stopping === 'stop') sidecar.stop()
     else if (stopping === 'abort') h.controller.abort(new Error('Parent cancelled'))
     else h.emit('session/event', h.parent.session, { type: 'turn/start', data: { turn: 8 } })
-    await sidecar.done
+    const outcome = await sidecar.done
+    assert.equal(outcome.reason, stopping === 'stop' ? 'stopped' : stopping === 'abort' ? 'cancelled' : 'turn-ended')
     sidecar.stop()
     assert.deepEqual(h.record.removed, [feedback.id])
     assert.equal(h.parent.inbox.nextStep.length, 0)
@@ -417,4 +433,30 @@ test('explicit stop, abort, and a new turn remove pending owned feedback without
     assert.equal(h.record.disposed.length, 1)
     assert.equal(h.listenerCount(), 0)
   }
+})
+
+test('a durable aborted turn is cancellation even before the parent signal aborts', async () => {
+  const h = harness({ maxRounds: 1 })
+  const sidecar = await h.start()
+  h.finish('aborted')
+  const outcome = await sidecar.done
+  assert.equal(h.controller.signal.aborted, false)
+  assert.equal(outcome.reason, 'cancelled')
+  assert.equal(outcome.error, null)
+  assert.equal(h.record.parentCancels, 0)
+  assert.equal(h.record.followups, 0)
+})
+
+test('normal turn end wins over a deadline while the decision is still draining', async () => {
+  const response = deferred()
+  const h = harness({ timeoutMs: 30, respond: () => response.promise })
+  const sidecar = await h.start()
+  h.finish()
+  await delay(60)
+  response.resolve(answer('main', 'Late advice stays out of the inbox'))
+  const outcome = await sidecar.done
+  assert.equal(outcome.reason, 'turn-ended')
+  assert.equal(outcome.error, null)
+  assert.equal(h.record.steering.length, 0)
+  assert.equal(h.record.disposed.length, 1)
 })

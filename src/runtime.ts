@@ -6,6 +6,7 @@ import { SessionId, SessionLogOffset, type SessionEvent } from '@deepseek-ai/dsh
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { scopeParentOf } from '@deepseek-ai/dsh-scope'
 import type { RouteProgress } from './coordination.js'
+import { installCollaboration, type CollaborationHostConfig, type CollaborationHostHandle } from './collaboration-host.js'
 
 export type AgentLike = Agent
 export type { ContentBlock, SessionEvent }
@@ -86,6 +87,10 @@ interface SandboxPolicy {
 interface ApprovalPolicy {
   effectivePolicy(session: Agent['session']): 'ask' | 'never'
 }
+/** Continuable children are owned by the native manager, beyond a route's handle. */
+interface SubagentLifecycle {
+  drainContinuableDescendants?(parents: readonly Agent[]): Promise<void>
+}
 /** Optional policy plugins own these known durable events; the loop itself does not type them. */
 interface PolicyLog {
   append(name: 'sandbox/mode', data: { mode: SandboxMode; source: 'delegation' }): unknown
@@ -99,6 +104,9 @@ interface RuntimeEvents {
 }
 
 const routes = new Map<string, RouteState>()
+// Retain exact ownership for an orphan whose native teardown failed. Its parent
+// may already have left the registry, but its research policy must still apply.
+const capabilityOwners = new WeakMap<Agent, RouteState>()
 
 /** Whether an identity is a directly owned ULTRA loop rather than its coordinator. */
 export function isUltraRoute(id: string): boolean {
@@ -107,6 +115,8 @@ export function isUltraRoute(id: string): boolean {
 
 /** Follow logged lineage so delegated children retain the route's execution policy. */
 function ancestorState(agent: Agent): RouteState | undefined {
+  const attached = capabilityOwners.get(agent)
+  if (attached !== undefined) return attached
   const visited = new Set<string>()
   let cursor: Agent | undefined = agent
   while (cursor !== undefined && !visited.has(cursor.id)) {
@@ -174,17 +184,12 @@ function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent,
   const questionTool = tools.get('ask_user_question', child)
   if (inheritedToolNames(tools, child).has(toolName)) tools.restrict({ deny: [toolName] })
   state.attachedAgents.add(child)
+  capabilityOwners.set(child, state)
   childCtx.effect(() => () => {
     state.attachedAgents.delete(child)
-    const presentation = state.presentations.get(child)
-    state.presentations.delete(child)
-    presentation?.dispose()
-    const restriction = state.restrictions.get(child)
-    state.restrictions.delete(child)
-    restriction?.()
-    const question = state.questionBridges.get(child)
-    state.questionBridges.delete(child)
-    question?.dispose?.()
+    capabilityOwners.delete(child)
+    if (child === state.agent) routes.delete(child.id)
+    releaseAgentCapabilities(state, child)
   }, 'ultra.routePresentation()')
 
   const events = childCtx as unknown as RuntimeEvents
@@ -262,18 +267,51 @@ function updatePresentation(state: RouteState, agent: Agent): void {
   if (tools.modeFor(agent) !== desired) state.presentations.set(agent, { mode: desired, dispose: tools.presentAs(desired) })
 }
 
-/** Teardown also releases child layers if creation or a handle's disposal failed. */
+/** Attempt every layer even when an individual scoped disposer rejects. */
+function releaseAgentCapabilities(state: RouteState, agent: Agent): void {
+  const restriction = state.restrictions.get(agent)
+  const presentation = state.presentations.get(agent)
+  const question = state.questionBridges.get(agent)
+  state.restrictions.delete(agent)
+  state.presentations.delete(agent)
+  state.questionBridges.delete(agent)
+  const errors: unknown[] = []
+  for (const dispose of [restriction, presentation?.dispose, question?.dispose]) {
+    try { dispose?.() } catch (error) { errors.push(error) }
+  }
+  if (errors.length > 0) throw new AggregateError(errors, `ULTRA capability cleanup failed for ${agent.id}`)
+}
+
+/** Keep surviving live agents guarded until their own scoped disposal settles. */
 function releaseRouteCapabilities(state: RouteState): void {
-  for (const dispose of state.restrictions.values()) dispose()
-  state.restrictions.clear()
-  for (const presentation of state.presentations.values()) presentation.dispose()
-  state.presentations.clear()
-  for (const question of state.questionBridges.values()) question.dispose?.()
-  state.questionBridges.clear()
-  state.attachedAgents.clear()
   state.running = false
   state.acceptingSteering = false
   state.progressListeners.clear()
+  const errors: unknown[] = []
+  for (const agent of [...state.attachedAgents]) {
+    if (state.parent.ctx.agents.get(agent.id) === agent) continue
+    state.attachedAgents.delete(agent)
+    capabilityOwners.delete(agent)
+    try { releaseAgentCapabilities(state, agent) } catch (error) { errors.push(error) }
+  }
+  if (errors.length > 0) throw new AggregateError(errors, 'ULTRA route capability cleanup failed')
+}
+
+/** Creation rollback may expose an unpublished setup object; never drain that object. */
+async function drainRouteDescendants(state: RouteState): Promise<void> {
+  if (state.agent === undefined || state.parent.ctx.agents.get(state.agent.id) !== state.agent) return
+  const subagents = state.parent.ctx.get('subagents') as SubagentLifecycle | undefined
+  await subagents?.drainContinuableDescendants?.([state.agent])
+}
+
+/** Release observers after native children and the route have settled. */
+function finishRouteCleanup(state: RouteState, id: string, disposers: readonly (() => void)[]): void {
+  const errors: unknown[] = []
+  for (const dispose of [...disposers, () => releaseRouteCapabilities(state)]) {
+    try { dispose() } catch (error) { errors.push(error) }
+  }
+  if (state.agent === undefined || state.parent.ctx.agents.get(SessionId(id)) !== state.agent) routes.delete(id)
+  if (errors.length > 0) throw new AggregateError(errors, `ULTRA route ${id} observer cleanup failed`)
 }
 
 /** Read only this run's settled log suffix, never inherited answers or earlier decision turns. */
@@ -303,7 +341,7 @@ function outcomeOf(agent: Agent, boundary: number, label: string, aborted: boole
 }
 
 /** Create a loop without subagent origin or additional delegation depth. */
-export async function createRoute(parent: Agent, options: RouteOptions, config: { toolName: string }): Promise<RouteHandle> {
+export async function createRoute(parent: Agent, options: RouteOptions, config: { toolName: string } & CollaborationHostConfig): Promise<RouteHandle> {
   options.signal.throwIfAborted()
   if (routes.has(options.id)) throw new Error(`ULTRA route ${options.id} already exists`)
   const inherited = parent.session.requestHeader()?.config ?? parent.options
@@ -395,13 +433,23 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       },
     })
   } catch (error) {
-    stopDescendants()
-    stopSessionEvents()
-    releaseRouteCapabilities(state)
-    routes.delete(options.id)
+    const failures: unknown[] = [error]
+    try { await drainRouteDescendants(state) } catch (failure) { failures.push(failure) }
+    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (failure) { failures.push(failure) }
+    if (failures.length > 1) throw new AggregateError(failures, `ULTRA route ${options.id} creation and rollback failed`)
     throw error
   }
   const child = handle.agent
+  let collaboration: CollaborationHostHandle | undefined
+  try {
+    if (config.collaborationEnabled) collaboration = installCollaboration(child, config)
+  } catch (error) {
+    const failures: unknown[] = [error]
+    try { await drainRouteDescendants(state) } catch (failure) { failures.push(failure) }
+    try { await handle.dispose() } catch (failure) { failures.push(failure) }
+    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (failure) { failures.push(failure) }
+    throw failures.length > 1 ? new AggregateError(failures, 'Ultra collaboration installation and rollback failed') : error
+  }
   let active = false
   let disposal: Promise<void> | undefined
   const onAbort = (): void => {
@@ -464,13 +512,14 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     },
     dispose() {
       return disposal ??= (async () => {
+        state.acceptingSteering = false
+        const failures: unknown[] = []
+        if (collaboration) try { await collaboration.close() } catch (error) { failures.push(error) }
+        try { await drainRouteDescendants(state) } catch (error) { failures.push(error) }
+        try { await handle.dispose() } catch (error) { failures.push(error) }
         options.signal.removeEventListener('abort', onAbort)
-        try { await handle.dispose() } finally {
-          stopDescendants()
-          stopSessionEvents()
-          releaseRouteCapabilities(state)
-          routes.delete(options.id)
-        }
+        try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (error) { failures.push(error) }
+        if (failures.length > 0) throw new AggregateError(failures, `ULTRA route ${options.id} teardown failed`)
       })()
     },
   }

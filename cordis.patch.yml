@@ -12,6 +12,11 @@
         # /ultra assist 或 /ultra 1 选择主 Agent + 只读 Max 决策辅助
         # 辅助模式保留主 Agent 的 DSH 设置，额外 decision 固定 Max
         concurrency: 3
+        # 独立协作层：普通主 Agent 也可开启；不联动 Ultra enabled/concurrency
+        collaborationEnabled: false
+        # 单独的 continuable 派发策略；保留原生 subagent 工具自身配置
+        collaborationProvider: spawn
+        collaborationMaxAgents: 8
         # 提示词段插入顺序
         sectionOrder: 117.5
         timeoutMs: 900000

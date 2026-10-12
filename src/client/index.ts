@@ -54,6 +54,8 @@ interface UltraStateSnapshot {
   lastRun: { at: number; ms: number } | null
   phase?: string
   error?: string | null
+  warnings?: string[]
+  collaborationEnabled?: boolean
 }
 
 interface ButtonState {
@@ -126,6 +128,10 @@ const zh = {
   'trigger.saving': '保存中',
   'trigger.error': '出错',
   'trigger.unavailable': '请先选择会话',
+  'collaboration.label': '协作增强',
+  'collaboration.title': '独立开关：增强普通 DSH Agent 的协作，不强制 Max，也不改变 Ultra 模式。',
+  'collaboration.on': '已开启',
+  'collaboration.off': '已关闭',
   'trigger.title': 'Ultra：{count} 路并发执行 + 1 路独立决策；默认 max 思考',
   'trigger.assistedTitle': 'Ultra：正常主 Agent 执行 + 1 路 Max 自动决策辅助',
   'menu.title': 'Ultra 模式',
@@ -145,6 +151,9 @@ const zh = {
   'status.completed': '已完成',
   'status.failed': '执行失败',
   'status.cancelled': '已取消',
+  'status.timedOut': '辅助已超时',
+  'status.stopped': '辅助已停止',
+  'status.warnings': '保留 {count} 条辅助诊断；当前状态以运行结果为准。',
   'status.runs': '{phase} · {count} 个任务',
   'status.lastRun': '上次运行 {seconds} 秒',
   'error.invalidResponse': '服务端返回了无效的 Ultra 状态',
@@ -160,6 +169,10 @@ const en: Record<keyof typeof zh, string> = {
   'trigger.saving': 'Saving',
   'trigger.error': 'Error',
   'trigger.unavailable': 'Select a session first',
+  'collaboration.label': 'Team',
+  'collaboration.title': 'Independent toggle for ordinary DSH Agent cooperation; does not force Max or change Ultra mode.',
+  'collaboration.on': 'On',
+  'collaboration.off': 'Off',
   'trigger.title': 'Ultra: {count} execution routes + 1 independent decision route; max reasoning by default',
   'trigger.assistedTitle': 'Ultra: normal main Agent execution + 1 automatic Max decision assistant',
   'menu.title': 'Ultra mode',
@@ -179,6 +192,9 @@ const en: Record<keyof typeof zh, string> = {
   'status.completed': 'Completed',
   'status.failed': 'Failed',
   'status.cancelled': 'Cancelled',
+  'status.timedOut': 'Assistant timed out',
+  'status.stopped': 'Assistant stopped',
+  'status.warnings': '{count} assistant diagnostics retained; current status follows the run outcome.',
   'status.runs': '{phase} · {count} tasks',
   'status.lastRun': 'Last run: {seconds} s',
   'error.invalidResponse': 'The server returned an invalid Ultra state',
@@ -187,7 +203,12 @@ const en: Record<keyof typeof zh, string> = {
 }
 
 const ULTRA_CSS = [
-  '.dsh-ultra{position:relative;min-width:0;font-family:inherit;--ultra-surface:rgb(from var(--dsw-specific-menu,#fff) r g b / 1);--ultra-ink:rgb(from var(--dsw-alias-label-primary,#20242c) r g b / 1);--ultra-accent:rgb(from var(--dsw-alias-state-info-label,#5069cb) r g b / 1);--ultra-danger:rgb(from var(--dsw-alias-state-error-primary,#d84c4c) r g b / 1);--ultra-hover:color-mix(in srgb,var(--ultra-surface) 92%,var(--ultra-ink) 8%)}',
+  '.dsh-ultra{position:relative;display:inline-flex;align-items:center;gap:4px;min-width:0;font-family:inherit;--ultra-surface:rgb(from var(--dsw-specific-menu,#fff) r g b / 1);--ultra-ink:rgb(from var(--dsw-alias-label-primary,#20242c) r g b / 1);--ultra-accent:rgb(from var(--dsw-alias-state-info-label,#5069cb) r g b / 1);--ultra-danger:rgb(from var(--dsw-alias-state-error-primary,#d84c4c) r g b / 1);--ultra-hover:color-mix(in srgb,var(--ultra-surface) 92%,var(--ultra-ink) 8%)}',
+  '.dsh-ultra-team{height:28px;padding:0 7px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}',
+  '.dsh-ultra-team:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
+  '.dsh-ultra-team[aria-pressed=true]{color:var(--ultra-accent);background:color-mix(in srgb,var(--ultra-surface) 90%,var(--ultra-accent) 10%)}',
+  '.dsh-ultra-team:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
+  '.dsh-ultra-team:disabled{color:var(--dsw-alias-label-dimmed,#9599a1);cursor:default}',
   '.dsh-ultra-trigger{display:flex;align-items:center;gap:5px;height:28px;padding:0 7px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
   '.dsh-ultra-trigger:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
   '.dsh-ultra-trigger:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
@@ -212,6 +233,7 @@ const ULTRA_CSS = [
   '.dsh-ultra-footer{margin:4px 4px 0;padding:7px 4px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.15))}',
   '.dsh-ultra-error{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:7px 8px;margin:4px;border-radius:8px;background:color-mix(in srgb,var(--ultra-surface) 91%,var(--ultra-danger) 9%);color:var(--dsw-alias-state-error-primary,#d84c4c);font-size:12px;line-height:18px;overflow-wrap:anywhere}',
   '.dsh-ultra-retry{flex:none;padding:0;border:0;background:inherit;color:inherit;font:inherit;font-weight:600;cursor:pointer}',
+  '.dsh-ultra-warning{padding:7px 8px;margin:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#828691);overflow-wrap:anywhere}',
   '@keyframes dsh-ultra-pulse{0%,100%{opacity:.45}50%{opacity:1}}',
   '@media(prefers-reduced-motion:reduce){.dsh-ultra-dot{animation:none}.dsh-ultra-chevron{transition:none}}',
 ].join('')
@@ -238,6 +260,8 @@ function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
     ))
     || (value.phase !== undefined && typeof value.phase !== 'string')
     || (value.error !== undefined && value.error !== null && typeof value.error !== 'string')
+    || (value.warnings !== undefined && (!Array.isArray(value.warnings) || value.warnings.some(item => typeof item !== 'string')))
+    || (value.collaborationEnabled !== undefined && typeof value.collaborationEnabled !== 'boolean')
   ) return invalid()
   return value as UltraStateSnapshot
 }
@@ -246,8 +270,10 @@ function phaseLabel(snapshot: UltraStateSnapshot, t: Translate): string {
   if (snapshot.phase === 'coordinating') return t('status.coordinating')
   if (snapshot.phase === 'deciding' || snapshot.phase === 'decision' || snapshot.phase === 'merging') return t('status.deciding')
   if (snapshot.running) return t('status.running')
-  if (snapshot.phase === 'failed' || snapshot.error) return t('status.failed')
+  if (snapshot.phase === 'timed-out') return t('status.timedOut')
+  if (snapshot.phase === 'stopped') return t('status.stopped')
   if (snapshot.phase === 'cancelled' || snapshot.phase === 'aborted') return t('status.cancelled')
+  if (snapshot.phase === 'failed' || snapshot.error) return t('status.failed')
   if (snapshot.phase === 'completed') return t('status.completed')
   return t(snapshot.enabled ? 'status.ready' : 'status.disabled')
 }
@@ -316,31 +342,32 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     if (restoreFocus) triggerRef.current?.focus()
   }
 
-  const choose = async (level: typeof LEVELS[number]): Promise<void> => {
+  const mutate = async (patch: { enabled?: boolean; concurrency?: number; collaborationEnabled?: boolean }, closeMenu: boolean): Promise<void> => {
     const scope = scopeRef.current
     if (!available || snapshot === null || scope.mutating || scope.disposed) return
-    if (snapshot.enabled === (level !== 0) && (level === 0 || snapshot.concurrency === level)) {
-      close(true)
-      return
-    }
     scope.mutating = true
     scope.revision += 1
     setView(previous => ({ ...previous, pending: true, actionError: null }))
     try {
       const saved = readSnapshot(await rpc.call(RPC_CHANNEL, 'set', {
         sessionId,
-        enabled: level !== 0,
-        concurrency: level === 0 ? snapshot.concurrency : level,
+        ...patch,
       }), t)
       if (scopeRef.current !== scope || scope.disposed) return
       setView(previous => ({ ...previous, snapshot: saved, pending: false, syncError: null, actionError: null }))
-      close(true)
+      if (closeMenu) close(true)
     } catch (cause) {
       if (scopeRef.current !== scope || scope.disposed) return
       setView(previous => ({ ...previous, pending: false, actionError: cause instanceof Error ? cause.message : t('error.connection') }))
     } finally {
       scope.mutating = false
     }
+  }
+
+  const choose = async (level: typeof LEVELS[number]): Promise<void> => {
+    if (snapshot === null) return
+    if (snapshot.enabled === (level !== 0) && (level === 0 || snapshot.concurrency === level)) { close(true); return }
+    await mutate({ enabled: level !== 0, concurrency: level === 0 ? snapshot.concurrency : level }, true)
   }
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -363,6 +390,12 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   const valueLabel = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading')
     : snapshot.enabled ? (snapshot.concurrency === 1 ? t('trigger.assisted') : t('trigger.routes', { count: snapshot.concurrency })) : t('trigger.off')
   const status = snapshot === null ? null : phaseLabel(snapshot, t)
+  const anchor = open ? rootRef.current?.getBoundingClientRect?.() : undefined
+  const above = anchor ? Math.max(0, anchor.top - 12) : undefined
+  const below = anchor ? Math.max(0, window.innerHeight - anchor.bottom - 12) : undefined
+  const menuStyle: React.CSSProperties | undefined = above !== undefined && below !== undefined
+    ? below > above && above < 260 ? { top: 'calc(100% + 8px)', bottom: 'auto', maxHeight: Math.max(40, below) }
+      : { maxHeight: Math.max(40, above) } : undefined
   return React.createElement('div', {
     ref: rootRef, className: 'dsh-ultra', 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error), onKeyDown,
     onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
@@ -370,6 +403,15 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
       close()
     },
   },
+  React.createElement('button', {
+    type: 'button', className: 'dsh-ultra-team', disabled: !available || snapshot === null || current.pending,
+    'aria-label': t('collaboration.label'), 'aria-pressed': snapshot?.collaborationEnabled === true,
+    'aria-busy': current.pending, title: available ? t('collaboration.title') : t('trigger.unavailable'),
+    onClick: () => { void mutate({ collaborationEnabled: snapshot?.collaborationEnabled !== true }, false) },
+    onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => { event.stopPropagation() },
+  }, t('collaboration.label'),
+  React.createElement('span', { className: 'dsh-ultra-value' }, ' · ', current.pending ? t('trigger.saving')
+    : snapshot === null && available ? t('trigger.loading') : t(snapshot?.collaborationEnabled ? 'collaboration.on' : 'collaboration.off'))),
   React.createElement('button', {
     ref: triggerRef, type: 'button', className: 'dsh-ultra-trigger', disabled: !available,
     'aria-label': t('menu.title'), 'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-controls': open ? menuId : undefined,
@@ -385,7 +427,7 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     error ? t('trigger.error') : status) : null,
   React.createElement('svg', { className: 'dsh-ultra-chevron', viewBox: '0 0 10 10', fill: 'none', 'aria-hidden': true },
     React.createElement('path', { d: 'm2 3.5 3 3 3-3', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }))),
-  !open ? null : React.createElement('div', { className: 'dsh-ultra-menu', id: menuId, role: 'menu', 'aria-label': t('menu.title') },
+  !open ? null : React.createElement('div', { className: 'dsh-ultra-menu', id: menuId, role: 'menu', 'aria-label': t('menu.title'), style: menuStyle },
     React.createElement('div', { className: 'dsh-ultra-heading' }, t('menu.title'),
       React.createElement('div', { className: 'dsh-ultra-description' }, t('menu.description'))),
     ...LEVELS.map((level, index) => {
@@ -406,6 +448,9 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
       current.syncError ? React.createElement('button', {
         type: 'button', className: 'dsh-ultra-retry', onClick: () => { void retryRef.current?.() },
       }, t('error.retry')) : null) : null,
+    snapshot?.warnings?.length ? React.createElement('details', { className: 'dsh-ultra-warning' },
+      React.createElement('summary', null, t('status.warnings', { count: snapshot.warnings.length })),
+      ...snapshot.warnings.map((warning, index) => React.createElement('div', { key: index }, warning))) : null,
     React.createElement('div', { className: 'dsh-ultra-footer', role: 'status', 'aria-live': 'polite' },
       snapshot === null ? t('trigger.loading') : t('status.runs', { phase: status, count: snapshot.activeRuns }),
       snapshot?.running ? React.createElement('div', null, t('menu.runningHint')) : null,

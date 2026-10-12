@@ -10,11 +10,13 @@
 
 **当前正式版：[v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
 
+**本次候选升级为 0.4.0-rc.1：新增独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。[协作使用说明](docs/collaboration.md) 描述当前候选源码；新增能力尚无真实模型收益验收，不将它写成已发布正式版。
+
 [![verify](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml/badge.svg)](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml)
 
 主分支现已补充完整中文文档、9 项案例工具检查，以及 4 个业务案例的 **66 项独立业务检查**。本机参考实现全部通过、缺陷基线全部被拒绝；这些结果不代表 Ultra 对业务任务的真实模型优势。[扩充验证记录](docs/repository-expansion-0.3.2.json) 与 [最新 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml) 单独记录，不改写正式包的历史验收。
 
-[安装指南](docs/installation.md) · [架构与配置](docs/architecture.md) · [测试指南](docs/testing.md) · [业务样例](benchmarks/README.md) · [排障](docs/troubleshooting.md) · [更新记录](CHANGELOG.md)
+[安装指南](docs/installation.md) · [架构与配置](docs/architecture.md) · [协作增强](docs/collaboration.md) · [测试指南](docs/testing.md) · [业务样例](benchmarks/README.md) · [排障](docs/troubleshooting.md) · [更新记录](CHANGELOG.md)
 
 ## 快速安装
 
@@ -43,6 +45,7 @@
 | `/ultra 2`、`/ultra 3`、`/ultra 4`、`/ultra 5` | N 条独立 Max worker + 1 条 Max decision |
 | `/ultra on` | 恢复当前选择；新会话首次开启默认 3 路 |
 | `/ultra off` | 关闭后续任务的自动 Ultra，保留已选模式 |
+| `/team on`、`/team off`、`/team` | 独立管理或查询后续任务的子代理协作增强，不改变 Ultra 算力模式 |
 
 按钮关闭时，用户明确要求的手动并发 Ultra 可通过 `ultra_task` 入口处理。内部路线和它们的子代理不能递归开启 Ultra。
 

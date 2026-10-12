@@ -3,7 +3,9 @@ export declare const MIN_CONCURRENCY = 2;
 export declare const MAX_CONCURRENCY = 5;
 export interface UltraState {
     enabled: boolean;
+    collaborationEnabled?: boolean;
     concurrency: number;
+    warnings?: string[];
     activeRuns: number;
     phase: string;
     error: string | null;
@@ -49,7 +51,9 @@ export declare function snapshotOf(state: UltraState): {
         succeeded: number;
         runId: string;
     } | null;
+    warnings?: string[];
     enabled: boolean;
+    collaborationEnabled?: boolean;
     concurrency: number;
     activeRuns: number;
     phase: string;
