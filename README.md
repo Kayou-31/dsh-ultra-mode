@@ -6,11 +6,11 @@
 >
 > **更多路线会明显增加 Token 预算。用户提供的粗略预算参考为：每多开一路，约增加 125%。** 这不是本插件测得的固定倍率；实际消耗随上下文、工具步骤、普通子代理及协调轮数变化，按钮没有额度或费用估算。
 
-在 DeepSeek Harness 的会话输入框旁加入独立 **Ultra** 按钮：可以给普通主 Agent 增加自动决策辅助，也可以启用 **2–5 条独立 Max 执行路线 + 1 条 Max 决策路线**。决策层会根据新进展反复检查、调整仍在运行路线的方向，最终统一实施与交付。每条独立 worker 仍能调用宿主普通子代理。
+在 DeepSeek Harness 的会话输入框旁加入两个独立按钮：**协作增强（Team）** 控制子代理协作，**Ultra** 控制普通主 Agent 的自动决策辅助或 **2–5 条独立 Max 执行路线 + 1 条 Max 决策路线**。决策层会根据新进展反复检查、调整仍在运行路线的方向，最终统一实施与交付。每条独立 worker 仍能调用宿主普通子代理。
 
-**当前正式版：[v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
+**最新已发布预发布版：[v0.4.0-rc.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** 原有稳定版 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 仍可选；其 [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
 
-**本次候选升级为 0.4.0-rc.2：独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。rc.1 首请求缺工具的失败已修复：rc.2 真实基础派发得到 210／56，主 Agent 的 97 合计 363；信息排队后同 ID 续作也已实际得到 46。基础任务保留一次等待参数越界拒绝及恢复，最终包重装后的新会话复核通过。[协作使用说明](docs/collaboration.md) 与 [rc.2 验证记录](docs/verification-0.4.0-rc.2.md) 描述当前候选状态，不将它写成已发布正式版。
+**v0.4.0-rc.2 新增独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。rc.1 首请求缺工具的失败已修复：rc.2 真实基础派发得到 210／56，主 Agent 的 97 合计 363；信息排队后同 ID 续作也已实际得到 46。基础任务保留一次等待参数越界拒绝及恢复，最终包重装后的新会话复核通过。[协作使用说明](docs/collaboration.md) 与 [rc.2 验证记录](docs/verification-0.4.0-rc.2.md) 记录行为与验收边界；本版已公开预发布，仍不是稳定版。
 
 [![verify](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml/badge.svg)](https://github.com/Kayou-31/dsh-ultra-mode/actions/workflows/verify.yml)
 
@@ -20,12 +20,14 @@
 
 ## 快速安装
 
-1. 下载 [v0.3.2 安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/dsh-external-dsh-ultra-mode-0.3.2.tgz)。需要核对文件时使用 [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/SHA256SUMS-0.3.2.txt)。源码 ZIP 用于开发，安装请选择 TGZ。
+1. 下载已发布预发布版 [v0.4.0-rc.2 安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/dsh-ultra-mode-0.4.0-rc.2.tgz)，用同版本 [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/SHA256SUMS-0.4.0-rc.2.txt) 核对。源码 ZIP 用于开发，安装请选择 TGZ。
 2. 在 DSH 插件管理页的本地包安装入口选择该文件或填写其本地路径，安装并启用 `@dsh-external/dsh-ultra-mode` bundle。升级前保留 profile 配置与旧包，不覆盖原有 bundle 列表。
-3. 完整退出 DSH（包括后台／托盘实例）后重新打开。在会话输入框右侧检查 **Ultra** 按钮及菜单。
-4. 选择模式后提交普通用户任务即可，无需额外填写决策提示词。
+3. 完整退出 DSH（包括后台／托盘实例）后重新打开。在新会话输入框右侧检查 **协作增强（Team）** 和 **Ultra** 两个独立按钮。
+4. 默认配置下，新会话协作与 Ultra 都关闭。只需要普通 Agent 协作时，用 `/team on` 并保持 `/ultra off`；需要额外决策辅助或并发时，再单独选择 Ultra 模式。随后提交普通任务，无需填写决策提示词。
 
 发布包已含 `lib/`，用户不需要 Node 构建环境，也不需要复制 DSH SDK。不同安装入口或手动 profile 安装、升级与回滚步骤见 [安装指南](docs/installation.md)。该插件目前通过 GitHub Release 分发，不表示已发布到 npm registry。
+
+需要原有稳定功能时可选 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)；该版本没有新增协作开关。
 
 ## 使用与模式
 
@@ -37,7 +39,7 @@
 
 并发 worker 负责研究，默认不允许写入、命令或发布；共享工作区的修改由 decision 最终阶段处理。没有自动创建每路 Git worktree。辅助模式的旁路 decision 只读，主 Agent 的原有执行权限保持不变。
 
-新会话默认关闭，首次开启并发默认 **3 路**。选项按会话隔离；运行中修改只影响后续任务，重启 DSH 后选项复位。按钮和菜单使用实色背景，不修改滑轨或思考强度选择器。
+默认配置下，新会话的协作增强与 Ultra 都关闭，首次开启并发默认 **3 路**。选项按会话隔离；运行中修改只影响后续任务，重启 DSH 后按配置重新初始化。按钮和菜单使用实色背景，不修改滑轨或思考强度选择器。
 
 | 命令 | 行为 |
 | --- | --- |
@@ -85,7 +87,7 @@ v0.3.2 正式包的 23 个编译文件与真实验收包 `701fbd1b` 阶段逐字
 
 详细证据按版本保留：
 
-- [rc.2 当前候选验证](docs/verification-0.4.0-rc.2.md)：记录真实基础派发和实际续作链、等待参数错误及恢复，最终包重装的新会话复核通过，工具错误为 0。[rc.1 离线阶段记录](docs/verification-0.4.0-rc.1.md) 的统计与后续首请求失败继续归属 rc.1。
+- [rc.2 预发布验证](docs/verification-0.4.0-rc.2.md)：记录真实基础派发和实际续作链、等待参数错误及恢复，最终包重装的新会话复核通过，工具错误为 0。[rc.1 离线阶段记录](docs/verification-0.4.0-rc.1.md) 的统计与后续首请求失败继续归属 rc.1。
 - [0.3.2 验证记录](docs/verification-0.3.2.md)、[最终真实摘要](docs/real-model-0.3.2-final-summary.json)、[SDK 聚合摘要](docs/sdk-verification-0.3.2.json)。历史记录中的“准备发布”是写入当时状态，当前正式发布状态以首页和 Release 为准。
 - [首候选失败](docs/real-model-0.3.2-candidate-summary.json) 与 [修复阶段复验](docs/real-model-0.3.2-recheck-summary.json)：保留审批超时、非法 JSON、缺 child 等历史失败。
 - [0.3.1 未发布历史](docs/verification-0.3.1.md)、[0.3.0 验证](docs/verification-0.3.0.md)、[0.2.0 验证](docs/verification-0.2.0.md)、[0.2.0 真实模型记录](docs/real-model-0.2.0.md)。

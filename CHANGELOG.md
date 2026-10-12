@@ -2,7 +2,9 @@
 
 发布文件以 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 为准。此页概述行为变化；按版本记录的测试、失败和验收边界保留在 `docs/verification-*.md`，不以新通过覆盖旧失败。
 
-## 0.4.0-rc.2 — 2026-10-11（候选版）
+## 0.4.0-rc.2 — 2026-10-11（已发布预发布版）
+
+[预发布 Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.2) · [安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/dsh-ultra-mode-0.4.0-rc.2.tgz) · [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/SHA256SUMS-0.4.0-rc.2.txt)。保持已测 rc.2 版本及包内容，旧 v0.3.2 稳定版继续保留。
 
 - 保留 rc.1 的真实失败：普通 Agent 单开协作时，首个模型请求缺少六个协作工具；任务退回原生派发，210／56 运算结果正确仍不构成新增协作验收通过。
 - 修复请求组装时机：在主 Agent 的 `turn/start` 预挂载本次协作工具，而不是等首轮 `agent/pre-step` 后才注册。连续任务先等待上一协作组排空，必要时通过公开 system prompt 组装接口重新生成完整请求材料，保留宿主工具顺序与呈现设置。

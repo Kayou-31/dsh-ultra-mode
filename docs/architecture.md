@@ -1,6 +1,6 @@
 # 架构、配置与运行边界
 
-本页描述原有 v0.3.2 调度及 0.4.0-rc.2 候选源码的协作增强，目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**。安装与日常操作见 [安装指南](installation.md)、[首页](../README.md) 和 [协作使用说明](collaboration.md)，当前候选状态见 [rc.2 验证记录](verification-0.4.0-rc.2.md)：真实基础派发与续作执行链已走通，保留一次等待参数拒绝及恢复；最终包重装的新会话复核通过，工具错误为 0。历史验证范围见 [0.3.2 记录](verification-0.3.2.md) 与 [最终真实验收摘要](real-model-0.3.2-final-summary.json)，不作为新增协作的真实模型验收。正式发布状态仍以 [v0.3.2 Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 为准。
+本页描述原有 v0.3.2 调度及 已发布的 0.4.0-rc.2 预发布源码的协作增强，目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**。安装与日常操作见 [安装指南](installation.md)、[首页](../README.md) 和 [协作使用说明](collaboration.md)，当前预发布状态见 [rc.2 验证记录](verification-0.4.0-rc.2.md)：真实基础派发与续作执行链已走通，保留一次等待参数拒绝及恢复；最终包重装的新会话复核通过，工具错误为 0。历史验证范围见 [0.3.2 记录](verification-0.3.2.md) 与 [最终真实验收摘要](real-model-0.3.2-final-summary.json)，不作为新增协作的真实模型验收。正式发布状态仍以 [v0.3.2 Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 为准。
 
 ## 独立的协作增强
 
@@ -8,7 +8,7 @@ Ultra 算力模式和子代理协作分别使用 `enabled` 与 `collaborationEna
 
 新增六个 `ultra_*` 工具通过 DSH 公开 continuation 服务派发和续接正常子代理，继承宿主深度、容量、工作区与审批限制，保留原生子代理工具。每组有独立账本和有界邮箱；`ultra_send_message` 不唤醒空闲目标，`ultra_followup_task` 显式续作，事件等待支持 cursor 防重复。组内直接父子可互发信息，父 Agent 可以中断自己创建的后代；代理消息不增加用户授权。协作组随当前 turn 或 Ultra 路线收尾，运行中切换选项不修改正在执行的组。
 
-rc.2 在主 Agent 的 `turn/start` 预挂载协作工具，早于首请求组装；连续任务还在 `system-prompt/assemble` 等待前组收尾，必要时通过公开接口重建完整请求材料。修复后真实基础任务的首请求 header 已包含六个工具，并核对两个增强子代理继承 High、委派深度 1；请求材料证据不称作 provider 网络正文抓包。等待工具已补充 0–60000 毫秒范围、默认 30000、目标数量及 cursor 文案，最终文案包另行重装复验。
+rc.2 在主 Agent 的 `turn/start` 预挂载协作工具，早于首请求组装；连续任务还在 `system-prompt/assemble` 等待前组收尾，必要时通过公开接口重建完整请求材料。修复后真实基础任务的首请求 header 已包含六个工具，并核对两个增强子代理继承 High、委派深度 1；请求材料证据不称作 provider 网络正文抓包。等待工具已补充 0–60000 毫秒范围、默认 30000、目标数量及 cursor 文案，最终文案包已重装并完成新会话复核，工具错误为 0。
 
 每个协作子代理有自己的会话上下文，仍访问共享工作目录，没有自动创建 worktree。Ultra worker 的研究权限继续约束其协作子代理。完整工具、容量和证据边界见 [协作使用说明](collaboration.md)。
 
