@@ -2,7 +2,9 @@
 
 发布文件以 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 为准。此页概述行为变化；按版本记录的测试、失败和验收边界保留在 `docs/verification-*.md`，不以新通过覆盖旧失败。
 
-## 0.4.0-rc.3 — 2026-10-12（界面修复候选版）
+## 0.4.0-rc.3 — 2026-10-12（已发布预发布版）
+
+[预发布 Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.3) · [安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/dsh-ultra-mode-0.4.0-rc.3.tgz) · [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/SHA256SUMS-0.4.0-rc.3.txt)。
 
 - 针对用户真实截图中双按钮挤占输入框工具栏、使原生模型名称被收起的问题，改为有文字的紧凑双控件：中文「协作」／英文「Team」44 像素、间隔 4 像素、Ultra 84 像素，常规总宽 132 CSS 像素；容器宽度不超过 440 像素时总宽 96 像素。按钮使用 13 像素字体，保留独立选择、完整 aria/title 提示及菜单。
 - 最终文字版本机安装后，协作与 Ultra 辅助同时开启时保留完整原生模型名称，六项 Ultra 菜单与原生模型菜单正常；构建、类型检查通过，180 项测试中 179 通过、1 跳过，共享工具栏 fixture 86 项检查通过。范围见 [rc.3 验证记录](docs/verification-0.4.0-rc.3.md)，rc.2 的真实模型历史继续归属 rc.2。

@@ -8,7 +8,9 @@
 
 在 DeepSeek Harness 的会话输入框旁加入两个独立按钮：**协作增强（Team）** 控制子代理协作，**Ultra** 控制普通主 Agent 的自动决策辅助或 **2–5 条独立 Max 执行路线 + 1 条 Max 决策路线**。决策层会根据新进展反复检查、调整仍在运行路线的方向，最终统一实施与交付。每条独立 worker 仍能调用宿主普通子代理。
 
-**最新已发布预发布版：[v0.4.0-rc.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.2)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** 原有稳定版 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 仍可选；其 [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
+**最新已发布预发布版：[v0.4.0-rc.3](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.3)。目标宿主：DSH Desktop / Host 0.2.0-rc.2。** 原有稳定版 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 仍可选；其 [发布 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38151173809) 已成功：97 项通过、0 失败，另有 5 项实际 SDK 检查因公开 SDK 的运行时依赖不可用而跳过。跳过项没有算作通过，Windows 实际 SDK 的历史退出失败仍保留。
+
+**v0.4.0-rc.3 修复工具栏空间并保留文字。** 输入框旁显示紧凑的「协作」与「Ultra 关／辅助／2–5」，常规总宽 132px，窄容器 96px。在本机约 720px 输入框中，两层同时开启仍完整显示原版模型名称；完整模式菜单和说明保留。[rc.3 验证记录](docs/verification-0.4.0-rc.3.md) 与 [修复 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38270844447) 可核对。
 
 **v0.4.0-rc.2 新增独立的「子代理协作增强」开关。** Ultra 关闭时也可通过 `/team on` 让普通 Agent 使用后台派发、信息传递、续作、事件等待、中断和查询；`/team off` 关闭后续任务的协作，Ultra 选项保持原值。新增工具使用 `ultra_` 前缀，原生子代理工具保留。rc.1 首请求缺工具的失败已修复：rc.2 真实基础派发得到 210／56，主 Agent 的 97 合计 363；信息排队后同 ID 续作也已实际得到 46。基础任务保留一次等待参数越界拒绝及恢复，最终包重装后的新会话复核通过。[协作使用说明](docs/collaboration.md) 与 [rc.2 验证记录](docs/verification-0.4.0-rc.2.md) 记录行为与验收边界；本版已公开预发布，仍不是稳定版。
 
@@ -20,9 +22,9 @@
 
 ## 快速安装
 
-1. 下载已发布预发布版 [v0.4.0-rc.2 安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/dsh-ultra-mode-0.4.0-rc.2.tgz)，用同版本 [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/SHA256SUMS-0.4.0-rc.2.txt) 核对。源码 ZIP 用于开发，安装请选择 TGZ。
+1. 下载已发布预发布版 [v0.4.0-rc.3 安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/dsh-ultra-mode-0.4.0-rc.3.tgz)，用同版本 [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/SHA256SUMS-0.4.0-rc.3.txt) 核对。源码 ZIP 用于开发，安装请选择 TGZ。
 2. 在 DSH 插件管理页的本地包安装入口选择该文件或填写其本地路径，安装并启用 `@dsh-external/dsh-ultra-mode` bundle。升级前保留 profile 配置与旧包，不覆盖原有 bundle 列表。
-3. 完整退出 DSH（包括后台／托盘实例）后重新打开。在新会话输入框右侧检查 **协作增强（Team）** 和 **Ultra** 两个独立按钮。
+3. 完整退出 DSH（包括后台／托盘实例）后重新打开。在新会话输入框右侧检查 **协作（Team）** 和 **Ultra** 两个独立文字按钮。
 4. 默认配置下，新会话协作与 Ultra 都关闭。只需要普通 Agent 协作时，用 `/team on` 并保持 `/ultra off`；需要额外决策辅助或并发时，再单独选择 Ultra 模式。随后提交普通任务，无需填写决策提示词。
 
 发布包已含 `lib/`，用户不需要 Node 构建环境，也不需要复制 DSH SDK。不同安装入口或手动 profile 安装、升级与回滚步骤见 [安装指南](docs/installation.md)。该插件目前通过 GitHub Release 分发，不表示已发布到 npm registry。

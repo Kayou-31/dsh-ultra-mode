@@ -1,13 +1,13 @@
 # 安装、升级与回滚
 
-面向使用 DSH Desktop 的用户。最新已发布预发布版为 [v0.4.0-rc.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.2)，本页优先说明该版本的双开关安装；原有稳定版 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 仍可选，但没有新增协作开关。目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**，不保证旧 0.1.x API 或后续宿主版本可直接使用。
+面向使用 DSH Desktop 的用户。最新已发布预发布版为 [v0.4.0-rc.3](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.3)，本页优先说明该版本的双开关安装；原有稳定版 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2) 仍可选，但没有新增协作开关。目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**，不保证旧 0.1.x API 或后续宿主版本可直接使用。
 
 ## 下载哪个文件
 
 | 文件 | 用途 |
 | --- | --- |
-| [dsh-ultra-mode-0.4.0-rc.2.tgz](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/dsh-ultra-mode-0.4.0-rc.2.tgz) | 最新预发布安装包，含双开关及 `lib/` 编译文件 |
-| [SHA256SUMS-0.4.0-rc.2.txt](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.2/SHA256SUMS-0.4.0-rc.2.txt) | 核对上述 rc.2 安装包的 SHA-256 |
+| [dsh-ultra-mode-0.4.0-rc.3.tgz](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/dsh-ultra-mode-0.4.0-rc.3.tgz) | 最新预发布安装包，含紧凑文字双开关及 `lib/` 编译文件 |
+| [SHA256SUMS-0.4.0-rc.3.txt](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/SHA256SUMS-0.4.0-rc.3.txt) | 核对上述 rc.3 安装包的 SHA-256 |
 | [dsh-external-dsh-ultra-mode-0.3.2.tgz](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/dsh-external-dsh-ultra-mode-0.3.2.tgz) | 原有稳定版安装包，已含编译文件，可用于回滚 |
 | [dsh-ultra-mode-0.3.2-source.zip](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/dsh-ultra-mode-0.3.2-source.zip) | 开发与源码检查，不作为本地 bundle 安装包 |
 | [dsh-ultra-mode-0.3.2-docs-tests.zip](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.3.2/dsh-ultra-mode-0.3.2-docs-tests.zip) | v0.3.2 阶段的文档、源码与业务测试补充；不作为安装包 |
@@ -20,7 +20,7 @@ Windows 可用 `Get-FileHash -Algorithm SHA256 <下载文件路径>` 核对文�
 
 ## 首选：DSH 本地包安装
 
-1. 确认 DSH Desktop 与 Host 的版本，下载 rc.2 TGZ 到自己的本地目录，并核对同版本哈希清单。
+1. 确认 DSH Desktop 与 Host 的版本，下载 rc.3 TGZ 到自己的本地目录，并核对同版本哈希清单。
 2. 升级前结束正在运行的任务，保留旧 TGZ 及 profile 的 `package.json`、锁文件和 `cordis.patch.yml`。已有插件列表也应保留。
 3. 在 DSH 插件管理页打开本地包安装入口，选择该 TGZ 或填写其完整本地路径。入口名称以宿主界面为准。
 4. 安装并启用 `@dsh-external/dsh-ultra-mode` bundle。若需要手动追加 bundle，使用下方配置示例，不替换整个列表。
@@ -43,7 +43,7 @@ Windows 可用 `Get-FileHash -Algorithm SHA256 <下载文件路径>` 核对文�
 ```powershell
 $dshPnpm = 'D:\DSH\resources\runtime\pnpm\bin\pnpm.mjs'
 $profileDir = Join-Path $env:USERPROFILE '.dsh\profiles\desktop'
-$packagePath = Join-Path $env:USERPROFILE 'Downloads\dsh-ultra-mode-0.4.0-rc.2.tgz'
+$packagePath = Join-Path $env:USERPROFILE 'Downloads\dsh-ultra-mode-0.4.0-rc.3.tgz'
 
 node $dshPnpm --dir $profileDir add $packagePath --ignore-scripts
 ```

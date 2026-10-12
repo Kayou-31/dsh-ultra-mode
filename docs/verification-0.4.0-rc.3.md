@@ -1,6 +1,6 @@
 # 0.4.0-rc.3 界面修复验证
 
-记录日期：2026-10-12。目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**。最终文字客户端已经完成本机安装与真实界面检查；本文先记录发布前结果，GitHub 同步及最终资产核对随后补充。
+记录日期：2026-10-12。目标宿主为 **DSH Desktop / Host 0.2.0-rc.2**。最终文字客户端已经完成本机安装与真实界面检查；修复已经合并进主分支，并发布新的 rc.3 预发布安装包。包内文档保留发布前快照，本页补充最终发布结果。
 
 ## 问题与改动
 
@@ -33,7 +33,9 @@ fixture 覆盖 320、390、440、640、720、800、900 像素共享工具栏，�
 
 ## 安装包与发布记录
 
-最终 TGZ 的版本、文件集合、与实际安装目录的产物一致性及公开资产哈希在包外核对。此发布前快照尚不宣称 GitHub Release 已发布；最终结果补在主分支，历史 rc.2 附件与标签保留不变。
+最终 TGZ 已重新安装；版本为 `0.4.0-rc.3`，150 个包文件，29 个编译文件与安装目录逐字节一致。公开 TGZ SHA-256 为 `e981ded3f34eab5d260bd267be8e642ff37310d5dd5d41f33fa5b69c5effcb35`，SHA256SUMS 文件的摘要为 `767feff773d51af36e557921e68939c1824ecc467b36d4803d0096cbc8c964b4`，两者均与 GitHub 公开附件 digest 一致。
+
+[PR #2](https://github.com/Kayou-31/dsh-ultra-mode/pull/2) 已合并，标签 `v0.4.0-rc.3` 对应提交 `30f060d83b7abc6498489546550324a54ab49904`。[PR CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38270844447) 的 Ubuntu 与 Windows 两个任务均成功；[主分支合并 CI](https://github.com/Kayou-31/dsh-ultra-mode/actions/runs/38271037703) 成功。[Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.3) 保持预发布标记，附上可安装 TGZ 与 SHA256SUMS。旧 rc.2 附件和标签保持原值。
 
 ## 验证边界
 
