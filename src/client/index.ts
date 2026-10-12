@@ -124,11 +124,15 @@ const zh = {
   'trigger.off': '关',
   'trigger.assisted': 'Agent + 决策',
   'trigger.routes': '{count} 路',
+  'trigger.assistedCompact': '辅助',
+  'trigger.routesCompact': '{count}',
+  'trigger.offTitle': 'Ultra 已关闭；使用当前会话的普通模式。',
   'trigger.loading': '载入中',
   'trigger.saving': '保存中',
   'trigger.error': '出错',
   'trigger.unavailable': '请先选择会话',
   'collaboration.label': '协作增强',
+  'collaboration.compact': '协作',
   'collaboration.title': '独立开关：增强普通 DSH Agent 的协作，不强制 Max，也不改变 Ultra 模式。',
   'collaboration.on': '已开启',
   'collaboration.off': '已关闭',
@@ -165,11 +169,15 @@ const en: Record<keyof typeof zh, string> = {
   'trigger.off': 'Off',
   'trigger.assisted': 'Agent + decision',
   'trigger.routes': '{count} routes',
+  'trigger.assistedCompact': 'Aid',
+  'trigger.routesCompact': '{count}',
+  'trigger.offTitle': 'Ultra is off; use this session’s ordinary mode.',
   'trigger.loading': 'Loading',
   'trigger.saving': 'Saving',
   'trigger.error': 'Error',
   'trigger.unavailable': 'Select a session first',
   'collaboration.label': 'Team',
+  'collaboration.compact': 'Team',
   'collaboration.title': 'Independent toggle for ordinary DSH Agent cooperation; does not force Max or change Ultra mode.',
   'collaboration.on': 'On',
   'collaboration.off': 'Off',
@@ -203,24 +211,28 @@ const en: Record<keyof typeof zh, string> = {
 }
 
 const ULTRA_CSS = [
-  '.dsh-ultra{position:relative;display:inline-flex;align-items:center;gap:4px;min-width:0;font-family:inherit;--ultra-surface:rgb(from var(--dsw-specific-menu,#fff) r g b / 1);--ultra-ink:rgb(from var(--dsw-alias-label-primary,#20242c) r g b / 1);--ultra-accent:rgb(from var(--dsw-alias-state-info-label,#5069cb) r g b / 1);--ultra-danger:rgb(from var(--dsw-alias-state-error-primary,#d84c4c) r g b / 1);--ultra-hover:color-mix(in srgb,var(--ultra-surface) 92%,var(--ultra-ink) 8%)}',
-  '.dsh-ultra-team{height:28px;padding:0 7px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}',
+  // Fixed toolbar footprint: 44px collaboration + 4px gap + 84px Ultra.
+  // The host measures this group alongside its original model selector.
+  '.dsh-ultra{position:relative;display:inline-flex;align-items:center;gap:4px;box-sizing:border-box;flex:0 0 132px;width:132px;max-width:132px;min-width:0;font-family:inherit;--ultra-surface:rgb(from var(--dsw-specific-menu,#fff) r g b / 1);--ultra-ink:rgb(from var(--dsw-alias-label-primary,#20242c) r g b / 1);--ultra-accent:rgb(from var(--dsw-alias-state-info-label,#5069cb) r g b / 1);--ultra-danger:rgb(from var(--dsw-alias-state-error-primary,#d84c4c) r g b / 1);--ultra-hover:color-mix(in srgb,var(--ultra-surface) 92%,var(--ultra-ink) 8%)}',
+  '.dsh-ultra-team{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:28px;padding:0 4px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
   '.dsh-ultra-team:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
   '.dsh-ultra-team[aria-pressed=true]{color:var(--ultra-accent);background:color-mix(in srgb,var(--ultra-surface) 90%,var(--ultra-accent) 10%)}',
   '.dsh-ultra-team:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
   '.dsh-ultra-team:disabled{color:var(--dsw-alias-label-dimmed,#9599a1);cursor:default}',
-  '.dsh-ultra-trigger{display:flex;align-items:center;gap:5px;height:28px;padding:0 7px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
+  '.dsh-ultra-trigger{position:relative;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:3px;flex:0 0 84px;width:84px;height:28px;padding:0 4px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
   '.dsh-ultra-trigger:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
   '.dsh-ultra-trigger:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
   '.dsh-ultra-trigger:disabled{color:var(--dsw-alias-label-dimmed,#9599a1);cursor:default}',
   '.dsh-ultra[data-enabled=true] .dsh-ultra-trigger{color:var(--dsw-alias-state-info-label,#5069cb);background:color-mix(in srgb,var(--ultra-surface) 90%,var(--ultra-accent) 10%)}',
-  '.dsh-ultra-icon{flex:none;width:14px;height:14px}',
   '.dsh-ultra-value,.dsh-ultra-chevron{color:var(--dsw-alias-label-caption,#858994)}',
-  '.dsh-ultra-chevron{width:10px;height:10px;transition:transform 120ms ease}',
+  '.dsh-ultra[data-enabled=true] .dsh-ultra-value{color:inherit}',
+  '.dsh-ultra-chevron{flex:none;width:8px;height:8px;transition:transform 120ms ease}',
   '.dsh-ultra-trigger[aria-expanded=true] .dsh-ultra-chevron{transform:rotate(180deg)}',
-  '.dsh-ultra-status{font-size:11px;line-height:16px;color:var(--dsw-alias-state-info-label,#5069cb)}',
-  '.dsh-ultra-dot{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:currentColor;animation:dsh-ultra-pulse 1.5s ease-in-out infinite}',
-  '.dsh-ultra[data-error=true] .dsh-ultra-status{color:var(--dsw-alias-state-error-primary,#d84c4c)}',
+  '.dsh-ultra-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;clip:rect(0,0,0,0);overflow:hidden;white-space:nowrap}',
+  '.dsh-ultra[data-running=true] .dsh-ultra-trigger:after,.dsh-ultra[data-pending=true] .dsh-ultra-trigger:after,.dsh-ultra[data-error=true] .dsh-ultra-trigger:after{content:"";position:absolute;right:2px;top:2px;width:4px;height:4px;border-radius:50%;background:currentColor}',
+  '.dsh-ultra[data-running=true] .dsh-ultra-trigger:after{animation:dsh-ultra-pulse 1.5s ease-in-out infinite}',
+  '.dsh-ultra[data-pending=true] .dsh-ultra-trigger:after{background:var(--ultra-accent)}',
+  '.dsh-ultra[data-error=true] .dsh-ultra-trigger:after{background:var(--ultra-danger)}',
   '.dsh-ultra-menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;box-sizing:border-box;width:260px;max-width:calc(100vw - 32px);max-height:calc(100vh - 96px);overflow:auto;padding:4px;border:1px solid var(--dsw-alias-border-inverted,rgba(127,127,127,.16));border-radius:12px;background:var(--ultra-surface,#fff);box-shadow:var(--dsw-shadow-lv3,0 8px 30px rgba(0,0,0,.16));color:var(--dsw-alias-label-primary,#20242c)}',
   '.dsh-ultra-heading{padding:8px 8px 6px;font-size:13px;font-weight:600;line-height:20px}',
   '.dsh-ultra-description,.dsh-ultra-detail,.dsh-ultra-footer{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#828691);font-weight:400}',
@@ -235,7 +247,8 @@ const ULTRA_CSS = [
   '.dsh-ultra-retry{flex:none;padding:0;border:0;background:inherit;color:inherit;font:inherit;font-weight:600;cursor:pointer}',
   '.dsh-ultra-warning{padding:7px 8px;margin:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#828691);overflow-wrap:anywhere}',
   '@keyframes dsh-ultra-pulse{0%,100%{opacity:.45}50%{opacity:1}}',
-  '@media(prefers-reduced-motion:reduce){.dsh-ultra-dot{animation:none}.dsh-ultra-chevron{transition:none}}',
+  '@container(max-width:440px){.dsh-ultra{flex-basis:96px;width:96px;max-width:96px}.dsh-ultra-trigger{flex-basis:48px;width:48px}.dsh-ultra-name{display:none}}',
+  '@media(prefers-reduced-motion:reduce){.dsh-ultra-trigger:after{animation:none!important}.dsh-ultra-chevron{transition:none}}',
 ].join('')
 
 /** Validate the custom RPC channel's untrusted envelope and state fields. */
@@ -387,17 +400,31 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     }
   }
 
-  const valueLabel = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading')
-    : snapshot.enabled ? (snapshot.concurrency === 1 ? t('trigger.assisted') : t('trigger.routes', { count: snapshot.concurrency })) : t('trigger.off')
+  const valueLabel = snapshot?.enabled ? (snapshot.concurrency === 1 ? t('trigger.assistedCompact') : t('trigger.routesCompact', { count: snapshot.concurrency })) : t('trigger.off')
   const status = snapshot === null ? null : phaseLabel(snapshot, t)
+  const modeDescription = snapshot?.enabled ? snapshot.concurrency === 1 ? t('trigger.assistedTitle')
+    : t('trigger.title', { count: snapshot.concurrency }) : t('trigger.offTitle')
+  const activityDescription = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading') : status
+  const ultraDescription = available ? `${modeDescription} ${error ?? activityDescription ?? ''}` : t('trigger.unavailable')
+  const teamActivity = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading')
+    : t(snapshot.collaborationEnabled ? 'collaboration.on' : 'collaboration.off')
+  const teamDescription = available ? `${t('collaboration.title')} ${teamActivity}` : t('trigger.unavailable')
   const anchor = open ? rootRef.current?.getBoundingClientRect?.() : undefined
   const above = anchor ? Math.max(0, anchor.top - 12) : undefined
   const below = anchor ? Math.max(0, window.innerHeight - anchor.bottom - 12) : undefined
+  const menuWidth = Math.min(260, Math.max(0, window.innerWidth - 32))
+  const desiredLeft = anchor ? Math.max(16, Math.min(anchor.right - menuWidth, window.innerWidth - menuWidth - 16)) : undefined
   const menuStyle: React.CSSProperties | undefined = above !== undefined && below !== undefined
-    ? below > above && above < 260 ? { top: 'calc(100% + 8px)', bottom: 'auto', maxHeight: Math.max(40, below) }
-      : { maxHeight: Math.max(40, above) } : undefined
+    ? {
+      ...(below > above && above < 260 ? { top: 'calc(100% + 8px)', bottom: 'auto', maxHeight: Math.max(40, below) }
+        : { maxHeight: Math.max(40, above) }),
+      // Stay in the plugin's absolute positioning context; viewport clamping
+      // must not switch to fixed positioning inside transformed host panels.
+      ...(anchor && desiredLeft !== undefined ? { left: desiredLeft - anchor.left, right: 'auto' } : {}),
+    } : undefined
   return React.createElement('div', {
-    ref: rootRef, className: 'dsh-ultra', 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error), onKeyDown,
+    ref: rootRef, className: 'dsh-ultra', 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error),
+    'data-running': snapshot?.running === true, 'data-pending': current.pending, onKeyDown,
     onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
       if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return
       close()
@@ -406,25 +433,19 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   React.createElement('button', {
     type: 'button', className: 'dsh-ultra-team', disabled: !available || snapshot === null || current.pending,
     'aria-label': t('collaboration.label'), 'aria-pressed': snapshot?.collaborationEnabled === true,
-    'aria-busy': current.pending, title: available ? t('collaboration.title') : t('trigger.unavailable'),
+    'aria-busy': current.pending, title: teamDescription, 'aria-description': teamDescription,
     onClick: () => { void mutate({ collaborationEnabled: snapshot?.collaborationEnabled !== true }, false) },
     onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => { event.stopPropagation() },
-  }, t('collaboration.label'),
-  React.createElement('span', { className: 'dsh-ultra-value' }, ' · ', current.pending ? t('trigger.saving')
-    : snapshot === null && available ? t('trigger.loading') : t(snapshot?.collaborationEnabled ? 'collaboration.on' : 'collaboration.off'))),
+  }, t('collaboration.compact')),
   React.createElement('button', {
     ref: triggerRef, type: 'button', className: 'dsh-ultra-trigger', disabled: !available,
     'aria-label': t('menu.title'), 'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-controls': open ? menuId : undefined,
-    title: available ? (snapshot?.concurrency === 1 ? t('trigger.assistedTitle') : t('trigger.title', { count: snapshot?.concurrency ?? 3 })) : t('trigger.unavailable'),
+    title: ultraDescription, 'aria-description': ultraDescription, 'aria-busy': current.pending,
     onClick: () => { setOpen(previous => !previous) },
   },
-  React.createElement('svg', { className: 'dsh-ultra-icon', viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
-    React.createElement('path', { d: 'M8 1.5 9.7 6.3 14.5 8 9.7 9.7 8 14.5 6.3 9.7 1.5 8 6.3 6.3Z', stroke: 'currentColor', strokeWidth: 1.2, strokeLinejoin: 'round' })),
-  React.createElement('span', null, 'Ultra'),
+  React.createElement('span', { className: 'dsh-ultra-name' }, 'Ultra'),
   React.createElement('span', { className: 'dsh-ultra-value' }, available ? valueLabel : t('trigger.off')),
-  (error || snapshot?.running) ? React.createElement('span', { className: 'dsh-ultra-status', role: 'status', 'aria-live': 'polite' },
-    snapshot?.running && !error ? React.createElement('span', { className: 'dsh-ultra-dot', 'aria-hidden': true }) : null,
-    error ? t('trigger.error') : status) : null,
+  React.createElement('span', { className: 'dsh-ultra-status', role: 'status', 'aria-live': 'polite' }, ultraDescription),
   React.createElement('svg', { className: 'dsh-ultra-chevron', viewBox: '0 0 10 10', fill: 'none', 'aria-hidden': true },
     React.createElement('path', { d: 'm2 3.5 3 3 3-3', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }))),
   !open ? null : React.createElement('div', { className: 'dsh-ultra-menu', id: menuId, role: 'menu', 'aria-label': t('menu.title'), style: menuStyle },
