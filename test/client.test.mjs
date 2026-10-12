@@ -20,7 +20,7 @@ const deferred = () => {
 }
 
 /** Small hook runner: tests own effect scheduling rather than depending on a browser fixture. */
-function harness(handler = async () => response(), { sessionList } = {}) {
+function harness(handler = async () => response(), { sessionList, language = 'zh', anchor, viewport = { width: 800, height: 640 } } = {}) {
   const slots = []
   const effects = []
   const timers = new Map()
@@ -36,7 +36,12 @@ function harness(handler = async () => response(), { sessionList } = {}) {
   let props
   let disposed = false
   const react = {
-    createElement(type, elementProps, ...children) { return { type, props: elementProps ?? {}, children: children.flat() } },
+    createElement(type, elementProps, ...children) {
+      if (anchor && elementProps?.className === 'dsh-ultra' && elementProps.ref) {
+        elementProps.ref.current = { getBoundingClientRect: () => anchor }
+      }
+      return { type, props: elementProps ?? {}, children: children.flat() }
+    },
     useState(initial) {
       const index = cursor++
       if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial
@@ -77,7 +82,8 @@ function harness(handler = async () => response(), { sessionList } = {}) {
       assert.equal(name, 'react')
       return react
     },
-    window: { setInterval(fn) { const id = timers.size + 1; timers.set(id, fn); return id }, clearInterval: id => timers.delete(id) },
+    window: { innerWidth: viewport.width, innerHeight: viewport.height,
+      setInterval(fn) { const id = timers.size + 1; timers.set(id, fn); return id }, clearInterval: id => timers.delete(id) },
     document, Node: class Node {}, Error,
   }, { filename: 'client/index.ts' })
   module.exports.apply({
@@ -90,7 +96,7 @@ function harness(handler = async () => response(), { sessionList } = {}) {
       register(options, renderer) { slots.push({ options, renderer }); return () => {} },
     },
   })
-  const t = (key, params = {}) => dictionaries.zh[key]?.replace(/\{(\w+)\}/g, (_match, name) => String(params[name])) ?? key
+  const t = (key, params = {}) => dictionaries[language][key]?.replace(/\{(\w+)\}/g, (_match, name) => String(params[name])) ?? key
   const flush = () => {
     for (let iteration = 0; iteration < 20; iteration++) {
       if (!dirty) return
@@ -128,9 +134,13 @@ function harness(handler = async () => response(), { sessionList } = {}) {
   }
   const textOf = node => typeof node === 'string' || typeof node === 'number' ? String(node)
     : node?.children?.map(textOf).join('') ?? ''
+  const visibleTextOf = node => typeof node === 'string' || typeof node === 'number' ? String(node)
+    : node?.props['aria-hidden'] || node?.props.className === 'dsh-ultra-status' ? ''
+      : node?.children?.map(visibleTextOf).join('') ?? ''
   const trigger = () => findAll(node => node.props.className === 'dsh-ultra-trigger')[0]
   const team = () => findAll(node => node.props.className === 'dsh-ultra-team')[0]
   const options = () => findAll(node => node.props.role === 'menuitemradio')
+  const menu = () => findAll(node => node.props.role === 'menu')[0]
   const open = () => { trigger().props.onClick(); flush() }
   const select = level => { options().find(option => option.props.key === level).props.onClick(); flush() }
   const dispose = () => {
@@ -139,12 +149,86 @@ function harness(handler = async () => response(), { sessionList } = {}) {
     disposed = true
   }
   return {
-    calls, slots, styles, timers, list, module: module.exports, render, settle, open, select, trigger, team, options, dispose, flush,
+    calls, slots, styles, timers, list, module: module.exports, render, settle, open, select, trigger, team, options, menu, dispose, flush,
     toggleTeam: () => { team().props.onClick(); flush() },
     text: () => textOf(tree), pulse: () => { timers.forEach(fn => fn()) },
+    toolbarText: () => visibleTextOf(team()) + visibleTextOf(trigger()),
     alerts: () => findAll(node => node.props.role === 'alert').map(textOf),
   }
 }
+
+test('absolute menu stays within horizontal viewport margins without changing its vertical placement', async () => {
+  for (const [width, anchor, expectedLeft, below] of [
+    [240, { left: 20, right: 100, top: 600, bottom: 628 }, 16, false],
+    [320, { left: 20, right: 100, top: 600, bottom: 628 }, 16, false],
+    [390, { left: 282, right: 390, top: 80, bottom: 108 }, 114, true],
+    [800, { left: 500, right: 608, top: 600, bottom: 628 }, 348, false],
+  ]) {
+    const ui = harness(undefined, { anchor, viewport: { width, height: 640 } })
+    ui.render('session-a')
+    await ui.settle()
+    ui.open()
+    const style = ui.menu().props.style
+    const menuWidth = Math.min(260, width - 32)
+    assert.equal(anchor.left + style.left, expectedLeft)
+    assert.equal(style.right, 'auto')
+    assert.ok(expectedLeft >= 16)
+    assert.ok(expectedLeft + menuWidth <= width - 16)
+    assert.equal(style.top, below ? 'calc(100% + 8px)' : undefined)
+    assert.equal(style.bottom, below ? 'auto' : undefined)
+    assert.ok(style.maxHeight > 0)
+    ui.dispose()
+  }
+})
+
+test('compact toolbar keeps full accessible mode descriptions with a bounded plugin-only footprint', async () => {
+  for (const language of ['zh', 'en']) {
+    for (const concurrency of [1, 2, 3, 4, 5]) {
+      const ui = harness(async () => response({ enabled: true, concurrency, collaborationEnabled: true }), { language })
+      ui.render('session-a')
+      await ui.settle()
+      const compact = concurrency === 1 ? language === 'zh' ? '辅助' : 'Aid' : String(concurrency)
+      assert.equal(ui.toolbarText(), `${language === 'zh' ? '协作' : 'Team'}Ultra${compact}`)
+      assert.equal(ui.team().props['aria-label'], language === 'zh' ? '协作增强' : 'Team')
+      assert.equal(ui.team().props['aria-pressed'], true)
+      assert.match(ui.team().props['aria-description'], /不强制 Max|does not force Max/)
+      assert.match(ui.trigger().props['aria-description'], /Max|max/)
+      const rootRule = ui.styles[0].textContent.match(/\.dsh-ultra\{([^}]+)\}/)[1]
+      assert.match(rootRule, /flex:0 0 132px;width:132px;max-width:132px/)
+      assert.match(ui.styles[0].textContent, /@container\(max-width:440px\)\{\.dsh-ultra\{flex-basis:96px;width:96px;max-width:96px\}/)
+      ui.dispose()
+    }
+  }
+})
+
+test('loading, saving, running and errors add no visible toolbar status text', async () => {
+  const loaded = deferred()
+  const saved = deferred()
+  const ui = harness(endpoint => endpoint === 'set' ? saved.promise : loaded.promise)
+  ui.render('session-a')
+  assert.equal(ui.toolbarText(), '协作Ultra关')
+  assert.match(ui.trigger().props.title, /载入中/)
+  loaded.resolve(response({ enabled: true, concurrency: 1 }))
+  await ui.settle()
+  ui.toggleTeam()
+  assert.equal(ui.toolbarText(), '协作Ultra辅助')
+  assert.equal(ui.trigger().props['aria-busy'], true)
+  assert.match(ui.team().props.title, /保存中/)
+  saved.resolve(response({ enabled: true, concurrency: 1, running: true, activeRuns: 1, phase: 'coordinating', collaborationEnabled: true }))
+  await ui.settle()
+  assert.equal(ui.toolbarText(), '协作Ultra辅助')
+  assert.match(ui.trigger().props.title, /跨路协调中/)
+  ui.dispose()
+
+  const broken = harness(async () => response({ enabled: true, concurrency: 1, phase: 'failed', error: 'route failed' }))
+  broken.render('session-a')
+  await broken.settle()
+  assert.equal(broken.toolbarText(), '协作Ultra辅助')
+  assert.match(broken.trigger().props.title, /route failed/)
+  broken.open()
+  assert.match(broken.alerts().join(''), /route failed/)
+  broken.dispose()
+})
 
 test('collaboration is an adjacent independent toggle and Ultra changes preserve its committed value', async () => {
   let committed = { enabled: false, concurrency: 3, collaborationEnabled: false }
@@ -290,7 +374,7 @@ test('Agent plus decision mode uses main Agent wording and accepts its enabled a
   const mutation = ui.calls.find(call => call.endpoint === 'set')
   assert.equal(mutation.payload.concurrency, 1)
   assert.equal(mutation.payload.enabled, true)
-  assert.match(ui.text(), /Agent \+ 决策/)
+  assert.match(ui.text(), /辅助/)
   assert.match(ui.trigger().props.title, /正常主 Agent 执行 \+ 1 路 Max 自动决策辅助/)
   assert.doesNotMatch(ui.trigger().props.title, /1 路并发/)
   ui.open()
