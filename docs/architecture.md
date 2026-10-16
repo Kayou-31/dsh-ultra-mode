@@ -1,8 +1,8 @@
 # 架构、配置与运行边界
 
-本页描述 **0.5.0-rc.3 本地候选**。多路线研究、同一 decision 的规划／协调／实施、Agent＋只读辅助、普通子代理协作、持久证据与项目状态、按需检索、路线入口装配和可选压缩由同一 Ultra bundle 提供；不需要再外接另一套记忆插件。配置与迁移见 [证据与上下文管理](evidence-context.md)，当前验收见 [分层记录](evidence-verification.md) 与 [公开档案](../verification/0.5.0-rc.3/README.md)。
+本页描述 **0.5.0-rc.3 预发布版**。多路线研究、同一 decision 的规划／协调／实施、Agent＋只读辅助、普通子代理协作、持久证据与项目状态、按需检索、路线入口装配和可选压缩由同一 Ultra bundle 提供；不需要再外接另一套记忆插件。配置与迁移见 [证据与上下文管理](evidence-context.md)，当前验收见 [分层记录](evidence-verification.md) 与 [公开档案](../verification/0.5.0-rc.3/README.md)。
 
-目标宿主为 DSH Desktop / Host 0.2.0-rc.2。本轮使用本机安装构建 04f392c9ddd144fa426da2045178797da6db6c11 的独立 profile；公开 tag 对应 639ed015397290b3745d163aafe02ffee4aa3f84，两者分别记录，不以远端 alpha 推断兼容。历史 v0.4／v0.3 的 UI 或任务成绩继续归各自版本，不能替代本候选的桌面验收。当前未发布 Release，未安装到日常环境。
+目标宿主为 DSH Desktop / Host 0.2.0-rc.2。本轮使用本机安装构建 04f392c9ddd144fa426da2045178797da6db6c11 的独立 profile；公开 tag 对应 639ed015397290b3745d163aafe02ffee4aa3f84，两者分别记录，不以远端 alpha 推断兼容。历史 v0.4／v0.3 的 UI 或任务成绩继续归各自版本，不能替代本版的桌面验收。安装及回滚见 [0.5.0-rc.3预发布版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.5.0-rc.3) 与 [安装指南](installation.md)；本轮验收未安装到日常环境。
 
 ## 统一证据路径
 
@@ -19,6 +19,8 @@ Ultra 算力模式和子代理协作分别使用 `enabled` 与 `collaborationEna
 新增六个 `ultra_*` 工具通过 DSH 公开 continuation 服务派发和续接正常子代理，继承宿主深度、容量、工作区与审批限制，保留原生子代理工具。每组有独立账本和有界邮箱；`ultra_send_message` 不唤醒空闲目标，`ultra_followup_task` 显式续作，事件等待支持 cursor 防重复。组内直接父子可互发信息，父 Agent 可以中断自己创建的后代；代理消息不增加用户授权。协作组随当前 turn 或 Ultra 路线收尾，运行中切换选项不修改正在执行的组。
 
 rc.2 在主 Agent 的 `turn/start` 预挂载协作工具，早于首请求组装；连续任务还在 `system-prompt/assemble` 等待前组收尾，必要时通过公开接口重建完整请求材料。修复后真实基础任务的首请求 header 已包含六个工具，并核对两个增强子代理继承 High、委派深度 1；请求材料证据不称作 provider 网络正文抓包。等待工具已补充 0–60000 毫秒范围、默认 30000、目标数量及 cursor 文案，最终文案包已重装并完成新会话复核，工具错误为 0。
+
+Team提供 ultra_spawn_agent／ultra_send_message／ultra_followup_task／ultra_wait_agent／ultra_interrupt_agent／ultra_list_agents 六个工具，对应派发、非唤醒消息、同ID续作、事件等待、中断与查询。
 
 每个协作子代理有自己的会话上下文，仍访问共享工作目录，没有自动创建 worktree。Ultra worker 的研究权限继续约束其协作子代理。完整工具、容量和证据边界见 [协作使用说明](collaboration.md)。
 
@@ -171,6 +173,8 @@ Ultra 按钮与命令共用现有 `enabled` 和 `concurrency` 状态，不增加
 并发模式的 N + 1 指活跃的独立路线数量，不代表只发 N + 1 个 API 请求。decision 至少有规划、收敛两轮，worker 可以多步用工具和子代理，主会话还有呈现请求；报告与上下文也会重复发送。辅助模式保留主 Agent 的请求，并额外发出独立 Max 辅助请求；反复建议会增加请求与上下文消耗。实际 Token、时间和配额消耗随任务变化，按钮没有额度估算。
 
 本地索引不增加模型请求。资源账本区分实际观察到的流、提供方报告的已知 usage、失败／中断的未知 usage 和在途估算；缓存与 reasoning 不重复叠加，未知价格保持 null。配置中的请求／token上限不是独立核验的供应商账单或上游 HTTP 次数保证。当前受控样本与不完整 A/B 不能证明整体省钱。
+
+阶段、路线、来源覆盖、检索、冲突、压缩估算及资源账本由统一运行快照提供；请求／token预算、检索返回量和协调限频分别配置。底层快照有后端证据，不能据此宣称完整桌面呈现已验收。
 
 ## 兼容性与证据边界
 

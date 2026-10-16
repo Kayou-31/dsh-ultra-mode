@@ -2,15 +2,18 @@
 
 发布文件以 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 为准。此页概述行为变化；按版本记录的测试、失败和验收边界保留在 `docs/verification-*.md`，不以新通过覆盖旧失败。
 
-## 0.5.0-rc.3 — 2026-10-15／16（本地候选，未发布Release）
+## 0.5.0-rc.3 — 2026-10-15／16（预发布版）
 
+[Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.5.0-rc.3) · [安装TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz) · [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/SHA256SUMS-0.5.0-rc.3.txt) · [源码ZIP](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/dsh-ultra-mode-0.5.0-rc.3-source.zip)
+
+- 独立Team提供后台派发、非唤醒消息、同ID续作、cursor等待、中断和查询六工具，与Ultra分别开关。
 - 同一Ultra插件整合协作研究、decision协调、辅助、持久证据、按需检索、版本状态、派生主题MD、路线入口和可选原生正文替换；保留关闭／辅助／2～5路手动选择，不依赖另装记忆插件，不默认增加摘要／embedding调用。
 - worker通过ultra_submit_report提交证据ID、未确定项与冲突，宿主校验后原生concludeTurn收尾；四阶段cap默认0继承并保留Max，规划实际tools=[]且执行器拒绝工具。有限预算仍可能耗尽。
 - quote校验连续原文、canonical sourceId、实际resourceId与范围；修复公共origin metadata未参与后部分块关键词匹配、多词摘录退回块首的问题。完整ACL先于匹配，预算和旧索引兼容不变，4项回归红→绿。
 - 当前主套件300项：299通过、0失败、1环境跳过，显式启用真实rc.2 SDK；另19项模型驱动纯测试和66项合成业务断言。最后模型实测构建Max双路严格12/12，28次请求、两报告及一次协调；较早同构建502／TRANSPORT失败保留。
 - 本轮真实总账20个结束尝试、285次原生LLM准入，已知66,162,179 tokens、12次usage未知。约23MB／26轮原9/12保留，检索修复后同根额外1轮12/12，累计27轮及23次prune，取消、冷恢复和返工分别记录。
 - 30K是软目标，大请求确有明显超额；约32%仅为同次装配输入估算下降中位数，不是账单节省。不完整原版A/B保留网络与格式失败，不能证明最终构建优势。Electron UI和完整桌面权限组合未验收。
-- 本机宿主安装commit与公开tag、模型实测包与文档更新包分别核对；未安装日常环境。配置、迁移、回滚及历史失败见[当前验收](docs/evidence-verification.md)与[公开档案](verification/0.5.0-rc.3/README.md)，仓库提交不等于Release。
+- 本机宿主安装commit与公开tag、模型实测包与文档更新包分别核对；未安装日常环境。配置、迁移、回滚及历史失败见[当前验收](docs/evidence-verification.md)与[公开档案](verification/0.5.0-rc.3/README.md)，模型实测包与文档更新包整包哈希分开保存，44个lib文件逐字核对一致。
 
 ## 0.5.0-rc.2 — 2026-10-15（本地候选，未发布）
 

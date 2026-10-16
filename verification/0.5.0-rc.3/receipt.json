@@ -4,18 +4,18 @@
   "sourceBase": "ecf056fdc7d7777250cab4b20af6fc1c03372119",
   "package": {
     "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
-    "sha256": "ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410",
+    "sha256": "5780a2c6ffbe0f92b9a5cc2925ab50e9d82102528160fa42e535c2d9dbd4d1b9",
     "filesCheckedAgainstSource": 203,
-    "compressedBytes": 622110,
-    "unpackedBytes": 2232552
+    "compressedBytes": 623219,
+    "unpackedBytes": 2235777
   },
   "documentationOnlyRepack": {
     "schema": 1,
-    "generatedAt": "2026-10-16T07:56:58.387Z",
+    "generatedAt": "2026-10-16T08:15:27.134Z",
     "version": "0.5.0-rc.3",
     "finalPackage": {
       "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
-      "sha256": "ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410"
+      "sha256": "5780a2c6ffbe0f92b9a5cc2925ab50e9d82102528160fa42e535c2d9dbd4d1b9"
     },
     "modelTestedPackage": {
       "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3-model-tested.tgz",
@@ -25,7 +25,8 @@
       "README.md",
       "docs/architecture.md",
       "docs/evidence-context.md",
-      "docs/evidence-verification.md"
+      "docs/evidence-verification.md",
+      "docs/installation.md"
     ],
     "onlyDocumentationChanged": true,
     "runtimeFilesVerified": 44,
@@ -131,7 +132,7 @@
   "files": [
     {
       "path": "rc3-model-report.md",
-      "sha256": "6ed7e55d0ed933b53546750e8402c2640c8dd46b34708e25867807edf9739170"
+      "sha256": "ae63511f6be64d08a418d2e81991f81b922e5214e6bb0f965aadbf23935313f4"
     },
     {
       "path": "paired-comparison-report.md",
@@ -143,7 +144,7 @@
     },
     {
       "path": "host-profile-verification.json",
-      "sha256": "57e40b3198cd797d52d1c9eb5984eddbb2d292a444ffaf278ba22ab8048146b0"
+      "sha256": "b21d637facb6822e1373d4c231c87f5e84758f9bfb789a682565ba909feaf775"
     },
     {
       "path": "compression-overview.json",
@@ -155,7 +156,7 @@
     },
     {
       "path": "test-results.log",
-      "sha256": "79d516330e34ee81a2c67ff591c01f095f6121202acfeaee0a9e6c34bee4882d"
+      "sha256": "49354719e43e9f76e347756cc834010de7130f962c6fd7c5551289e5638b8e0c"
     },
     {
       "path": "model-driver-tests.log",
@@ -175,7 +176,7 @@
     },
     {
       "path": "final-package-verification.json",
-      "sha256": "0302c0eee6948c9ed6ad72ae63c71d75433b94665036fca95812cf004eb7fe2a"
+      "sha256": "230b2521ca995f0dff0b7b5dd69648ac4ec9919ad357e981ff376190b18c886a"
     }
   ]
 }

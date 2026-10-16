@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-16T07:56:58.387Z",
+  "generatedAt": "2026-10-16T08:15:27.134Z",
   "version": "0.5.0-rc.3",
   "finalPackage": {
     "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
-    "sha256": "ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410"
+    "sha256": "5780a2c6ffbe0f92b9a5cc2925ab50e9d82102528160fa42e535c2d9dbd4d1b9"
   },
   "modelTestedPackage": {
     "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3-model-tested.tgz",
@@ -14,7 +14,8 @@
     "README.md",
     "docs/architecture.md",
     "docs/evidence-context.md",
-    "docs/evidence-verification.md"
+    "docs/evidence-verification.md",
+    "docs/installation.md"
   ],
   "onlyDocumentationChanged": true,
   "runtimeFilesVerified": 44,

@@ -1,4 +1,4 @@
-> 交付前文档更新：新包 SHA256 ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410；真实模型实测包 SHA256 291b000ae83863e2ae6cbadb2711665ec996453463d80b9335553217ffe8f5cc。仅 README 与中文说明改变，44 份 lib 文件逐字节一致；新包精确字节已重跑独立离线 Loader 核心、恢复、关闭模式。逐次模型记录保持原哈希，不声称新哈希又跑了一轮模型。详见 final-package-verification.json。
+> 交付前文档更新：新包 SHA256 5780a2c6ffbe0f92b9a5cc2925ab50e9d82102528160fa42e535c2d9dbd4d1b9；真实模型实测包 SHA256 291b000ae83863e2ae6cbadb2711665ec996453463d80b9335553217ffe8f5cc。仅 README 与中文说明改变，44 份 lib 文件逐字节一致；新包精确字节已重跑独立离线 Loader 核心、恢复、关闭模式。逐次模型记录保持原哈希，不声称新哈希又跑了一轮模型。详见 final-package-verification.json。
 
 # rc.3 真实模型公开结果
 
