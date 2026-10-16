@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-16T08:15:27.134Z",
+  "version": "0.5.0-rc.3",
+  "finalPackage": {
+    "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
+    "sha256": "5780a2c6ffbe0f92b9a5cc2925ab50e9d82102528160fa42e535c2d9dbd4d1b9"
+  },
+  "modelTestedPackage": {
+    "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3-model-tested.tgz",
+    "sha256": "291b000ae83863e2ae6cbadb2711665ec996453463d80b9335553217ffe8f5cc"
+  },
+  "changes": [
+    "README.md",
+    "docs/architecture.md",
+    "docs/evidence-context.md",
+    "docs/evidence-verification.md",
+    "docs/installation.md"
+  ],
+  "onlyDocumentationChanged": true,
+  "runtimeFilesVerified": 44,
+  "allRuntimeBytesIdentical": true,
+  "additionalModelCalls": 0,
+  "finalExactPackageOfflineLoader": {
+    "passed": true,
+    "modes": [
+      "core",
+      "resume",
+      "disabled"
+    ]
+  },
+  "interpretation": "Real model results retain their original package hash. The delivered package changes documentation only; all 44 runtime files are byte-identical. Its exact bytes were rerun through the isolated offline native Loader. No claim of additional model testing on the new archive hash."
+}

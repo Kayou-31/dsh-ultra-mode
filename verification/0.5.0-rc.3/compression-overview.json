@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-10-16T07:35:54.901Z",
+  "metrics": [
+    {
+      "variant": "drift-b",
+      "sessionId": "test-session-8dace402be8d78c1",
+      "completed": 14,
+      "prunes": 10,
+      "samples": 10,
+      "estimatedMedianReductionPercent": 32.73534724846823,
+      "minimumEstimatedAfter": 77065,
+      "maximumEstimatedAfter": 1071426,
+      "known": 12015480,
+      "unknown": 1,
+      "over": 38,
+      "first": {
+        "before": 1026711,
+        "after": 519276,
+        "ms": 326
+      }
+    },
+    {
+      "variant": "drift-c",
+      "sessionId": "test-session-d7d3695463dbf903",
+      "completed": 14,
+      "prunes": 10,
+      "samples": 10,
+      "estimatedMedianReductionPercent": 32.709437388104206,
+      "minimumEstimatedAfter": 15578,
+      "maximumEstimatedAfter": 1075016,
+      "known": 12121903,
+      "unknown": 2,
+      "over": 42,
+      "first": {
+        "before": 1026594,
+        "after": 519159,
+        "ms": 298
+      }
+    },
+    {
+      "variant": "drift-diverse",
+      "sessionId": "test-session-c9ad70cf072743ac",
+      "completed": 27,
+      "prunes": 23,
+      "samples": 23,
+      "estimatedMedianReductionPercent": 32.15603732141272,
+      "minimumEstimatedAfter": 201918,
+      "maximumEstimatedAfter": 855793,
+      "known": 28960436,
+      "unknown": 2,
+      "over": 67,
+      "first": {
+        "before": 1026115,
+        "after": 518775,
+        "ms": 604
+      }
+    },
+    {
+      "variant": "extreme-paired-a",
+      "sessionId": "test-session-6556293a95f02e1f",
+      "completed": 3,
+      "prunes": 0,
+      "samples": 0,
+      "estimatedMedianReductionPercent": null,
+      "minimumEstimatedAfter": null,
+      "maximumEstimatedAfter": null,
+      "known": 3515407,
+      "unknown": 1,
+      "over": 0,
+      "first": null
+    },
+    {
+      "variant": "extreme-paired-a",
+      "sessionId": "test-session-3cc470a01b3953a4",
+      "completed": 10,
+      "prunes": 12,
+      "samples": 0,
+      "estimatedMedianReductionPercent": null,
+      "minimumEstimatedAfter": null,
+      "maximumEstimatedAfter": null,
+      "known": 7544126,
+      "unknown": 4,
+      "over": 0,
+      "first": null
+    }
+  ],
+  "estimatesAreNotBillingSavings": true,
+  "completeTaskABAdvantage": null
+}

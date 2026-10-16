@@ -46,6 +46,24 @@ interface ClientContext {
   effect(callback: () => (() => void), label?: string): () => void
 }
 
+interface EvidenceBudget { totalTokens: number; estimated?: boolean }
+interface EvidenceSnapshot {
+  enabled: boolean
+  available: boolean
+  runId?: string
+  phase?: string
+  error?: string
+  coverage?: 'unknown' | {
+    raw: { sources: number; chunks: number; characters: number; attachments: number; coverage: Record<string, number> }
+    semantic: { total: number; current: number; superseded: number; unresolved: number }
+  }
+  retrievals?: number
+  unresolvedConflicts?: number
+  errors?: string[]
+  routes?: { routeId: string; status: string }[]
+  compression?: null | { status: string; before?: EvidenceBudget | null; after?: EvidenceBudget | null; originalHistoryRetained?: boolean; limits?: string[] }
+  resources?: { attemptedCalls?: number; settledCalls: number; measuredTokens: number; unknownUsageCalls: number; estimates?: EvidenceBudget | null }
+}
 interface UltraStateSnapshot {
   enabled: boolean
   concurrency: 1 | 2 | 3 | 4 | 5
@@ -56,6 +74,7 @@ interface UltraStateSnapshot {
   error?: string | null
   warnings?: string[]
   collaborationEnabled?: boolean
+  evidence?: EvidenceSnapshot
 }
 
 interface ButtonState {
@@ -160,6 +179,23 @@ const zh = {
   'status.warnings': '保留 {count} 条辅助诊断；当前状态以运行结果为准。',
   'status.runs': '{phase} · {count} 个任务',
   'status.lastRun': '上次运行 {seconds} 秒',
+  'evidence.title': '证据与资源',
+  'evidence.stage': '当前阶段：{phase}',
+  'evidence.available': '证据服务可用',
+  'evidence.unavailable': '证据服务不可用；覆盖未知',
+  'evidence.raw': '原始证据：{sources} 个来源 · {chunks} 个片段 · {characters} 字符 · {attachments} 附件',
+  'evidence.coverage': '原文覆盖：宿主 {host} · 已捕获 {captured} · 截断 {truncated} · 仅引用 {reference}',
+  'evidence.semantic': '语义记忆：{total} 条 · 当前 {current} · 已替代 {superseded} · 未解决 {unresolved}',
+  'evidence.retrievals': '检索：{count} 次',
+  'evidence.conflicts': '未解决冲突：{count}',
+  'evidence.compression': '上下文压缩：{status} · {before} → {after} tokens',
+  'evidence.compressionStatus': '上下文压缩：{status}；token 指标不可用',
+  'evidence.historyRetained': '原始历史已保留',
+  'evidence.usage': '模型请求：已发起 {attempted} · 已结算 {settled}；实测 {tokens} tokens · 用量未知 {unknown} 次',
+  'evidence.estimate': '估算下一请求：{tokens} tokens（含预留）',
+  'evidence.estimated': '估算',
+  'evidence.unknown': '未知',
+  'evidence.route': '路线 {route}：{status}',
   'error.invalidResponse': '服务端返回了无效的 Ultra 状态',
   'error.connection': '无法连接 Ultra 服务',
   'error.retry': '重试',
@@ -205,6 +241,23 @@ const en: Record<keyof typeof zh, string> = {
   'status.warnings': '{count} assistant diagnostics retained; current status follows the run outcome.',
   'status.runs': '{phase} · {count} tasks',
   'status.lastRun': 'Last run: {seconds} s',
+  'evidence.title': 'Evidence and resources',
+  'evidence.stage': 'Current stage: {phase}',
+  'evidence.available': 'Evidence service available',
+  'evidence.unavailable': 'Evidence unavailable; coverage unknown',
+  'evidence.raw': 'Raw evidence: {sources} sources · {chunks} chunks · {characters} characters · {attachments} attachments',
+  'evidence.coverage': 'Original coverage: host {host} · captured {captured} · truncated {truncated} · references only {reference}',
+  'evidence.semantic': 'Semantic memory: {total} records · current {current} · superseded {superseded} · unresolved {unresolved}',
+  'evidence.retrievals': 'Retrievals: {count}',
+  'evidence.conflicts': 'Unresolved conflicts: {count}',
+  'evidence.compression': 'Context compression: {status} · {before} → {after} tokens',
+  'evidence.compressionStatus': 'Context compression: {status}; token metrics unavailable',
+  'evidence.historyRetained': 'Original history retained',
+  'evidence.usage': 'Model requests: attempted {attempted} · settled {settled}; measured {tokens} tokens · unknown usage {unknown} calls',
+  'evidence.estimate': 'Estimated next request: {tokens} tokens (including reserves)',
+  'evidence.estimated': 'Estimated',
+  'evidence.unknown': 'Unknown',
+  'evidence.route': 'Route {route}: {status}',
   'error.invalidResponse': 'The server returned an invalid Ultra state',
   'error.connection': 'Unable to connect to Ultra',
   'error.retry': 'Retry',
@@ -251,6 +304,87 @@ const ULTRA_CSS = [
   '@media(prefers-reduced-motion:reduce){.dsh-ultra-trigger:after{animation:none!important}.dsh-ultra-chevron{transition:none}}',
 ].join('')
 
+/** Bound and validate telemetry without rendering arbitrary host/provider fields. */
+function validEvidence(raw: unknown): raw is EvidenceSnapshot {
+  const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+  const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0
+  const text = (value: unknown): value is string => typeof value === 'string' && value.length <= 20000
+  const optional = (value: unknown, check: (value: unknown) => boolean): boolean => value === undefined || check(value)
+  const strings = (value: unknown): boolean => Array.isArray(value) && value.length <= 1000 && value.every(text)
+  const finiteTree = (value: unknown, key = '', depth = 0): boolean => {
+    if (depth > 12) return false
+    if (typeof value === 'number') return Number.isSafeInteger(value) && (value >= 0 || key === 'remainingTokens')
+    if (value === null || typeof value === 'boolean' || text(value)) return true
+    if (Array.isArray(value)) return value.length <= 4096 && value.every(item => finiteTree(item, '', depth + 1))
+    return object(value) && Object.keys(value).length <= 512 && Object.entries(value).every(([name, item]) => finiteTree(item, name, depth + 1))
+  }
+  const budget = (value: unknown): boolean => object(value) && count(value.totalTokens)
+    && optional(value.estimated, item => typeof item === 'boolean') && finiteTree(value)
+  if (!object(raw) || !finiteTree(raw) || typeof raw.enabled !== 'boolean' || typeof raw.available !== 'boolean'
+    || !optional(raw.phase, text) || !optional(raw.runId, text) || !optional(raw.error, text)
+    || !optional(raw.retrievals, count) || !optional(raw.unresolvedConflicts, count) || !optional(raw.errors, strings)) return false
+  if (raw.coverage !== undefined) {
+    if (raw.coverage === 'unknown') { if (raw.available) return false }
+    else {
+      const coverage = raw.coverage
+      if (!object(coverage) || !object(coverage.raw) || !object(coverage.semantic) || !object(coverage.raw.coverage)) return false
+      const rawCounts = coverage.raw, semanticCounts = coverage.semantic, sourceCoverage = rawCounts.coverage as Record<string, unknown>
+      if (!['sources', 'chunks', 'characters', 'attachments'].every(key => count(rawCounts[key]))
+        || !['total', 'current', 'superseded', 'unresolved'].every(key => count(semanticCounts[key]))
+        || !['host', 'captured', 'truncated', 'reference-only'].every(key => count(sourceCoverage[key]))) return false
+    }
+  }
+  if (raw.compression !== undefined && raw.compression !== null) {
+    const value = raw.compression
+    if (!object(value) || !text(value.status)
+      || !optional(value.originalHistoryRetained, item => typeof item === 'boolean')
+      || !optional(value.limits, strings) || !optional(value.replacements, Array.isArray)) return false
+    const partial = ['failed', 'unsupported', 'disabled', 'limited'].includes(value.status)
+    for (const metrics of [value.before, value.after]) {
+      if (metrics === undefined || metrics === null) { if (!partial) return false }
+      else if (!budget(metrics)) return false
+    }
+  }
+  if (raw.resources !== undefined) {
+    const value = raw.resources
+    if (!object(value) || !optional(value.attemptedCalls, count)
+      || !['settledCalls', 'measuredTokens', 'unknownUsageCalls'].every(key => count(value[key]))
+      || !(value.estimates === undefined || value.estimates === null || budget(value.estimates))) return false
+    if (value.byRoute !== undefined && (!object(value.byRoute) || !Object.values(value.byRoute).every(Array.isArray))) return false
+  }
+  if (raw.routes !== undefined && (!Array.isArray(raw.routes) || raw.routes.length > 1000
+    || !raw.routes.every(route => object(route) && text(route.routeId) && text(route.status)))) return false
+  return true
+}
+
+function evidenceLines(evidence: EvidenceSnapshot, t: Translate): string[] {
+  const lines = [t(evidence.available ? 'evidence.available' : 'evidence.unavailable')]
+  if (evidence.phase) lines.push(t('evidence.stage', { phase: evidence.phase }))
+  if (evidence.coverage && evidence.coverage !== 'unknown') {
+    const { raw, semantic } = evidence.coverage
+    lines.push(t('evidence.raw', { ...raw }), t('evidence.coverage', { ...raw.coverage, reference: raw.coverage['reference-only'] }),
+      t('evidence.semantic', { ...semantic }))
+  }
+  if (evidence.retrievals !== undefined) lines.push(t('evidence.retrievals', { count: evidence.retrievals }))
+  if (evidence.unresolvedConflicts !== undefined) lines.push(t('evidence.conflicts', { count: evidence.unresolvedConflicts }))
+  if (evidence.compression) {
+    const { status, before, after, originalHistoryRetained, limits } = evidence.compression
+    lines.push(before && after ? t('evidence.compression', { status, before: before.totalTokens, after: after.totalTokens })
+      + (before.estimated || after.estimated ? ` (${t('evidence.estimated')})` : '') : t('evidence.compressionStatus', { status }))
+    if (originalHistoryRetained) lines.push(t('evidence.historyRetained'))
+    lines.push(...(limits ?? []))
+  }
+  if (evidence.resources) {
+    const resource = evidence.resources
+    lines.push(t('evidence.usage', { attempted: resource.attemptedCalls ?? t('evidence.unknown'), settled: resource.settledCalls, tokens: resource.measuredTokens, unknown: resource.unknownUsageCalls }))
+    if (resource.estimates) lines.push(t('evidence.estimate', { tokens: resource.estimates.totalTokens }))
+  }
+  for (const route of evidence.routes ?? []) lines.push(t('evidence.route', { route: route.routeId, status: route.status }))
+  if (evidence.error) lines.push(evidence.error)
+  lines.push(...(evidence.errors ?? []))
+  return lines
+}
+
 /** Validate the custom RPC channel's untrusted envelope and state fields. */
 function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
   const invalid = (): never => { throw new Error(t('error.invalidResponse')) }
@@ -275,6 +409,7 @@ function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
     || (value.error !== undefined && value.error !== null && typeof value.error !== 'string')
     || (value.warnings !== undefined && (!Array.isArray(value.warnings) || value.warnings.some(item => typeof item !== 'string')))
     || (value.collaborationEnabled !== undefined && typeof value.collaborationEnabled !== 'boolean')
+    || (value.evidence !== undefined && !validEvidence(value.evidence))
   ) return invalid()
   return value as UltraStateSnapshot
 }
@@ -405,7 +540,9 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   const modeDescription = snapshot?.enabled ? snapshot.concurrency === 1 ? t('trigger.assistedTitle')
     : t('trigger.title', { count: snapshot.concurrency }) : t('trigger.offTitle')
   const activityDescription = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading') : status
-  const ultraDescription = available ? `${modeDescription} ${error ?? activityDescription ?? ''}` : t('trigger.unavailable')
+  const evidence = snapshot?.evidence
+  const evidenceDescription = evidence ? ` ${t(evidence.available ? 'evidence.available' : 'evidence.unavailable')}${evidence.phase ? ' ' + t('evidence.stage', { phase: evidence.phase }) : ''}` : ''
+  const ultraDescription = available ? `${modeDescription} ${error ?? activityDescription ?? ''}${evidenceDescription}` : t('trigger.unavailable')
   const teamActivity = current.pending ? t('trigger.saving') : snapshot === null ? t('trigger.loading')
     : t(snapshot.collaborationEnabled ? 'collaboration.on' : 'collaboration.off')
   const teamDescription = available ? `${t('collaboration.title')} ${teamActivity}` : t('trigger.unavailable')
@@ -472,6 +609,9 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     snapshot?.warnings?.length ? React.createElement('details', { className: 'dsh-ultra-warning' },
       React.createElement('summary', null, t('status.warnings', { count: snapshot.warnings.length })),
       ...snapshot.warnings.map((warning, index) => React.createElement('div', { key: index }, warning))) : null,
+    evidence ? React.createElement('details', { className: 'dsh-ultra-warning', 'aria-label': t('evidence.title') },
+      React.createElement('summary', null, t('evidence.title')),
+      ...evidenceLines(evidence, t).map((line, index) => React.createElement('div', { key: index }, line))) : null,
     React.createElement('div', { className: 'dsh-ultra-footer', role: 'status', 'aria-live': 'polite' },
       snapshot === null ? t('trigger.loading') : t('status.runs', { phase: status, count: snapshot.activeRuns }),
       snapshot?.running ? React.createElement('div', null, t('menu.runningHint')) : null,

@@ -3,13 +3,20 @@ import type { Context } from '@deepseek-ai/cordis'
 import { agentCarrier, type Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId, type ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionId, SessionLogOffset, type SessionEvent } from '@deepseek-ai/dsh-session'
-import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { scopeParentOf } from '@deepseek-ai/dsh-scope'
 import type { RouteProgress } from './coordination.js'
 import { installCollaboration, type CollaborationHostConfig, type CollaborationHostHandle } from './collaboration-host.js'
+import { memoryFor, type MemoryRun } from './memory-host.js'
 
 export type AgentLike = Agent
 export type { ContentBlock, SessionEvent }
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'ultra-steering': { kind: 'ultra-steering'; form: 'feedback'; summary: string; runId?: string }
+    'ultra-route-task': { kind: 'ultra-route-task'; summary: string }
+  }
+}
 
 /** One settled route turn, with the internal log identity retained for diagnostics. */
 export interface SubagentIdentity {
@@ -23,6 +30,9 @@ export interface RouteOutcome {
   text: string
   error?: string
   sessionId: string
+  evidenceIds?: string[]
+  uncertainties?: string[]
+  conflicts?: string[]
   /** Observed creation identities only; these do not establish completion. */
   subagents?: SubagentIdentity[]
 }
@@ -36,12 +46,22 @@ export interface RouteOptions {
   readOnly?: boolean
   researchTools?: readonly string[]
   route?: { provider: string; model: string }
+  memory?: MemoryRun
+}
+
+export interface RouteRunOptions {
+  /** Explicit per-request cap for this turn, including reasoning; 0 inherits. */
+  maxTokens?: number
+  /** Worker-only public report handoff; never enabled on decision phases. */
+  reportSubmission?: boolean
+  /** Planning protocol only: no model-visible schemas or executable tools. */
+  planningOnly?: boolean
 }
 
 /** A persistent decision loop can plan, then receive evidence in a later turn. */
 export interface RouteHandle {
   id: string
-  run(prompt: ContentBlock[]): Promise<RouteOutcome>
+  run(prompt: ContentBlock[], options?: RouteRunOptions): Promise<RouteOutcome>
   setReadOnly(readOnly: boolean): void
   subscribeProgress?(listener: (progress: RouteProgress) => void): () => void
   steer?(instruction: string): boolean
@@ -64,6 +84,11 @@ interface RouteState {
   acceptingSteering: boolean
   sequence: number
   progressListeners: Set<(progress: RouteProgress) => void>
+  memory?: MemoryRun
+  maxTokens?: number
+  reportSubmission?: boolean
+  planningOnly?: boolean
+  submittedReport?: { text: string; evidenceIds: string[]; uncertainties: string[]; conflicts: string[] }
 }
 
 interface PresetService {
@@ -107,6 +132,7 @@ const routes = new Map<string, RouteState>()
 // Retain exact ownership for an orphan whose native teardown failed. Its parent
 // may already have left the registry, but its research policy must still apply.
 const capabilityOwners = new WeakMap<Agent, RouteState>()
+const REPORT_TOOL = 'ultra_submit_report'
 
 /** Whether an identity is a directly owned ULTRA loop rather than its coordinator. */
 export function isUltraRoute(id: string): boolean {
@@ -143,6 +169,10 @@ export function routeParentOf(agent: Agent): Agent | undefined {
 export function researchToolDenial(agent: Agent | undefined, toolName: string): string | undefined {
   if (agent === undefined) return undefined
   const state = ancestorState(agent)
+  if (state?.planningOnly && state.running) return `Ultra planning cannot execute ${toolName}; assign research and user-required actions to the later worker or final decision phase.`
+  if (toolName === REPORT_TOOL) return state?.agent === agent && state.readOnly && state.running && state.reportSubmission && !state.signal.aborted && !state.submittedReport
+    ? undefined : 'Ultra report submission is available only to the exact active research worker.'
+  if (state?.submittedReport) return 'Ultra worker already submitted its public report; no further research dispatch is allowed.'
   if (state?.readOnly !== true) return undefined
   // PTC can run arbitrary JavaScript, including direct filesystem access outside
   // nested tool dispatch. A tool allow list cannot make that transport read-only.
@@ -159,19 +189,89 @@ function composeRoute(childCtx: Context, parent: Agent, child: Agent, toolName: 
   attachRouteCapabilities(childCtx, parent, child, toolName, state)
 
   const events = childCtx as unknown as RuntimeEvents
-  events.on('agent/request', async (_payload, next) => ({
-    ...(await next() as Record<string, unknown>),
-    reasoningEffort: ReasoningEffortId('max'),
-  }))
+  childCtx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+    const assembly = await next()
+    // restrict({allow: []}) leaves scope-owned tools visible in rc.2. The
+    // assembled schema list is the native request/header source of truth.
+    return state.planningOnly && state.running ? { ...assembly, tools: [] } : assembly
+  }, { prepend: true })
+  let previousOverride: number | undefined, originalMaxTokens: unknown
+  events.on('agent/request', async (_payload, next) => {
+    const resolved = await next() as Record<string, unknown>
+    const config: Record<string, unknown> = { ...resolved, reasoningEffort: ReasoningEffortId('max') }
+    if (state.maxTokens !== undefined) {
+      if (previousOverride === undefined) originalMaxTokens = resolved.maxTokens
+      previousOverride = state.maxTokens
+      return { ...config, maxTokens: state.maxTokens }
+    }
+    if (previousOverride !== undefined && resolved.maxTokens === previousOverride) {
+      const { maxTokens: _lastOverride, ...withoutOverride } = config
+      previousOverride = undefined
+      return { ...withoutOverride, ...(originalMaxTokens === undefined ? {} : { maxTokens: originalMaxTokens }) }
+    }
+    previousOverride = undefined
+    return config
+  })
+}
+
+function outputCap(value: number | undefined): number | undefined {
+  if (value === undefined || value === 0) return undefined
+  if (!Number.isSafeInteger(value) || value < 1) throw new TypeError('Ultra maxTokens must be a positive safe integer or 0 to inherit')
+  return value
+}
+
+/** ToolRuntime's successful result carries the native terminal marker. */
+function installReportSubmission(state: RouteState, limit: number): () => void {
+  const agent = state.agent!, tools = agent.ctx.get('tools') as unknown as ToolService
+  if (tools.get(REPORT_TOOL, agent)) throw new Error('Ultra report submission tool conflicts with an existing definition')
+  let pending: { callId: string; report: NonNullable<RouteState['submittedReport']> } | undefined
+  const releaseResult = agent.ctx.on('tools/result', (exec, result) => {
+    if (exec.agent === agent && exec.name === REPORT_TOOL && exec.callId === pending?.callId && !result.isError && result.concludesTurn === true &&
+      state.running && state.reportSubmission && !state.signal.aborted) state.submittedReport = pending.report
+    return undefined
+  })
+  let releaseTool: (() => void) | undefined
+  try {
+    releaseTool = tools.register(defineTool({
+      name: REPORT_TOOL,
+      description: `Submit this worker's short public research report (at most ${limit} characters) after collecting the required evidence. This ends only the worker turn; findings remain unverified material for the decision route. Include real accessible original-source/chunk IDs, unresolved unknowns and conflicts. Do not call from planning, coordination, final delivery or descendants.`,
+      parameters: { report: { type: 'string', required: true }, evidenceIds: { type: 'array', items: { type: 'string' } }, unknowns: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } } },
+      output: { schema: { type: 'object', additionalProperties: false, properties: { accepted: { type: 'boolean', required: true } } }, render: () => [{ type: 'text', text: 'Public research report accepted for decision review. This is not proof of execution or verification.' }] },
+      isConcurrencySafe: () => false,
+      async execute(args, exec) {
+        if (exec.agent !== agent || !state.running || !state.readOnly || !state.reportSubmission || state.submittedReport || state.signal.aborted) throw new Error('Ultra report submission requires its exact active research worker')
+        exec.signal.throwIfAborted()
+        if (typeof args.report !== 'string' || !args.report.trim() || args.report.length > limit) throw new Error(`Ultra public report must contain 1–${limit} characters`)
+        const list = (value: readonly string[] | undefined, max: number, chars: number): string[] => {
+          if (value === undefined) return []
+          if (!Array.isArray(value) || value.length > max || value.some(item => typeof item !== 'string' || !item.trim() || item.length > chars)) throw new Error('Ultra report metadata must be bounded nonempty strings')
+          return [...new Set(value)]
+        }
+        const evidenceIds = list(args.evidenceIds, 32, 256)
+        if (evidenceIds.length) {
+          if (!state.memory) throw new Error('Original evidence index unavailable; omit IDs and record the evidence gap')
+          const accessible = new Set([...state.memory.store.recordsFor(state.memory.access())].flatMap(record => [record.id, ...record.chunks.map(chunk => chunk.id)]))
+          if (evidenceIds.some(id => !accessible.has(id))) throw new Error('Ultra report references an inaccessible or unknown original evidence ID')
+        }
+        const report = { text: args.report, evidenceIds, uncertainties: list(args.unknowns, 16, 1000), conflicts: list(args.conflicts, 16, 1000) }
+        exec.signal.throwIfAborted(); state.signal.throwIfAborted()
+        pending = { callId: exec.callId, report }
+        exec.concludeTurn()
+        return { accepted: true }
+      },
+    }))
+  } catch (error) { releaseResult(); throw error }
+  return () => { releaseResult(); releaseTool?.() }
 }
 
 /** Publish settled evidence synchronously; listeners cannot interrupt host dispatch. */
-function publishProgress(state: RouteState, sessionId: string, kind: RouteProgress['kind'], text: string): void {
+function publishProgress(state: RouteState, sessionId: string, kind: RouteProgress['kind'], text: string, evidenceIds?: string[]): void {
   if (!state.running || state.signal.aborted || state.agent === undefined || text.trim() === '') return
   const source = sessionId === state.agent.id ? '' : `${state.subagents.some(identity => identity.sessionId === sessionId) ? '原生子代理' : '内部会话'} ${sessionId} 的已提交进展：\n`
-  const progress: RouteProgress = { sessionId: state.agent.id, sequence: ++state.sequence, kind, text: `${source}${text}`.slice(0, 2000), at: Date.now() }
+  const progress: RouteProgress = { sessionId: state.agent.id, sequence: ++state.sequence, kind, text: `${source}${text}`.slice(0, 2000), at: Date.now(),
+    ...(evidenceIds?.length ? { evidenceIds: [...evidenceIds], originalChars: text.length } : {}) }
   for (const listener of state.progressListeners) {
-    try { listener({ ...progress }) } catch { /* Coordination must not fail tool or session logging. */ }
+    try { listener({ ...progress, ...(progress.evidenceIds ? { evidenceIds: [...progress.evidenceIds] } : {}) }) } catch { /* Coordination must not fail tool or session logging. */ }
   }
 }
 
@@ -185,6 +285,7 @@ function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent,
   if (inheritedToolNames(tools, child).has(toolName)) tools.restrict({ deny: [toolName] })
   state.attachedAgents.add(child)
   capabilityOwners.set(child, state)
+  if (child !== state.agent) state.memory?.bind(child, state.agent!.id)
   childCtx.effect(() => () => {
     state.attachedAgents.delete(child)
     capabilityOwners.delete(child)
@@ -195,8 +296,9 @@ function attachRouteCapabilities(childCtx: Context, parent: Agent, child: Agent,
   const events = childCtx as unknown as RuntimeEvents
   childCtx.on('tools/result', (exec, result) => {
     if (exec.agent?.id !== child.id) return
+    const evidenceIds = state.memory?.captureTool(child, exec.callId, exec.name, result)
     const text = result.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
-    publishProgress(state, child.id, 'tool', `${exec.name} (${result.isError ? 'error' : 'result'}):\n${text}`)
+    publishProgress(state, child.id, 'tool', `${exec.name} (${result.isError ? 'error' : 'result'}):\n${text}`, evidenceIds)
     return undefined
   })
   // Run before the Host's global Remote answerer, which otherwise presents the
@@ -315,7 +417,7 @@ function finishRouteCleanup(state: RouteState, id: string, disposers: readonly (
 }
 
 /** Read only this run's settled log suffix, never inherited answers or earlier decision turns. */
-function outcomeOf(agent: Agent, boundary: number, label: string, aborted: boolean): RouteOutcome {
+function outcomeOf(agent: Agent, boundary: number, label: string, aborted: boolean, submitted?: RouteState['submittedReport']): RouteOutcome {
   const events = agent.session.snapshotEvents().slice(boundary)
   let text = ''
   let ending: { kind?: string; message?: string } | undefined
@@ -330,6 +432,9 @@ function outcomeOf(agent: Agent, boundary: number, label: string, aborted: boole
       ending = (event as SessionEvent<'turn/end'>).data.reason
     }
   }
+  if (!aborted && ending?.kind === 'completed' && submitted) {
+    return { ok: true, text: submitted.text, sessionId: agent.id, evidenceIds: submitted.evidenceIds, uncertainties: submitted.uncertainties, conflicts: submitted.conflicts }
+  }
   if (!aborted && ending?.kind === 'completed' && text.length > 0) {
     return { ok: true, text, sessionId: agent.id }
   }
@@ -341,7 +446,7 @@ function outcomeOf(agent: Agent, boundary: number, label: string, aborted: boole
 }
 
 /** Create a loop without subagent origin or additional delegation depth. */
-export async function createRoute(parent: Agent, options: RouteOptions, config: { toolName: string } & CollaborationHostConfig): Promise<RouteHandle> {
+export async function createRoute(parent: Agent, options: RouteOptions, config: { toolName: string; reportChars?: number } & CollaborationHostConfig): Promise<RouteHandle> {
   options.signal.throwIfAborted()
   if (routes.has(options.id)) throw new Error(`ULTRA route ${options.id} already exists`)
   const inherited = parent.session.requestHeader()?.config ?? parent.options
@@ -368,6 +473,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     acceptingSteering: false,
     sequence: 0,
     progressListeners: new Set(),
+    memory: options.memory ?? memoryFor(parent),
   }
   routes.set(options.id, state)
   const stopSessionEvents = parent.ctx.root.on('session/event', (session, event) => {
@@ -376,13 +482,14 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       // survive completion and wake an extra turn.
       state.acceptingSteering = false
     }
-    if (event.type !== 'assistant/message') return
     const observed = parent.ctx.agents.get(session.id)
     if (observed === undefined || !state.attachedAgents.has(observed)) return
+    const evidenceIds = state.memory?.captureEvent(session, event)
+    if (event.type !== 'assistant/message') return
     const message = event as SessionEvent<'assistant/message'>
     publishProgress(state, session.id, 'assistant', message.data.message.content
       .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
-      .map(block => block.text).join(''))
+      .map(block => block.text).join(''), evidenceIds)
   })
   // The registry's serial creation notification precedes the child's first turn.
   // Listen at deployment scope: lifecycle ownership is independent of preset scopes.
@@ -442,6 +549,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
   const child = handle.agent
   let collaboration: CollaborationHostHandle | undefined
   try {
+    state.memory?.bind(child, options.id)
     if (config.collaborationEnabled) collaboration = installCollaboration(child, config)
   } catch (error) {
     const failures: unknown[] = [error]
@@ -470,10 +578,12 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
         child.status !== 'running' || typeof instruction !== 'string' || instruction.trim() === '') return false
       // Public native next-step delivery keeps the same driver/turn and is
       // durably recorded by the loop even when the current request ends in text.
-      child.steer(createUserMessage({
+      const feedback = createUserMessage({
         content: [{ type: 'text', text: `Ultra 决策研究改向：不扩权、原任务优先。以下仅为下一步研究反馈，继续遵守现有工具、权限和委派深度限制。\n${instruction.trim().slice(0, 2000)}` }],
-        source: { kind: 'user' },
-      }))
+        source: { kind: 'ultra-steering', form: 'feedback', summary: 'Ultra 运行中研究方向反馈' },
+      })
+      child.steer(feedback)
+      state.memory?.recordDelivery?.(feedback.id, child.id, 'queued')
       return true
     },
     setReadOnly(readOnly) {
@@ -484,29 +594,46 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       state.readOnly = readOnly
       for (const attached of state.attachedAgents) updatePresentation(state, attached)
     },
-    async run(prompt) {
+    async run(prompt, runOptions = {}) {
       if (active) throw new Error('ULTRA route already has an active turn')
       if (disposal !== undefined) throw new Error('ULTRA route is disposed')
+      state.maxTokens = outputCap(runOptions.maxTokens) ?? outputCap(parent.options.maxTokens)
+      if (runOptions.planningOnly && runOptions.reportSubmission) throw new Error('Ultra planning cannot enable a worker report terminal')
+      if (runOptions.reportSubmission && !state.readOnly) throw new Error('Ultra report submission is restricted to read-only worker turns')
       const boundary = child.session.seq
       const subagentBoundary = state.subagents.length
       const identities = (outcome: RouteOutcome): RouteOutcome => {
+        if (state.memory) {
+          const captured = state.memory.recordReport(child.id, outcome.text, outcome.ok ? 'completed' : 'failed')
+          const evidenceIds = [...new Set([...(outcome.evidenceIds ?? []), ...captured, ...state.memory.refs(child.id)])]
+          if (evidenceIds.length) outcome = { ...outcome, evidenceIds }
+        }
         const observed = state.subagents.slice(subagentBoundary)
         return observed.length === 0 ? outcome : { ...outcome, subagents: observed.map(identity => ({ ...identity })) }
       }
-      if (options.signal.aborted) return outcomeOf(child, boundary, options.label, true)
+      if (options.signal.aborted) return identities(outcomeOf(child, boundary, options.label, true))
       active = true
       state.running = true
+      state.reportSubmission = runOptions.reportSubmission === true
+      state.planningOnly = runOptions.planningOnly === true
+      state.submittedReport = undefined
       state.acceptingSteering = true
       state.sequence = 0
+      let releaseReport: (() => void) | undefined
       try {
-        child.followup(createUserMessage({ content: prompt, source: { kind: 'user' } }))
+        if (state.reportSubmission) releaseReport = installReportSubmission(state, Math.min(12000, Math.max(1000, config.reportChars ?? 12000)))
+        child.followup(createUserMessage({ content: prompt, source: { kind: 'ultra-route-task', summary: options.label } }))
         await child.whenIdle()
-        return identities(outcomeOf(child, boundary, options.label, options.signal.aborted))
+        return identities(outcomeOf(child, boundary, options.label, options.signal.aborted, state.submittedReport))
       } catch (error) {
         return identities({ ok: false, text: '', sessionId: child.id, error: `${options.label}: ${error instanceof Error ? error.message : String(error)}` })
       } finally {
+        releaseReport?.()
         active = false
         state.running = false
+        state.reportSubmission = false
+        state.planningOnly = false
+        state.submittedReport = undefined
         state.acceptingSteering = false
       }
     },

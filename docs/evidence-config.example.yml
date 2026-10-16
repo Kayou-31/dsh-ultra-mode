@@ -1,0 +1,26 @@
+# 合并到测试 profile 的同名 bundle；不要覆盖其他 bundle。
+- id: ultra-mode
+  config:
+    concurrency: 3
+    evidenceEnabled: true
+    memorySearchChars: 6000
+    memoryGetChars: 12000
+    contextTargetTokens: 30000
+    contextOutputReserveTokens: 4096
+    contextToolReserveTokens: 2048
+    # 先核对原生 compaction / 其他 ACP 引擎已停用，以及 native tokenMeter 可用。
+    contextCompression: false
+    coordinationIntervalMs: 1000
+    coordinationMaxRounds: -1
+    coordinationFailureLimit: 3
+    # 0 表示不增加总上限；例如 memoryMaxRequests: 80。
+    memoryMaxRequests: 0
+    memoryMaxTokens: 0
+    # 0 继承宿主输出预算，保持现有 Max；不会自动重试或增加模型调用。
+    planningMaxTokens: 0
+    researchMaxTokens: 0
+    decisionMaxTokens: 0
+    coordinationMaxTokens: 0
+    # naizhi 独立验收曾显式采用 65536 / 131072 / 131072 / 32768。
+    # 高 cap 只是允许更多输出，不保证模型用完，也不是日常默认值。
+    jevEnabled: false

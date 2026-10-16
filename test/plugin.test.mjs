@@ -13,7 +13,7 @@ const CONFIG = { toolName: 'ultra_task', concurrency: 3, sectionOrder: 117.5, ma
   timeoutMs: 10000, reportChars: 20000, researchTools: ['read', 'subagent'], jevEnabled: false }
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 const cooperationToolNames = ['ultra_spawn_agent', 'ultra_send_message', 'ultra_followup_task', 'ultra_wait_agent', 'ultra_interrupt_agent', 'ultra_list_agents']
-function boot({ runner, assistRunner, config, lateConnection = false, collaborationClose, beforeAssemblyWaterfall } = {}) {
+function boot({ runner, assistRunner, config, lateConnection = false, collaborationClose, beforeAssemblyWaterfall, memoryBeforeStep } = {}) {
   const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], assists: [], pending: [], disposers: [], injections: [],
     agents: new Map(), cooperationMounts: new Map(), assemblies: [] }
   const services = {
@@ -47,6 +47,8 @@ function boot({ runner, assistRunner, config, lateConnection = false, collaborat
   }
   const schema = new Proxy({}, { get: () => () => schema })
   const imported = {
+    './capture-memory.js': { installPreTruncationCapture() { return { dispose() {}, status() { return {} } } } },
+    './memory-host.js': { installMemoryHost() { return { capture() {}, async beforeStep(...args) { return memoryBeforeStep?.(...args) }, observeRequest() {}, status() {}, async close() {} } }, uninstallMemoryHost() {} },
     '@deepseek-ai/schemastery': { __esModule: true, default: schema },
     '@deepseek-ai/dsh-tools': { defineTool: value => value },
     '@deepseek-ai/dsh-llm': { createUserMessage: value => value },
@@ -107,6 +109,15 @@ test('registers automatic observer, tool, guard, command, prompt and RPC', () =>
   assert.equal(h.record.guards.length, 1)
   assert.equal(h.record.injections.some(names => names.includes('connection') && names.includes('webServer')), true, 'actual HostConnection RPC registration needs owner.webServer injection')
   assert.deepEqual(Array.from(h.tool.parameters.concurrency.enum), [2, 3, 4, 5])
+})
+test('native pre-step cancellation signal reaches context memory before admission', async () => {
+  const abort = new AbortController(), root = agent(), messages = []
+  let received
+  const h = boot({ memoryBeforeStep(...args) { received = args } })
+  await h.record.events.get('agent/pre-step')({ agent: root, step: 1, turn: 1, signal: abort.signal, messages }, async () => ({ kind: 'enter', messages }))
+  assert.equal(received[0], root)
+  assert.equal(received[1], messages)
+  assert.equal(received[2], abort.signal)
 })
 test('RPC accepts normal-agent assistance and 2/3/4/5 without invalid mutation', () => {
   const h = boot()

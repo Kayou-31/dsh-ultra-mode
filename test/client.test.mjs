@@ -531,6 +531,93 @@ test('malformed warning metadata is rejected at the client RPC boundary', async 
   }
 })
 
+const evidenceStatus = () => ({ enabled: true, available: true, runId: 'run-visible', phase: 'researching',
+  coverage: { raw: { sources: 8, chunks: 20, characters: 30000, attachments: 2, coverage: { host: 6, captured: 1, truncated: 1, 'reference-only': 0 } }, semantic: { total: 5, current: 3, superseded: 1, unresolved: 1 } },
+  retrievals: 4, unresolvedConflicts: 2, errors: [], routes: [{ routeId: 'worker-real', status: 'running' }],
+  compression: { status: 'compacted', before: { totalTokens: 24000, estimated: true }, after: { totalTokens: 12000, estimated: true }, replacements: [], limits: [] },
+  resources: { attemptedCalls: 6, settledCalls: 5, measuredTokens: 18000, unknownUsageCalls: 1, estimates: { totalTokens: 16000, estimated: true, remainingTokens: -2000 } },
+})
+
+test('optional evidence is inspectable in menu and ARIA without expanding compact controls or polling', async () => {
+  for (const language of ['zh', 'en']) {
+    const ui = harness(async () => response({ enabled: true, concurrency: 2, evidence: evidenceStatus() }), { language })
+    ui.render('session-a'); await ui.settle()
+    assert.equal(ui.toolbarText(), language === 'zh' ? '协作Ultra2' : 'TeamUltra2')
+    assert.match(ui.trigger().props['aria-description'], /researching/)
+    assert.equal(ui.timers.size, 1)
+    ui.open()
+    for (const phrase of ['24000', '12000', '18000', '16000', 'worker-real', 'running']) assert.ok(ui.text().includes(phrase), phrase)
+    assert.match(ui.text(), language === 'zh' ? /原始证据.*8/ : /Raw evidence.*8/)
+    assert.match(ui.text(), language === 'zh' ? /语义记忆.*5/ : /Semantic memory.*5/)
+    assert.match(ui.text(), language === 'zh' ? /未解决冲突.*2/ : /Unresolved conflicts.*2/)
+    assert.match(ui.text(), language === 'zh' ? /估算/ : /Estimated/)
+    assert.equal(ui.options().length, 6)
+    assert.equal(ui.calls.length, 1)
+    ui.dispose()
+  }
+})
+
+test('absent evidence stays hidden and unavailable evidence reports its bounded diagnostic', async () => {
+  for (const evidence of [undefined, { enabled: true, available: false, coverage: 'unknown', error: 'Persistence unavailable' }]) {
+    const ui = harness(async () => response({ evidence }))
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.equal(ui.alerts().length, 0)
+    if (evidence) assert.ok(ui.text().includes('Persistence unavailable'))
+    else assert.equal(ui.text().includes('证据与资源'), false)
+    ui.dispose()
+  }
+})
+
+test('malformed nested evidence metadata fails closed at the RPC boundary', async () => {
+  for (const change of [
+    value => { value.enabled = 'yes' }, value => { value.retrievals = -1 },
+    value => { value.coverage.raw.sources = 0.5 }, value => { value.coverage.semantic.current = Infinity },
+    value => { value.resources.measuredTokens = NaN }, value => { value.resources.unknownUsageCalls = 'unknown' },
+    value => { value.resources.estimates.totalTokens = -1 }, value => { value.compression.after.totalTokens = -2 },
+    value => { value.errors = [1] }, value => { value.routes = [{ routeId: 'r', status: 1 }] },
+  ]) {
+    const evidence = evidenceStatus(); change(evidence)
+    const ui = harness(async () => response({ evidence }))
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    ui.dispose()
+  }
+})
+
+test('partial compression failure and unsupported diagnostics retain controls without claiming token metrics', async () => {
+  for (const language of ['zh', 'en']) for (const compression of [
+    { status: 'failed', originalHistoryRetained: true },
+    { status: 'unsupported', before: null, after: null, limits: ['Pinned host authority unavailable'] },
+    { status: 'limited', before: { totalTokens: 12345, estimated: true }, limits: ['History retained'] },
+  ]) {
+    const evidence = { ...evidenceStatus(), compression }
+    const ui = harness(async () => response({ enabled: true, evidence }), { language })
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.equal(ui.alerts().length, 0)
+    assert.equal(ui.team().props.disabled, false)
+    assert.ok(ui.options().every(option => option.props.disabled === false))
+    assert.ok(ui.text().includes(compression.status))
+    assert.equal(ui.text().includes('undefined'), false)
+    if (compression.originalHistoryRetained) assert.match(ui.text(), language === 'zh' ? /原始历史已保留/ : /Original history retained/)
+    if (compression.limits) assert.ok(ui.text().includes(compression.limits[0]))
+    ui.dispose()
+  }
+})
+
+test('provided compression failure metrics and retention flags remain strictly validated', async () => {
+  for (const compression of [
+    { status: 'failed', before: { totalTokens: -1 } },
+    { status: 'unsupported', after: { totalTokens: Infinity } },
+    { status: 'failed', originalHistoryRetained: 'yes' },
+    { status: 'failed', limits: [42] },
+  ]) {
+    const ui = harness(async () => response({ evidence: { ...evidenceStatus(), compression } }))
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    ui.dispose()
+  }
+})
+
 test('internal route sessions are hidden without mutating the source or ordinary session metadata', () => {
   const regular = Object.freeze({ title: 'parent', origin: { kind: 'user' } })
   const subagent = Object.freeze({ title: 'real child', origin: { kind: 'subagent' } })

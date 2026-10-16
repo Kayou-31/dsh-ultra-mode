@@ -1,0 +1,84 @@
+
+> @dsh-external/dsh-ultra-mode@0.5.0-rc.3 test:benchmarks
+> node scripts/benchmarks.mjs selftest
+
+{
+  "schemaVersion": 1,
+  "fixtureSelftestPassed": true,
+  "cases": [
+    {
+      "caseId": "incident-triage",
+      "checks": 17,
+      "baselinePassed": 6,
+      "baselineCriticalFailures": [
+        "root-cause-not-coincident-deployment",
+        "root-to-secondary-causal-order",
+        "after-replay-agrees-with-working-patch",
+        "mixed-tenants-reverse-order",
+        "quota-still-enforced-per-tenant",
+        "429-does-not-amplify-database-reads",
+        "arbitrary-tenant-and-quota-matrix"
+      ],
+      "referencePassed": 17,
+      "referenceAccepted": true,
+      "fixtureSha256": "cf068a94cf8715c3b3ccc1dd19c439284fa65330d4247493a9366c6fd0d8251b"
+    },
+    {
+      "caseId": "payment-consistency",
+      "checks": 17,
+      "baselinePassed": 6,
+      "baselineCriticalFailures": [
+        "stable-event-new-request-retry",
+        "tenant-visible-balance-isolation",
+        "failed-commit-no-visible-phantom",
+        "failed-event-retry-then-redelivery",
+        "failure-does-not-poison-other-tenant",
+        "combined-payment-refund-rollback-retry"
+      ],
+      "referencePassed": 17,
+      "referenceAccepted": true,
+      "fixtureSha256": "16a8329ece482da4ff262524988c6fff86a60ba393fbdc61378e72a4522ff96f"
+    },
+    {
+      "caseId": "reconciliation",
+      "checks": 11,
+      "baselinePassed": 3,
+      "baselineCriticalFailures": [
+        "report-schema",
+        "event-identities",
+        "event-money",
+        "utc-days",
+        "overall-totals",
+        "separate-orders",
+        "anomaly-recall",
+        "source-traceability"
+      ],
+      "referencePassed": 11,
+      "referenceAccepted": true,
+      "fixtureSha256": "fd9c41472bdd36d2109f28627e2710a8602105e0e0433d9124c348124a219a22"
+    },
+    {
+      "caseId": "refund-policy",
+      "checks": 21,
+      "baselinePassed": 13,
+      "baselineCriticalFailures": [
+        "window-day-10",
+        "window-exact-day-14",
+        "default-fixed-clock",
+        "equivalent-zone-boundary",
+        "consumption-three-of-ten",
+        "money-fraction-two-thirds",
+        "fully-consumed",
+        "large-money-boundary"
+      ],
+      "referencePassed": 21,
+      "referenceAccepted": true,
+      "fixtureSha256": "8623f1df869410e1ca5a7cc1ad45fe25d972732768a4911cbcc4379ffb56e418"
+    }
+  ],
+  "referenceChecks": 66,
+  "realModelRequests": 0,
+  "ultraVsMaxQualityTested": false,
+  "temporaryExportsRetained": true,
+  "exportsDirectory": "<workspace>\\work\\dsh-ultra-mode\\.benchmark-runs\\selftest-0bdc883e-c78a-4edf-a71d-5ae74108c084"
+}

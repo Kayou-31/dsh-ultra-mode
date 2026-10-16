@@ -112,6 +112,24 @@ test('decision failure fallback discloses incomplete delivery and retains useful
   assert.doesNotMatch(fallback, /private failure text/)
 })
 
+test('truncated decision reports retain host evidence references and unresolved metadata', () => {
+  const outcomes = [{ ...ok('A'.repeat(100) + 'TAIL_PROOF', 'worker-real'), evidenceIds: ['evidence-tail'], uncertainties: ['not verified'], conflicts: ['contradictory reports'] }, ok('second', 'other')]
+  const prompt = buildDecisionPrompt('Task', outcomes, planMerge(outcomes, 2), '', 10)
+  assert.ok(prompt.includes('evidence-tail'))
+  assert.ok(prompt.includes('not verified'))
+  assert.ok(prompt.includes('contradictory reports'))
+  assert.equal(prompt.includes('TAIL_PROOF'), false)
+  assert.match(prompt, /不.*授权/)
+})
+
+test('fallback preserves original route numbering and evidence after an earlier route fails', () => {
+  const fallback = fallbackJoin([bad('first failed', 'r1'), { ...ok('second report', 'r2'), evidenceIds: ['second-ref'] }, ok('third report', 'r3')])
+  assert.match(fallback, /【路线 2 \/ r2】/)
+  assert.match(fallback, /【路线 3 \/ r3】/)
+  assert.ok(fallback.includes('second-ref'))
+  assert.doesNotMatch(fallback, /【路线 1 \/ r2】/)
+})
+
 test('enabled prompt states N Max executions plus one Max decision without recursion', () => {
   assert.equal(renderUltraSection(undefined), '')
   assert.equal(renderUltraSection(state({ enabled: false })), '')

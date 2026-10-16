@@ -6,6 +6,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { RunConfig } from './orchestrator.js'
 import type { createRoute, RouteHandle } from './runtime.js'
 import { parseCoordinationDecision, type CoordinationDecision, type CoordinationSummary } from './coordination.js'
+import { beginMemoryRun, type MemoryRun } from './memory-host.js'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -36,7 +37,7 @@ export interface DecisionAssistOutcome {
   warnings: string[]
   error: string | null
 }
-interface AssistProgress { sessionId: string; kind: 'tool' | 'assistant'; text: string; at: number }
+interface AssistProgress { sessionId: string; kind: 'tool' | 'assistant'; text: string; at: number; evidenceIds?: string[]; originalChars?: number }
 
 /** This policy deliberately does not use the Ultra sole-committer policy. */
 function assistPrompt(task: string, parentId: string, round: number, progress: readonly AssistProgress[], summary: CoordinationSummary): string {
@@ -77,6 +78,9 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   const pendingFeedback = new Set<UserMessage['id']>()
   const descendants = new Map<string, Agent>()
   const disposers: (() => void)[] = []
+  let memory: MemoryRun | undefined
+  const phase = (value: string): void => { memory?.stage(value); options.phase(value) }
+  const withMemory = (text: string): string => { const entry = memory?.entry(decisionId); return text + (entry ? '\n\n' + entry : '') }
   let stopped = false
   let endReason: DecisionAssistOutcome['reason'] | undefined
   let currentError: string | null = null
@@ -114,8 +118,9 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
     currentError = `第 ${coordination.rounds} 轮${stage}：${error instanceof Error ? error.message : String(error)}`.slice(0, 2000)
     coordination.errors.push(currentError)
   }
-  const observe = (sessionId: string, event: SessionEvent): void => {
+  const observe = (session: Agent['session'], event: SessionEvent): void => {
     if (stopped || signal.aborted) return
+    const evidenceIds = memory?.captureEvent(session, event)
     let kind: AssistProgress['kind']
     let text: string
     if (event.type === 'assistant/message') {
@@ -128,7 +133,8 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
       text = `${message.isError ? '工具失败' : '工具结果'}：\n` + message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
     } else return
     if (text.trim() === '') return
-    progress.push({ sessionId, kind, text: text.slice(0, 2000), at: Date.now() })
+    progress.push({ sessionId: session.id, kind, text: text.slice(0, 2000), at: Date.now(),
+      ...(evidenceIds?.length ? { evidenceIds, originalChars: text.length } : {}) })
     if (progress.length > 8) progress.shift()
     revision++
     wake?.()
@@ -137,19 +143,23 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   disposers.push(parent.ctx.root.on('session/event', (session, event) => {
     if (session === parent.session) {
       if (event.type === 'turn/end') {
+        memory?.captureEvent(session, event)
         const reason = (event as SessionEvent<'turn/end'>).data.reason.kind
         stop(reason === 'aborted' ? 'cancelled' : 'turn-ended')
         return
       }
       if (event.type === 'turn/start' && (event as SessionEvent<'turn/start'>).data.turn !== turn) { stop('turn-ended'); return }
       if (event.type === 'user/message') pendingFeedback.delete((event as SessionEvent<'user/message'>).data.id)
-      if ((event.type === 'assistant/message' || event.type === 'tool/result') && event.data.turn === turn) observe(session.id, event)
-    } else if (descendants.get(session.id)?.session === session) observe(session.id, event)
+      if ((event.type === 'assistant/message' || event.type === 'tool/result') && event.data.turn === turn) observe(session, event)
+    } else if (descendants.get(session.id)?.session === session) observe(session, event)
   }))
   disposers.push(parent.ctx.root.on('agent/created', ({ agent }) => {
     const header = agent.session.header
     if (!stopped && header.origin === 'subagent' && header.parentSession !== undefined &&
-      (header.parentSession === parent.id || descendants.has(header.parentSession))) descendants.set(agent.id, agent)
+      (header.parentSession === parent.id || descendants.has(header.parentSession))) {
+      descendants.set(agent.id, agent)
+      memory?.bind(agent, parent.id)
+    }
     return undefined
   }))
   signal.addEventListener('abort', onAbort, { once: true })
@@ -158,13 +168,19 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   try {
     factory ??= (await import('./runtime.js')).createRoute
     signal.throwIfAborted()
+    memory = await beginMemoryRun(parent, runId)
+    memory?.recordTask?.(options.task)
+    for (const child of descendants.values()) memory?.bind(child, parent.id)
+    const seed = memory ? await memory.prepareSeed(parent) : completed < 0 ? [] : events.slice(0, completed + 1)
+    signal.throwIfAborted()
     decision = await factory(parent, {
       id: decisionId, label: 'Ultra decision assist', readOnly: true,
-      seed: completed < 0 ? [] : events.slice(0, completed + 1),
+      seed,
       signal, route: options.route, researchTools: config.researchTools,
+      ...(memory ? { memory } : {}),
     }, config)
     if (stopped || signal.aborted) { await decision.dispose(); signal.throwIfAborted() }
-  } catch (error) { stop('failed'); await purge; throw error }
+  } catch (error) { stop('failed'); try { await purge } finally { await memory?.dispose() }; throw error }
 
   const changed = (delay?: number): Promise<void> => new Promise(resolve => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -182,6 +198,16 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
   // The cap limits decision.run invocations, including a protocol repair.
   // An enabled assist always checks the new task; zero allows that call only.
   const maxRuns = cap === -1 ? Infinity : Math.min(1000, Math.max(1, cap))
+  const failureLimit = Math.min(1000, Math.max(0, config.coordinationFailureLimit ?? 3))
+  let consecutiveFailures = 0
+  const failedRound = (): void => {
+    if (stopped || signal.aborted) return
+    consecutiveFailures++
+    if (failureLimit > 0 && consecutiveFailures >= failureLimit) {
+      coordination.errors.push(`连续 ${consecutiveFailures} 轮决策辅助失败，已停止辅助；主 Agent 保持正常运行。`)
+      stop('failed')
+    }
+  }
   let runCalls = 0
   const loop = async (): Promise<DecisionAssistOutcome> => {
     let nextAt = 0
@@ -197,13 +223,14 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
         consumed = revision
         const round = ++coordination.rounds
         nextAt = Date.now() + interval
-        options.phase('coordinating')
+        phase('coordinating')
         try {
           runCalls++
           const response = await decision.run([
-            { type: 'text', text: assistPrompt(options.task, parent.id, round, progress, coordination) },
+            { type: 'text', text: withMemory(assistPrompt(options.task, parent.id, round, progress, coordination)) },
             ...(round === 1 ? options.content.filter(block => block.type !== 'text') : []),
-          ])
+          ], { maxTokens: config.coordinationMaxTokens })
+          memory?.recordReport(response.sessionId, response.text, response.ok ? 'completed' : 'failed')
           if (stopped || signal.aborted || parent.status !== 'running') continue
           if (!response.ok) throw new Error(response.error ?? '决策辅助未返回完成报告')
           let parsed: CoordinationDecision
@@ -211,21 +238,24 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
             parsed = parseCoordinationDecision(response.text, new Set([parent.id]))
           } catch (error) {
             record(error) // A successful correction must not hide this failure.
-            if (stopped || signal.aborted || parent.status !== 'running' || runCalls >= maxRuns) continue
+            if (stopped || signal.aborted || parent.status !== 'running' || runCalls >= maxRuns) { failedRound(); continue }
             runCalls++
             try {
-              const repair = await decision.run([{ type: 'text', text: assistRepairPrompt(parent.id, error) }])
+              const repair = await decision.run([{ type: 'text', text: withMemory(assistRepairPrompt(parent.id, error)) }], { maxTokens: config.coordinationMaxTokens })
+              memory?.recordReport(repair.sessionId, repair.text, repair.ok ? 'completed' : 'failed')
               if (stopped || signal.aborted || parent.status !== 'running') continue
               if (!repair.ok) throw new Error(repair.error ?? '协议修复未返回完成报告')
               parsed = parseCoordinationDecision(repair.text, new Set([parent.id]))
             } catch (repairError) {
               if (!stopped && !signal.aborted) record(repairError, '协议修复')
+              failedRound()
               continue // One correction only; wait for fresh progress afterward.
             }
           }
           // Preserve the audit history while allowing a valid repair or later
           // evidence to recover the current diagnostic state.
           currentError = null
+          consecutiveFailures = 0
           for (const directive of parsed.directives) {
             if (stopped || signal.aborted || parent.status !== 'running') break
             const feedback = createUserMessage({
@@ -235,16 +265,17 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
             // Track before synchronous steer/inbox events can end this turn.
             pendingFeedback.add(feedback.id)
             parent.steer(feedback)
+            memory?.recordDelivery?.(feedback.id, parent.id, 'queued')
             coordination.directives.push({ ...directive, round, at: Date.now() })
           }
-        } catch (error) { if (!stopped && !signal.aborted) record(error) }
-        finally { if (!stopped && !signal.aborted) options.phase('assisting') }
+        } catch (error) { if (!stopped && !signal.aborted) { record(error); failedRound() } }
+        finally { if (!stopped && !signal.aborted) phase('assisting') }
       }
     } finally {
       stop()
       try { await purge } finally {
         try { await decision.dispose() } catch (error) { record(error); throw error }
-        finally { descendants.clear() }
+        finally { descendants.clear(); await memory?.dispose() }
       }
     }
     const reason = endReason === 'turn-ended' && currentError !== null ? 'failed' : endReason ?? 'turn-ended'
@@ -254,7 +285,7 @@ export async function startDecisionAssist(config: RunConfig, options: DecisionAs
       error: reason === 'timeout' ? 'Ultra 决策辅助已超时，主 Agent 保持正常运行。' : reason === 'failed' ? currentError : null,
     }
   }
-  options.phase('assisting')
+  phase('assisting')
   const done = loop()
   // The owner may attach after start resolves. Preserve rejection for its drain,
   // while containing a fast disposal failure before that owner is attached.

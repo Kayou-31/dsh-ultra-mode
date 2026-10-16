@@ -5,6 +5,8 @@ export interface RouteProgress {
     kind: 'tool' | 'assistant';
     text: string;
     at: number;
+    evidenceIds?: string[];
+    originalChars?: number;
 }
 export interface SteeringDirective {
     routeId: string;
@@ -28,6 +30,7 @@ export interface CoordinationSnapshot {
     status: 'starting' | 'running' | 'completed' | 'failed';
     progress?: RouteProgress;
     report?: string;
+    evidenceIds?: string[];
 }
 /** Accept only a strict bounded protocol targeting this invocation's active loops. */
 export declare function parseCoordinationDecision(text: string, activeIds: ReadonlySet<string>): CoordinationDecision;

@@ -2,3 +2,4 @@ node_modules/
 *.tsbuildinfo
 *.tgz
 .benchmark-runs/
+.dsh-ultra/

@@ -22,6 +22,9 @@ export interface WorkerOutcome {
     text: string;
     error?: string;
     sessionId: string;
+    evidenceIds?: string[];
+    uncertainties?: string[];
+    conflicts?: string[];
     subagents?: {
         sessionId: string;
         parentSession?: string;
@@ -72,7 +75,7 @@ export declare function buildPlanPrompt(task: string, count: number): string;
 /** Repair formatting once on the same decision, preserving every route's obligations. */
 export declare function buildPlanRepairPrompt(task: string, count: number, invalid: string, limit: number): string;
 /** Share user context while giving each route a different assignment. */
-export declare function buildWorkerBrief(task: string, assignment: string, index: number, count: number, plan: string): string;
+export declare function buildWorkerBrief(task: string, assignment: string, index: number, count: number, plan: string, reportLimit?: number): string;
 /** Resolve disagreements and let one route commit shared changes. */
 export declare function buildDecisionPrompt(task: string, outcomes: readonly WorkerOutcome[], plan: MergePlan, jev: string, limit: number): string;
 /** Never present failed decision output as a completed consensus. */
