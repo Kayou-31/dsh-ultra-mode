@@ -24,7 +24,7 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/runtime.ts', im
 }).outputText
 
 /** Exercise ownership and failure ordering without optional SDK peers or a model. */
-function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
+function lifecycleFixture({ drain, handleDispose, unpublishedFailure, memory } = {}) {
   const runtime = {}, agents = new Map(), hooks = new Map(), record = []
   const subscribe = (name, callback) => {
     const listeners = hooks.get(name) ?? new Set()
@@ -66,7 +66,7 @@ function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
     }
     const agent = {
       id, options: { provider: 'offline', model: 'fixture' }, status: 'idle',
-      session: { header: { id, ...header }, seq: 0, snapshotEvents: () => [], requestHeader: () => undefined },
+      session: { id, header: { id, ...header }, seq: 0, snapshotEvents: () => [], requestHeader: () => undefined },
       cancel() { record.push(`cancel:${id}`) },
       ctx: { root, agents: registry, get: name => name === 'tools' ? tools : services[name], on: subscribe,
         effect(callback) { const dispose = callback(); effects.push(dispose); return dispose } },
@@ -79,9 +79,11 @@ function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
     agents.delete(agent.id)
   }
   const parent = makeAgent('visible-root')
+  if (memory) parent.memoryRun = memory
   agents.set(parent.id, parent)
   registry.create = async options => {
     const child = makeAgent(options.sessionId, options.meta)
+    child.options = { ...options.agentOptions }
     await options.setup(child.ctx, child)
     if (unpublishedFailure) throw unpublishedFailure
     agents.set(child.id, child)
@@ -96,10 +98,13 @@ function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
     '@deepseek-ai/dsh-llm': { ReasoningEffortId: value => value, createUserMessage: value => value },
     '@deepseek-ai/dsh-session': { SessionId: value => value, SessionLogOffset: value => value },
     '@deepseek-ai/dsh-scope': { scopeParentOf: () => undefined },
+    './memory-host.js': { memoryFor: agent => agent.memoryRun },
   }
   vm.runInNewContext(compiled, { exports: runtime, require: name => imported[name], AggregateError, Error, Map, Set, WeakMap, Promise })
   return {
     runtime, record, agents, parent, services, disposeAgent,
+    async request(config) { return [...(hooks.get('agent/request') ?? [])][0]({}, async () => config) },
+    emit: (name, ...args) => { for (const listener of hooks.get(name) ?? []) listener(...args) },
     create: () => runtime.createRoute(parent, { id: 'ultra-route-lifecycle', label: 'Offline lifecycle',
       readOnly: true, researchTools: ['read'], signal: new AbortController().signal }, { toolName: 'ultra_task' }),
     async descendant(routeId, id = 'native-continuable-child') {
@@ -110,6 +115,101 @@ function lifecycleFixture({ drain, handleDispose, unpublishedFailure } = {}) {
     },
   }
 }
+
+test('per-run output caps reach every request while Max is preserved and inherited caps return after the turn', async () => {
+  const f = lifecycleFixture()
+  f.parent.options.maxTokens = 8192
+  const route = await f.create(), agent = f.agents.get(route.id), observed = [], events = []
+  let request = { provider: 'offline', model: 'fixture', reasoningEffort: 'low', maxTokens: 8192 }
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => {}
+  agent.whenIdle = async () => {
+    for (let step = 0; step < 2; step++) { request = await f.request(request); observed.push({ ...request }) }
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'public report' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  }
+  await route.run([{ type: 'text', text: 'planning' }], { maxTokens: 16384 })
+  await route.run([{ type: 'text', text: 'next phase inherits' }], { maxTokens: 0 })
+  assert.deepEqual(observed.map(value => value.maxTokens), [16384, 16384, 8192, 8192])
+  assert.ok(observed.every(value => value.reasoningEffort === 'max'))
+  await route.dispose()
+})
+
+test('per-run cap validation precedes native followup and max-token endings are never counted as completed reports', async () => {
+  const f = lifecycleFixture(), route = await f.create(), agent = f.agents.get(route.id), events = []
+  let followups = 0
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => { followups++ }
+  agent.whenIdle = async () => { events.push({ type: 'turn/end', data: { reason: { kind: 'max-tokens' } } }) }
+  for (const maxTokens of [-1, 1.5, Infinity, NaN]) await assert.rejects(route.run([], { maxTokens }), /maxTokens.*positive|positive.*maxTokens/i)
+  assert.equal(followups, 0)
+  const outcome = await route.run([], { maxTokens: 32768 })
+  assert.equal(outcome.ok, false)
+  assert.match(outcome.error, /max-tokens/)
+  assert.equal(followups, 1, 'a budget failure must not silently add another model turn')
+  await route.dispose()
+})
+
+test('an explicit turn cap does not become the default when the parent had no cap', async () => {
+  const f = lifecycleFixture(), route = await f.create(), agent = f.agents.get(route.id), events = [], observed = []
+  let request = { provider: 'offline', model: 'fixture' }
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => {}
+  agent.whenIdle = async () => {
+    request = await f.request(request); observed.push({ ...request })
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'public answer' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  }
+  await route.run([], { maxTokens: 16000 })
+  await route.run([], { maxTokens: 0 })
+  assert.equal(observed[0].maxTokens, 16000)
+  assert.equal(Object.hasOwn(observed[1], 'maxTokens'), false)
+  assert.equal(observed[1].reasoningEffort, 'max')
+  await route.dispose()
+})
+
+test('runtime binds research descendants and captures complete evidence before progress truncation', async () => {
+  const captured = [], bound = [], steering = [], deliveries = []
+  const memory = {
+    bind: (agent, routeId) => bound.push({ agent, routeId }),
+    captureEvent: (session, event) => { captured.push({ session, event }); return ['event-full'] },
+    captureTool: (agent, callId, name, result) => { captured.push({ agent, callId, name, result }); return ['tool-full'] },
+    recordReport: (_id, text) => { captured.push({ report: text }); return ['report-full'] },
+    refs: () => ['event-full', 'tool-full'],
+    recordDelivery: (...args) => deliveries.push(args),
+  }
+  const f = lifecycleFixture({ memory })
+  const route = await f.create()
+  const agent = f.agents.get(route.id)
+  assert.ok(bound.some(value => value.agent === agent && value.routeId === route.id))
+  const child = await f.descendant(route.id)
+  assert.ok(bound.some(value => value.agent === child && value.routeId === route.id))
+  const progress = []
+  route.subscribeProgress(value => progress.push(value))
+  const events = []
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => { agent.status = 'running' }
+  agent.steer = message => steering.push(message)
+  agent.whenIdle = async () => {
+    assert.equal(route.steer('Model feedback stays evidence, never human authorization'), true)
+    const toolResult = { content: [{ type: 'text', text: 'T'.repeat(2500) + 'TOOL_TAIL' }] }
+    f.emit('tools/result', { agent: child, name: 'read', callId: 'call-real' }, toolResult)
+    const message = { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'A'.repeat(2500) + 'ASSISTANT_TAIL' }] } } }
+    events.push(message, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+    f.emit('session/event', agent.session, message)
+    agent.status = 'idle'
+  }
+  const outcome = await route.run([{ type: 'text', text: 'Research' }])
+  assert.ok(captured.some(value => value.result?.content[0].text.endsWith('TOOL_TAIL')))
+  assert.ok(captured.some(value => value.event?.data.message.content[0].text.endsWith('ASSISTANT_TAIL')))
+  assert.ok(progress.every(value => value.text.length <= 2000 && value.evidenceIds.length > 0))
+  assert.ok(progress.some(value => value.evidenceIds.includes('tool-full')))
+  assert.ok(outcome.evidenceIds.includes('report-full'))
+  assert.equal(outcome.text.endsWith('ASSISTANT_TAIL'), true)
+  assert.equal(steering[0].source.kind, 'ultra-steering')
+  assert.equal(deliveries.length, 1)
+  assert.equal(deliveries[0][1], agent.id)
+  assert.equal(deliveries[0][2], 'queued')
+  await route.dispose()
+})
 
 test('route teardown drains native continuations before releasing the route and its research guard', async () => {
   let releaseDrain
@@ -204,7 +304,7 @@ async function fixture(presentation = 'native') {
   const runtime = {}
   vm.runInNewContext(compiled, {
     exports: runtime,
-    require: name => sdk[name.replace('@deepseek-ai/', '')],
+    require: name => name === './memory-host.js' ? { memoryFor: () => undefined } : sdk[name.replace('@deepseek-ai/', '')],
     Map, Set, Error, String, Promise,
   })
   const agents = new Map(), identities = [], questions = []
@@ -299,16 +399,48 @@ async function fixture(presentation = 'native') {
     failCreation() { failCreation = true },
     childOf,
     schemas: agent => ctx.get('tools').schemas(agent).map(schema => schema.name).sort(),
-    async execute(agent, name) {
-      return ctx.get('tools').execute({ agent, name, arguments: {}, signal: new AbortController().signal, callId: sdk['dsh-llm'].ToolCallId(`fixture-${++callNumber}`) })
+    async execute(agent, name, args = {}, signal = new AbortController().signal) {
+      return ctx.get('tools').execute({ agent, name, arguments: args, signal, callId: sdk['dsh-llm'].ToolCallId(`fixture-${++callNumber}`) })
     },
-    async create(id = 'ultra-route-fixture', signal = new AbortController().signal, researchTools = ['read', 'global_read', 'subagent', 'ask_user_question', 'own_mutation', 'missing-tool', 'run_code']) {
-      const route = await runtime.createRoute(parent, { id, label: 'Fixture research', signal, readOnly: true, researchTools }, { toolName: 'ultra_task' })
+    async create(id = 'ultra-route-fixture', signal = new AbortController().signal, researchTools = ['read', 'global_read', 'subagent', 'ask_user_question', 'own_mutation', 'missing-tool', 'run_code'], extra = {}) {
+      const route = await runtime.createRoute(parent, { id, label: 'Fixture research', signal, readOnly: true, researchTools, ...extra }, { toolName: 'ultra_task', reportChars: 2000 })
       return { route, agent: agents.get(id) }
     },
     close: () => ctx.fiber.dispose(),
   }
 }
+
+test('worker-only report tool concludes through the real SDK result and preserves source gaps', { skip: unavailable }, async () => {
+  const f = await fixture()
+  const memory = { access: () => ({ projectId: 'fixture', sessionIds: ['root', 'report-worker'] }), store: { recordsFor: () => [{ id: 'src_real', chunks: [{ id: 'chunk_real' }] }] },
+    bind() {}, refs: () => [], recordReport: () => [], captureTool: () => [], captureEvent: () => [] }
+  const { route, agent } = await f.create('report-worker', new AbortController().signal, ['read'], { memory })
+  try {
+    assert.equal(f.schemas(agent).includes('ultra_submit_report'), false, 'planning/ordinary turns have no generic report terminal')
+    let returned
+    f.setTurn(async current => {
+      assert.equal(f.schemas(current).includes('ultra_submit_report'), true)
+      assert.equal(f.schemas(f.parent).includes('ultra_submit_report'), false)
+      const child = await f.childOf(current, 'report-worker-child', undefined)
+      assert.equal((await f.execute(child, 'ultra_submit_report', { report: 'forged child report' })).isError, true)
+      const invalid = await f.execute(current, 'ultra_submit_report', { report: 'bad citation', evidenceIds: ['src_forged'] })
+      assert.equal(invalid.isError, true)
+      assert.equal(invalid.concludesTurn, undefined)
+      returned = await f.execute(current, 'ultra_submit_report', { report: 'A short public research report.', evidenceIds: ['src_real', 'chunk_real'], unknowns: ['Effect has not been verified.'], conflicts: ['Two sources disagree.'] })
+      assert.equal(returned.isError, false)
+      assert.equal(returned.concludesTurn, true, 'native success marker ends the turn after this result, without another model answer')
+      assert.equal((await f.execute(current, 'read')).isError, true, 'accepted handoff closes further research dispatch')
+    })
+    const outcome = await route.run([{ type: 'text', text: 'Collect existing facts then submit.' }], { reportSubmission: true })
+    assert.equal(outcome.ok, true)
+    assert.equal(outcome.text, 'A short public research report.')
+    assert.deepEqual([...outcome.evidenceIds], ['src_real', 'chunk_real'])
+    assert.deepEqual([...outcome.uncertainties], ['Effect has not been verified.'])
+    assert.deepEqual([...outcome.conflicts], ['Two sources disagree.'])
+    assert.equal(f.schemas(agent).includes('ultra_submit_report'), false, 'terminal tool is released with the worker turn')
+    assert.equal((await f.execute(agent, 'ultra_submit_report', { report: 'after run' })).isError, true)
+  } finally { await route.dispose(); await f.close() }
+})
 
 test('approval bridge reaches the visible root before actual global Remote forwarding and keeps caller audit/policy', { skip: unavailable, timeout: 5000 }, async () => {
   const f = await fixture()

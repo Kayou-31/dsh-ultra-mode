@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/dsh-ultra-mode",
-  "version": "0.4.0-rc.3",
-  "description": "DSH 分层协作：独立子代理协作增强开关，加 Ultra 决策辅助或 2–5 路 Max 并发",
+  "version": "0.5.0-rc.3",
+  "description": "DSH Ultra：手动辅助与2–5路研究、持久证据检索、项目状态及可选本地上下文管理",
   "keywords": [
     "deepseek",
     "deepseek-harness",

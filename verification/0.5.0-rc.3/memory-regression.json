@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "kind": "deterministic-local-mechanism-fixture",
+  "collectedAt": "2026-10-16T07:03:58.382Z",
+  "sourceBase": "ecf056fdc7d7777250cab4b20af6fc1c03372119",
+  "fixtureSources": 164,
+  "recovery": {
+    "expected": 4,
+    "retrieved": 4,
+    "rate": 1,
+    "afterRestart": true
+  },
+  "summaryFixture": {
+    "strategy": "tail of recent progress only; excludes the four known markers",
+    "recoverableMarkers": 0,
+    "originalUltraRun": false
+  },
+  "resultBudget": {
+    "requestedChars": 2048,
+    "actualSerializedChars": 2048
+  },
+  "localLatencyMs": {
+    "indexingAndRecovery": 2721.13,
+    "retrievalPhase": 13.62
+  },
+  "modelComparison": {
+    "status": "not-run",
+    "reason": "This deterministic mechanism script performs no model comparison. Separate authorized real-model observations are reported in model-verification.json; no complete captured historical baseline is available.",
+    "originalUltra": null,
+    "newUltra": null,
+    "taskQuality": null,
+    "constraintOmissions": null,
+    "totalTokens": null,
+    "modelLatency": null,
+    "rework": null
+  }
+}

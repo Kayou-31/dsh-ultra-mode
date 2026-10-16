@@ -1,0 +1,16 @@
+{
+  "kind": "deterministic-local-scale-check",
+  "status": "passed",
+  "modelRequests": 0,
+  "sourceCount": 12,
+  "originalChars": 18000820,
+  "successfulQuotes": 1000,
+  "denied": 20,
+  "rejected": 40,
+  "changedHostSourceRejected": true,
+  "coldStoreReload": true,
+  "elapsedMs": 3374,
+  "rssBytes": 152162304,
+  "directory": "<workspace>\\work\\dsh-ultra-mode\\work\\citation-stress-8ttrsr",
+  "scope": "Local EvidenceStore resolver fixture only; not real host/model quality or process peak memory"
+}

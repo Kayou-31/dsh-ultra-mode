@@ -3,8 +3,23 @@ import { type ContentBlock } from '@deepseek-ai/dsh-llm';
 import { type SessionEvent } from '@deepseek-ai/dsh-session';
 import type { RouteProgress } from './coordination.js';
 import { type CollaborationHostConfig } from './collaboration-host.js';
+import { type MemoryRun } from './memory-host.js';
 export type AgentLike = Agent;
 export type { ContentBlock, SessionEvent };
+declare module '@deepseek-ai/dsh-llm' {
+    interface MessageSourceMap {
+        'ultra-steering': {
+            kind: 'ultra-steering';
+            form: 'feedback';
+            summary: string;
+            runId?: string;
+        };
+        'ultra-route-task': {
+            kind: 'ultra-route-task';
+            summary: string;
+        };
+    }
+}
 /** One settled route turn, with the internal log identity retained for diagnostics. */
 export interface SubagentIdentity {
     sessionId: string;
@@ -17,6 +32,9 @@ export interface RouteOutcome {
     text: string;
     error?: string;
     sessionId: string;
+    evidenceIds?: string[];
+    uncertainties?: string[];
+    conflicts?: string[];
     /** Observed creation identities only; these do not establish completion. */
     subagents?: SubagentIdentity[];
 }
@@ -32,11 +50,20 @@ export interface RouteOptions {
         provider: string;
         model: string;
     };
+    memory?: MemoryRun;
+}
+export interface RouteRunOptions {
+    /** Explicit per-request cap for this turn, including reasoning; 0 inherits. */
+    maxTokens?: number;
+    /** Worker-only public report handoff; never enabled on decision phases. */
+    reportSubmission?: boolean;
+    /** Planning protocol only: no model-visible schemas or executable tools. */
+    planningOnly?: boolean;
 }
 /** A persistent decision loop can plan, then receive evidence in a later turn. */
 export interface RouteHandle {
     id: string;
-    run(prompt: ContentBlock[]): Promise<RouteOutcome>;
+    run(prompt: ContentBlock[], options?: RouteRunOptions): Promise<RouteOutcome>;
     setReadOnly(readOnly: boolean): void;
     subscribeProgress?(listener: (progress: RouteProgress) => void): () => void;
     steer?(instruction: string): boolean;
@@ -53,6 +80,7 @@ export declare function researchToolDenial(agent: Agent | undefined, toolName: s
 /** Create a loop without subagent origin or additional delegation depth. */
 export declare function createRoute(parent: Agent, options: RouteOptions, config: {
     toolName: string;
+    reportChars?: number;
 } & CollaborationHostConfig): Promise<RouteHandle>;
 /** Execute a single route turn and drain its owned loop even after cancellation or failure. */
 export declare function runRoute(parent: Agent, options: RouteOptions & {

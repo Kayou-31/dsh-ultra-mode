@@ -2,6 +2,22 @@
 
 发布文件以 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 为准。此页概述行为变化；按版本记录的测试、失败和验收边界保留在 `docs/verification-*.md`，不以新通过覆盖旧失败。
 
+## 0.5.0-rc.3 — 2026-10-15／16（本地候选，未发布Release）
+
+- 同一Ultra插件整合协作研究、decision协调、辅助、持久证据、按需检索、版本状态、派生主题MD、路线入口和可选原生正文替换；保留关闭／辅助／2～5路手动选择，不依赖另装记忆插件，不默认增加摘要／embedding调用。
+- worker通过ultra_submit_report提交证据ID、未确定项与冲突，宿主校验后原生concludeTurn收尾；四阶段cap默认0继承并保留Max，规划实际tools=[]且执行器拒绝工具。有限预算仍可能耗尽。
+- quote校验连续原文、canonical sourceId、实际resourceId与范围；修复公共origin metadata未参与后部分块关键词匹配、多词摘录退回块首的问题。完整ACL先于匹配，预算和旧索引兼容不变，4项回归红→绿。
+- 当前主套件300项：299通过、0失败、1环境跳过，显式启用真实rc.2 SDK；另19项模型驱动纯测试和66项合成业务断言。最后模型实测构建Max双路严格12/12，28次请求、两报告及一次协调；较早同构建502／TRANSPORT失败保留。
+- 本轮真实总账20个结束尝试、285次原生LLM准入，已知66,162,179 tokens、12次usage未知。约23MB／26轮原9/12保留，检索修复后同根额外1轮12/12，累计27轮及23次prune，取消、冷恢复和返工分别记录。
+- 30K是软目标，大请求确有明显超额；约32%仅为同次装配输入估算下降中位数，不是账单节省。不完整原版A/B保留网络与格式失败，不能证明最终构建优势。Electron UI和完整桌面权限组合未验收。
+- 本机宿主安装commit与公开tag、模型实测包与文档更新包分别核对；未安装日常环境。配置、迁移、回滚及历史失败见[当前验收](docs/evidence-verification.md)与[公开档案](verification/0.5.0-rc.3/README.md)，仓库提交不等于Release。
+
+## 0.5.0-rc.2 — 2026-10-15（本地候选，未发布）
+
+- 将持久证据、只读按需检索、项目状态、路线入口包和可选原生历史替换接入同一个 Ultra 插件，保留关闭／辅助／2～5 路手动选择。
+- 根据独立 rc.2 profile 验收补齐：子会话遗漏事件的增量审计、失败重试与冷恢复；压缩期间的动态宿主所有权检查与取消信号；提交后持久化失败时的原文上下文补偿与诚实状态。
+- 验证层级、脚本响应与真实模型的区别、迁移及回滚见 [证据验收记录](docs/evidence-verification.md)。该历史候选未发布、未安装到日常环境。
+
 ## 0.4.0-rc.3 — 2026-10-12（已发布预发布版）
 
 [预发布 Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.3) · [安装包 TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/dsh-ultra-mode-0.4.0-rc.3.tgz) · [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.4.0-rc.3/SHA256SUMS-0.4.0-rc.3.txt)。
@@ -58,3 +74,11 @@
 ## 0.2.0 — 预发布
 
 针对 DSH 0.2.0-rc.2 重写独立路线运行时，支持 3／4／5 路、普通原生子代理、审批与最终统一实施。见 [验证](docs/verification-0.2.0.md) 与 [真实模型记录](docs/real-model-0.2.0.md)。
+# 0.5.0-rc.1（本地开发候选，未发布）
+
+- 统一 Ultra 证据来源／分块／校验、宿主预保留捕获与原文独立检索，项目／根会话执行器权限隔离。
+- 来源保留的语义分类、替代／冲突、状态版本及派生主题 MD；路线报告携带原文引用。
+- 新路线入口装配，保留精确用户要求；可选 rc.2 原生无模型工具结果 pruning、durability checkpoint 与冷重放验证。
+- 实际请求观察、provider usage／未知／估算区分、在途预算、连续协调失败退出和菜单可见性。
+- 保留旧模式、权限及默认付费调用策略；修复失败路线后 fallback 报告编号。
+- 中文配置、迁移／回滚与分层验证说明。真实模型 A/B、完整 Loader／桌面 UI 验收未运行。

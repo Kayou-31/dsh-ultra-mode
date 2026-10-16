@@ -18,6 +18,7 @@ vm.runInNewContext(compiled, {
     if (name === 'node:crypto') return { randomUUID }
     if (name === '@deepseek-ai/dsh-llm') return { createUserMessage }
     if (name === './coordination.js') return { parseCoordinationDecision }
+    if (name === './memory-host.js') return { beginMemoryRun: async () => undefined }
     throw new Error('Unexpected assist test import: ' + name)
   },
   AbortSignal, AbortController, setTimeout, clearTimeout,
@@ -30,7 +31,7 @@ const config = { toolName: 'ultra_task', timeoutMs: 5000, reportChars: 20000, re
   jevEnabled: false, coordinationIntervalMs: 100, coordinationMaxRounds: -1 }
 const answer = (parentId, instruction) => JSON.stringify({ assessment: 'Observed useful next step', directives: instruction ? [{ routeId: parentId, instruction }] : [] })
 
-function harness({ respond, create, timeoutMs, maxRounds, onFeedback } = {}) {
+function harness({ respond, create, timeoutMs, maxRounds, onFeedback, failureLimit, coordinationMaxTokens } = {}) {
   const listeners = new Map()
   const controller = new AbortController()
   const events = [{ type: 'turn/start', data: { turn: 7 } }]
@@ -69,11 +70,11 @@ function harness({ respond, create, timeoutMs, maxRounds, onFeedback } = {}) {
     assert.equal(owner, parent)
     record.created.push(inputs)
     const handle = { id: inputs.id,
-      async run(prompt) {
+      async run(prompt, requestOptions) {
         assert.equal(record.running, 0, 'the sole decision must stay serial')
         record.running++; record.peak = Math.max(record.peak, record.running)
         const round = record.calls.push(prompt)
-        try { return { ok: true, sessionId: inputs.id, text: await (respond?.({ round, prompt, inputs }) ?? answer(parent.id)) } }
+        try { return { ok: true, sessionId: inputs.id, text: await (respond?.({ round, prompt, inputs, requestOptions }) ?? answer(parent.id)) } }
         finally { record.running-- }
       },
       setReadOnly() { assert.fail('assist must never gain final write permissions') },
@@ -94,7 +95,7 @@ function harness({ respond, create, timeoutMs, maxRounds, onFeedback } = {}) {
     }
     return claimed
   }
-  const start = () => startDecisionAssist({ ...config, ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(maxRounds === undefined ? {} : { coordinationMaxRounds: maxRounds }) }, options, factory)
+  const start = () => startDecisionAssist({ ...config, coordinationMaxTokens, ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(maxRounds === undefined ? {} : { coordinationMaxRounds: maxRounds }), ...(failureLimit === undefined ? {} : { coordinationFailureLimit: failureLimit }) }, options, factory)
   const untilCalls = async count => {
     for (let i = 0; record.calls.length < count && i < 150; i++) await delay(10)
     assert.ok(record.calls.length >= count, `expected ${count} decision calls`)
@@ -102,6 +103,16 @@ function harness({ respond, create, timeoutMs, maxRounds, onFeedback } = {}) {
   const listenerCount = () => [...listeners.values()].reduce((count, set) => count + set.size, 0)
   return { parent, original, record, options, controller, factory, start, progress, finish, emit, untilCalls, listenerCount, claimNextStep }
 }
+
+test('assist review and its existing format correction share the explicit coordination cap', async () => {
+  const requests = []
+  const h = harness({ coordinationMaxTokens: 18000, respond: ({ round, requestOptions }) => { requests.push(requestOptions); return round === 1 ? 'bad format' : answer('main') } })
+  const sidecar = await h.start()
+  await h.untilCalls(2)
+  h.finish(); await sidecar.done
+  assert.deepEqual(requests.map(request => request?.maxTokens), [18000, 18000])
+  assert.ok(requests.every(request => request?.planningOnly !== true))
+})
 
 test('normal parent proceeds while one read-only decision is held, then receives non-human next-step feedback', async () => {
   const response = deferred()
@@ -337,9 +348,11 @@ test('finite decision run budget includes correction and cap zero or one never r
 
 test('completion during slow creation releases the eventual handle and rejects startup safely', async () => {
   const creation = deferred()
-  const h = harness({ create: ({ handle }) => creation.promise.then(() => handle) })
+  const creationEntered = deferred()
+  const h = harness({ create: ({ handle }) => { creationEntered.resolve(); return creation.promise.then(() => handle) } })
   const pending = h.start()
   const rejected = assert.rejects(pending, error => error.name === 'AbortError')
+  await creationEntered.promise // End the parent only after slow creation is admitted.
   assert.equal(h.record.created.length, 1)
   h.finish(); creation.resolve()
   await rejected
@@ -470,4 +483,33 @@ test('normal turn end wins over a deadline while the decision is still draining'
   assert.equal(outcome.error, null)
   assert.equal(h.record.steering.length, 0)
   assert.equal(h.record.disposed.length, 1)
+})
+
+test('consecutive assist failures stop only the sidecar and a successful review resets the limit', async () => {
+  const h = harness({ failureLimit: 2, respond: ({ round }) => { if (round !== 2) throw new Error('provider failed'); return answer('main') } })
+  const sidecar = await h.start()
+  for (let round = 1; round <= 4; round++) {
+    await h.untilCalls(round)
+    await delay(0)
+    if (round < 4) h.progress(`Fresh evidence ${round}`)
+  }
+  await delay(0)
+  assert.equal(h.record.disposed.length, 1, 'two failures after the successful reset stop the sidecar')
+  const result = await sidecar.done
+  assert.equal(result.reason, 'failed')
+  assert.match(result.warnings.at(-1), /连续.*2/)
+  assert.equal(h.record.parentCancels, 0)
+  assert.equal(h.parent.status, 'running')
+})
+
+test('zero failure limit allows later fresh assist evidence to recover', async () => {
+  const h = harness({ failureLimit: 0, respond: ({ round }) => { if (round < 4) throw new Error('provider failed'); return answer('main') } })
+  const sidecar = await h.start()
+  for (let round = 1; round <= 4; round++) {
+    await h.untilCalls(round); await delay(0)
+    if (round < 4) h.progress(`Fresh evidence ${round}`)
+  }
+  assert.equal(h.record.disposed.length, 0)
+  h.finish()
+  assert.equal((await sidecar.done).reason, 'turn-ended')
 })

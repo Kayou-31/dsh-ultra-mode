@@ -1,0 +1,27 @@
+✔ only drift long-repair enables final recovery and overrides the general sixty-request budget (2.4999ms)
+✔ final recovery gets final quote and drift obligations without the progress-only instruction or answer hints (1.0086ms)
+✔ ordinary repair remains progress-only and existing final prompts keep their original final obligations (0.3185ms)
+✔ recovery requires both original large archival quotes, independent vendor receipts and no early value exposure (1.9577ms)
+✔ failed-turn preservation exports only sequence and public failure classification (0.5096ms)
+✔ partial receipt keeps the failed source separate and resumes only nine unfinished loads (167.435ms)
+✔ partial receipt rejects mismatched manifests, noncontiguous reads, wrong route and unfinished tool side effects (1333.8454ms)
+✔ continuation CLI is explicit, pacing opt-in, and concurrency only one or two (2.184ms)
+✔ native full-read receipts require matching original tool call, complete bytes and canonical SHA (7.7101ms)
+✔ request pacer spaces starts and skips cancelled waiters without reserving a free slot (31.2716ms)
+✔ readback recovery is one final repair without claiming a transport failure or supplying answers (4.4972ms)
+✔ readback recovery requires a failed public grade and its completed same native final turn (6.7238ms)
+✔ interrupted all-zero local usage is unknown, completed or positive provider usage remains measured (4.8909ms)
+✔ one-turn repair asks for strict original citations without disclosing expected facts (0.4934ms)
+✔ the existing exact quality judge still rejects reformatted citations and trailing prose (2.938ms)
+✔ all existing variant generator bytes remain exactly unchanged (5.1533ms)
+✔ diverse fixture is deterministic, natural ASCII, unique per load and safe for cold resume (676.488ms)
+✔ only exact diverse variant expands the load IDs and only long executes the 20 extra rounds (2.1418ms)
+✔ preflight rejects target leakage, duplicate documents and wrong manifest hashes (102.4777ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2333.6859

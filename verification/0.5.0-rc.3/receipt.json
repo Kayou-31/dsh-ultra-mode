@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "version": "0.5.0-rc.3",
+  "sourceBase": "ecf056fdc7d7777250cab4b20af6fc1c03372119",
+  "package": {
+    "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
+    "sha256": "ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410",
+    "filesCheckedAgainstSource": 203,
+    "compressedBytes": 622110,
+    "unpackedBytes": 2232552
+  },
+  "documentationOnlyRepack": {
+    "schema": 1,
+    "generatedAt": "2026-10-16T07:56:58.387Z",
+    "version": "0.5.0-rc.3",
+    "finalPackage": {
+      "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz",
+      "sha256": "ed912f4b03ef9ebd51bb51379c4c0a72eb8e3ea3a3d2fa46b3c784e80f6f2410"
+    },
+    "modelTestedPackage": {
+      "filename": "dsh-external-dsh-ultra-mode-0.5.0-rc.3-model-tested.tgz",
+      "sha256": "291b000ae83863e2ae6cbadb2711665ec996453463d80b9335553217ffe8f5cc"
+    },
+    "changes": [
+      "README.md",
+      "docs/architecture.md",
+      "docs/evidence-context.md",
+      "docs/evidence-verification.md"
+    ],
+    "onlyDocumentationChanged": true,
+    "runtimeFilesVerified": 44,
+    "allRuntimeBytesIdentical": true,
+    "additionalModelCalls": 0,
+    "finalExactPackageOfflineLoader": {
+      "passed": true,
+      "modes": [
+        "core",
+        "resume",
+        "disabled"
+      ]
+    },
+    "interpretation": "Real model results retain their original package hash. The delivered package changes documentation only; all 44 runtime files are byte-identical. Its exact bytes were rerun through the isolated offline native Loader. No claim of additional model testing on the new archive hash."
+  },
+  "modelSummary": {
+    "completedAttempts": 20,
+    "pendingExcluded": 0,
+    "unreadableAttempts": 0,
+    "stagePassed": 11,
+    "stageFailed": 8,
+    "testDesignStopped": 1,
+    "fullFixtureTasksVerified": 4,
+    "requests": 285,
+    "knownUsageRequests": 273,
+    "unknownUsageRequests": 12,
+    "incompleteAllZeroUnknownRequests": 11,
+    "knownReportedTotalTokens": 66162179,
+    "totalReportedRequests": 273,
+    "componentSums": {
+      "inputTokens": 25854653,
+      "outputTokens": 519366,
+      "totalTokens": 66162179,
+      "cacheReadTokens": 39788160,
+      "cacheWriteTokens": 0,
+      "reasoningTokens": 0
+    },
+    "componentReportingCounts": {
+      "inputTokens": 273,
+      "outputTokens": 273,
+      "totalTokens": 273,
+      "cacheReadTokens": 251,
+      "cacheWriteTokens": 0,
+      "reasoningTokens": 0
+    },
+    "frozenTwelveCheckPasses": 5,
+    "coreDriftFinalStagesVerifiedByChecks": 1,
+    "supplementalVendorProtocolFailedStages": 1,
+    "driverElapsedMs": 6224468,
+    "launchElapsedMs": 6332124,
+    "gatePeak": 2,
+    "requestIntervalPeak": 2,
+    "requestsWithoutEndTimestamp": 1,
+    "requestIntervalPeakMeaning": "Lower bound from fully bounded admitted intervals only; interrupted missing terminal timestamps are disclosed. Gate peak is the separate observed concurrency record.",
+    "maximumTwoObserved": true,
+    "admissionsMatchAllRequestRecords": true,
+    "observerSnapshotsMatchAllAdmissions": false,
+    "gateIdleAtEndAllCompletedCases": false,
+    "launchesDoNotOverlap": false,
+    "overlaps": [
+      {
+        "first": "rc3-extreme-paired-a-baseline-long-1792133646178",
+        "second": "rc3-extreme-paired-a-long-1792133646201",
+        "overlapMs": 305559
+      },
+      {
+        "first": "rc3-extreme-paired-a-resume-1792134481521",
+        "second": "rc3-drift-diverse-long-repair-1792134634434",
+        "overlapMs": 138369
+      }
+    ],
+    "acceptedWorkerReports": 7,
+    "uniqueNativePrunesAcrossSessionSnapshots": 55,
+    "casesWithNativePruneSnapshots": 16,
+    "observedSurfaceChangeSamples": 43,
+    "requestsWithEstimatedBudget": 152,
+    "estimatedBudgetExceededRequests": 148,
+    "zeroExecuteAttemptsAllCompletedCases": true,
+    "cleanupErrorCount": 0
+  },
+  "isolation": {
+    "generatedAt": "2026-10-16T07:36:00.236Z",
+    "dailyConfigFilesUnchanged": 4,
+    "dailyInstalled": false,
+    "dailyProcessesStopped": false,
+    "privateCopiesRemoved": true,
+    "secretScan": {
+      "files": 602,
+      "found": 0
+    },
+    "nativePrivateLogsExported": false,
+    "onlineSequential": false,
+    "maxObservedConcurrentStreams": 2
+  },
+  "redaction": {
+    "personalLocalPaths": "placeholders",
+    "syntheticSessionIds": "stable sha256 aliases",
+    "sourceEvidenceIds": "preserved",
+    "privateLogsExported": false,
+    "completeRequestsExported": false
+  },
+  "scope": "Public redacted receipts only. Native private logs, credentials, and private reasoning are excluded. Package provenance is independent of this GitHub-only report directory.",
+  "files": [
+    {
+      "path": "rc3-model-report.md",
+      "sha256": "6ed7e55d0ed933b53546750e8402c2640c8dd46b34708e25867807edf9739170"
+    },
+    {
+      "path": "paired-comparison-report.md",
+      "sha256": "14a87d00dfa37617f6153cb5739f87d3917b9e6b133b49f88aa5161aa73d9b5a"
+    },
+    {
+      "path": "paired-comparison-report.json",
+      "sha256": "3841787f57dfabf162cb397222b7f092337a1e43bbe0fdb4eb43d7c798c90b4e"
+    },
+    {
+      "path": "host-profile-verification.json",
+      "sha256": "57e40b3198cd797d52d1c9eb5984eddbb2d292a444ffaf278ba22ab8048146b0"
+    },
+    {
+      "path": "compression-overview.json",
+      "sha256": "115c0ea887d732da06296112d14ca71e0d7a4f9dba77966f71d921307f7480d5"
+    },
+    {
+      "path": "isolation-verification.json",
+      "sha256": "55213e8e0bf69520116b035b9abba253d09ec61139a89f235aeb73d8a6fe92fd"
+    },
+    {
+      "path": "test-results.log",
+      "sha256": "79d516330e34ee81a2c67ff591c01f095f6121202acfeaee0a9e6c34bee4882d"
+    },
+    {
+      "path": "model-driver-tests.log",
+      "sha256": "f108d9dedd77997492791a5d8ab0d01af7de6bee78e625a5447d4a9525763c9b"
+    },
+    {
+      "path": "benchmarks.log",
+      "sha256": "f51b476512011c05bcd325702a118111371d6c5dc4b4d1c70e1f158ac5ba4ac0"
+    },
+    {
+      "path": "citation-stress.json",
+      "sha256": "fb5ebc42db10093197f7cde1863000e6419b9e7ece7935ead41ce9a262535cdd"
+    },
+    {
+      "path": "memory-regression.json",
+      "sha256": "8505f842743c7d7eaaa5884378efe4aefce05f2b9b13105fcd8a50a16aaf8d16"
+    },
+    {
+      "path": "final-package-verification.json",
+      "sha256": "0302c0eee6948c9ed6ad72ae63c71d75433b94665036fca95812cf004eb7fe2a"
+    }
+  ]
+}

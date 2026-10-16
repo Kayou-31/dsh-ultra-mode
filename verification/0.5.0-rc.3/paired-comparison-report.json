@@ -1,0 +1,1306 @@
+{
+  "format": "ultra-paired-public-comparison-v1",
+  "generatedAt": "2026-10-16T07:35:54.321Z",
+  "pairId": "extreme-paired-a-review-1",
+  "status": "ended-with-failed-or-unverified-conditions",
+  "coordinator": {
+    "startedAt": "2026-10-16T06:54:06.023Z",
+    "finishedAt": "2026-10-16T07:13:18.395Z",
+    "status": "failed",
+    "error": "A paired arm failed; both outcomes were preserved without retries: Paired stage failed; preserve it without retry\n\n1 !== 0\n; Paired stage failed; preserve it without retry\n\n1 !== 0\n\n\n2 !== 0\n",
+    "cleanup": [
+      {
+        "arm": "baseline",
+        "existed": true,
+        "removed": true
+      },
+      {
+        "arm": "candidate",
+        "existed": true,
+        "removed": true
+      }
+    ]
+  },
+  "plan": {
+    "variant": "extreme-paired-a",
+    "provider": "naizhi",
+    "model": "deepseek-v4.1-flash",
+    "rounds": {
+      "beforeRestart": 7,
+      "afterRestart": 3,
+      "total": 10,
+      "stressCycles": 4,
+      "cancelledTurns": 0
+    },
+    "publicJudgeCount": 12,
+    "requireVerifiedCitations": false,
+    "extraRepairTurns": 0,
+    "maximumCombinedLocalStreams": 2,
+    "featureConditions": "Frozen 0.4.0-rc.3 package with native automatic compaction versus 0.5.0-rc.3 with local 30k Ultra compression. This compares these declared product configurations; it does not isolate one algorithm or enforce equal prune counts.",
+    "sharedPublicTask": "The same generated fixture bytes, ten user prompts, main/Max output caps, public twelve-check judge and fresh independent project state. Seven completed rounds, process exit, cold resume of the exact same root, then three rounds. No forced cancellation or automatic repair.",
+    "fixtureId": "ultra-real-naizhi-2026-10-15-B-extreme-paired-a",
+    "generatedFixtureSourceSha256": "922315ea9a3a114edca9541620edcc289dde73e38d173c757ad84faf29702f7d",
+    "plannedPromptBundleSha256": "646b79965f941c22e465816a777246461742ddb46a330f47d4f80fa5c51556d0",
+    "frozenJudgeSha256": "df1e638bd7279668fe5878da6e688b91912cfbe9bc905532549765e65988bd0a",
+    "frozenJudgeSourceUnchanged": true,
+    "baselineProvenance": {
+      "commit": "ecf056fdc7d7777250cab4b20af6fc1c03372119",
+      "sourceFilesCompared": 15,
+      "allSourceFilesMatchHead": true,
+      "compiledFilesCompared": 29,
+      "allCompiledFilesMatchFreshHeadBuild": true
+    }
+  },
+  "sameInputChecks": {
+    "actualTenPromptHashesMatch": false,
+    "attemptGeneratedFixtureSnapshotsMatchPlan": true,
+    "actualTenUserPromptSequenceSha256": null,
+    "independentNativeRootsObserved": true,
+    "actualFixtureManifestBytesMatchReportedByCoordinator": null,
+    "actualPromptMatchReportedByCoordinator": null,
+    "actualFixtureManifestByteSha256": null,
+    "sameInputsVerified": false,
+    "meaning": "Actual per-turn prompt SHA arrays are compared independently. Actual manifest byte equality is a public coordinator receipt; no absent manifest byte hash is invented."
+  },
+  "sharedCompletedPromptPrefix": {
+    "completedTurnsWithIdenticalPromptHashes": 3,
+    "promptHashes": [
+      "640477c350aa9bbb1b954f4c6953aa3ecb2a0643b714618007e7f27d7dcb78df",
+      "2c0a51e3d2645c65a25261154257bc5973957c46ed4cb65af7c46cc08b27b023",
+      "4d9c5c33f3b78f56f3081a888fe9e3fa87f2f5eaa8093560668c200a85495ffa"
+    ],
+    "completedTurnsByArm": {
+      "baseline": 3,
+      "candidate": 10
+    },
+    "prefixTokenComparison": null,
+    "prefixWallClockComparison": null,
+    "exactRequestToPublicTurnBoundaryAvailable": false,
+    "meaning": "Identical completed prompt SHA prefix only. Without exact request-to-turn attribution, no comparable prefix token or latency ledger is inferred."
+  },
+  "applicability": {
+    "testedFrozenPackageSha256ByArm": {
+      "baseline": "7cac5d9ad2bb6c5e0256724f03fe021f035b2c1fbfaeecdd35f97764bf74c2a1",
+      "candidate": "788d17409e227cc88b4d99096f27223c7b7f9fe20c44c3fdda991d01025bba18"
+    },
+    "baselineProvenanceVerified": true,
+    "appliesToLaterFixedPackages": false,
+    "meaning": "Observations apply only to the planned frozen archives verified against each launch. A later retrieval fix or new package hash requires separate verification."
+  },
+  "concurrency": {
+    "combinedPeakFromFullyBoundedNativeRequestIntervals": 2,
+    "configuredMaximum": 2,
+    "bothArmsRespectOwnGateObserved": true,
+    "requestsMissingTerminalTime": 0,
+    "intervalPeakIsLowerBound": true,
+    "upstreamSlotReleaseInferred": false,
+    "meaning": "Two independent one-stream local gates. Fully bounded interval overlap is an observation, not proof of upstream slot occupancy or release."
+  },
+  "arms": [
+    {
+      "arm": "baseline",
+      "status": "failed-preserved",
+      "observedComplete": false,
+      "accepted": false,
+      "plannedPackage": {
+        "name": "@dsh-external/dsh-ultra-mode",
+        "version": "0.4.0-rc.3",
+        "sha256": "7cac5d9ad2bb6c5e0256724f03fe021f035b2c1fbfaeecdd35f97764bf74c2a1"
+      },
+      "plannedRounds": {
+        "beforeRestart": 7,
+        "afterRestart": 3,
+        "total": 10,
+        "stressCycles": 4,
+        "cancelledTurns": 0
+      },
+      "actualCompletedPublicTurns": 3,
+      "sameRootColdResume": {
+        "sameSession": false,
+        "differentProcesses": false,
+        "reportedByHost": false,
+        "nativeCumulativeCountsMatch": false,
+        "nativeSessionIds": [
+          "test-session-6556293a95f02e1f"
+        ]
+      },
+      "stages": [
+        {
+          "id": "rc3-extreme-paired-a-baseline-long-1792133646178",
+          "mode": "baseline-long",
+          "startedAt": "2026-10-16T06:54:06.451Z",
+          "finishedAt": "2026-10-16T06:59:12.076Z",
+          "status": "failed-launch",
+          "rawStatus": "failed",
+          "completedPublicTurnsThisProcess": 3,
+          "nativeCompletedTurnsSnapshot": 3,
+          "publicTurnFailures": [
+            {
+              "kind": "error",
+              "errorCode": "TRANSPORT",
+              "transportFailureObserved": true
+            }
+          ],
+          "requests": 11,
+          "failedChecks": [
+            "native model turn completed 4"
+          ],
+          "failure": {
+            "name": "AssertionError",
+            "message": "native model turn completed 4"
+          },
+          "publicSourceFiles": [
+            {
+              "name": "launch.json",
+              "sha256": "73d0fcb6f7274ff7141f62adbb29a2605cc90156851e11775dae443b35a4b203"
+            },
+            {
+              "name": "result.json",
+              "sha256": "c4caffbba07529721050945bcca7799e4f28bb13a8f74aac1bfaf945c465b94e"
+            },
+            {
+              "name": "model-requests.jsonl",
+              "sha256": "32aba416dbceb91c2de4c57adf2043d21166e0baf62f031f30672bffd6d1331d"
+            }
+          ],
+          "readIssue": null
+        }
+      ],
+      "usage": {
+        "requests": 11,
+        "knownUsageRequests": 10,
+        "unknownUsageRequests": 1,
+        "incompleteAllZeroUnknownRequests": 1,
+        "knownReportedTotalTokens": 3515407,
+        "componentSums": {
+          "inputTokens": 1079312,
+          "outputTokens": 8575,
+          "totalTokens": 3515407,
+          "cacheReadTokens": 2427520,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 0
+        },
+        "componentReportingCounts": {
+          "inputTokens": 10,
+          "outputTokens": 10,
+          "totalTokens": 10,
+          "cacheReadTokens": 9,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 0
+        },
+        "duplicateGateRecords": [],
+        "groupsByRoleSessionEffortCap": [
+          {
+            "role": "main",
+            "basis": "same native root session; no more specific purpose supplied",
+            "sessionId": "test-session-6556293a95f02e1f",
+            "purpose": "conversation",
+            "effort": "medium",
+            "cap": 16384,
+            "requests": 8,
+            "knownUsageRequests": 7,
+            "unknownUsageRequests": 1,
+            "knownReportedTotalTokens": 2699073
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-bd0d57e1a333feeb",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 2779
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-338a20804f127c13",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 273499
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-f0cadd87fa769efb",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 540056
+          }
+        ],
+        "knownObserverPacingWaitMs": 320362,
+        "accounting": "Unique canonical gate request IDs. Missing/all-zero incomplete usage stays unknown. Cache and reasoning are separate components, never added again to totalTokens; root usage[] is not summed."
+      },
+      "quality": null,
+      "constraints": {
+        "selectedFrozenChecks": null,
+        "detectedOmissions": null,
+        "actualConstraintMisses": null,
+        "assessmentStatus": "unassessed-no-final-grade",
+        "strictGradeValuePresent": null,
+        "structuredJsonCheckPassed": null,
+        "semanticConstraintAssessmentAvailable": false,
+        "unassessedSelectedChecks": [
+          "literal human label",
+          "conflict remains unresolved",
+          "execution is distinct from verification",
+          "latest footer retained"
+        ],
+        "executionAttempts": 0,
+        "interpretation": "Strict frozen score and check booleans are preserved. Without a parsed grade.value and a passing structured-JSON check, actual semantic constraint omissions remain unassessed; false checks caused by parse failure are not evidence of lost constraints. No supplementary scoring or model calls."
+      },
+      "finalOriginalSourceReadback": {
+        "verifiedBoth": false,
+        "recordedCheckPassed": null,
+        "details": null,
+        "interpretation": "Host-observed targeted final reads or canonical memory gets, not merely final answer mentions."
+      },
+      "inputProof": {
+        "packageMatchesPlanAndArchive": true,
+        "fixtureSourceSnapshotsMatchPlan": true,
+        "driverSnapshotsMatchPlan": true,
+        "observedMainEffortAndCapMatchPlan": true,
+        "observedReadSourceHashChecks": [
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "brief",
+            "sha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "expectedSha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "payload-alpha",
+            "sha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "expectedSha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "payload-beta",
+            "sha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "expectedSha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "round-3",
+            "sha256": "3ae83ca505b3a067b3458691a045ea9413e34c85a1614b058dcda121109b0935",
+            "expectedSha256": "3ae83ca505b3a067b3458691a045ea9413e34c85a1614b058dcda121109b0935",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "state",
+            "sha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "expectedSha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "vendor-a",
+            "sha256": "01a6341b7343071dec91819e57604f67d021945af66ce6ac0434521665bd0520",
+            "expectedSha256": "01a6341b7343071dec91819e57604f67d021945af66ce6ac0434521665bd0520",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "id": "vendor-b",
+            "sha256": "170a2d517b3892f7c5ce75cd0b962c1de08c61450375ae64d44018c338cab97a",
+            "expectedSha256": "170a2d517b3892f7c5ce75cd0b962c1de08c61450375ae64d44018c338cab97a",
+            "matches": true
+          }
+        ],
+        "actualUserPromptHashes": [
+          "640477c350aa9bbb1b954f4c6953aa3ecb2a0643b714618007e7f27d7dcb78df",
+          "2c0a51e3d2645c65a25261154257bc5973957c46ed4cb65af7c46cc08b27b023",
+          "4d9c5c33f3b78f56f3081a888fe9e3fa87f2f5eaa8093560668c200a85495ffa",
+          "4e08cb7a1b6d2ea879b1613285890894ed7e727f8b3be65a02f5d1c1f601e1af"
+        ],
+        "actualUserPromptSequenceSha256": null,
+        "completedPublicTurnPromptHashes": [
+          "640477c350aa9bbb1b954f4c6953aa3ecb2a0643b714618007e7f27d7dcb78df",
+          "2c0a51e3d2645c65a25261154257bc5973957c46ed4cb65af7c46cc08b27b023",
+          "4d9c5c33f3b78f56f3081a888fe9e3fa87f2f5eaa8093560668c200a85495ffa"
+        ],
+        "tenActualPromptHashesPresent": false
+      },
+      "wallClock": {
+        "completedPhaseElapsedMs": 305625,
+        "completedPhaseDriverElapsedMs": 303353,
+        "firstFinishedStageStart": "2026-10-16T06:54:06.451Z",
+        "lastFinishedStageEnd": "2026-10-16T06:59:12.076Z",
+        "elapsedAcrossFinishedStagesMs": 305625,
+        "meaning": "Includes configured thirty-second local pacing waits, provider time and process overhead; span also includes restart gaps. Not pure algorithm latency."
+      },
+      "nativePruning": {
+        "snapshotsAvailable": 1,
+        "uniqueNativePrunes": 0,
+        "deduplicatedBySessionAndSequence": []
+      },
+      "featureConfiguration": {
+        "compaction": {
+          "owner": "native compaction-basic",
+          "auto": true,
+          "thresholdRatio": 0.8,
+          "headroomTokens": 65536,
+          "retainRatio": 0.16
+        },
+        "mainEffort": "medium",
+        "mainMaxTokens": 16384,
+        "assistEffort": "max",
+        "assistMaxTokens": 16384,
+        "minimumLocalRequestIntervalMs": 30000,
+        "localGateConcurrency": 1
+      },
+      "gate": {
+        "observedPeak": 1,
+        "configuredSingleStreamObserved": true,
+        "perStagePacing": [
+          {
+            "id": "rc3-extreme-paired-a-baseline-long-1792133646178",
+            "declaredMinimumIntervalMs": 30000,
+            "reportedAllLocalStartsSpaced": true,
+            "minimumObservedLocalStartIntervalMs": 30002,
+            "knownObserverWaitMs": 320362,
+            "providerRpmInferred": false,
+            "upstreamSlotReleaseInferred": false,
+            "interpretation": "Local native stream start pacing and configured concurrency only. A local cancellation/error does not establish upstream occupancy or slot release; thirty seconds is conservative spacing, not a provider RPM claim."
+          }
+        ],
+        "upstreamSlotReleaseInferred": false
+      },
+      "noAutomaticRerun": {
+        "plannedExtraRepairTurns": 0,
+        "duplicateStageModes": [],
+        "unexpectedModes": [],
+        "extraAttemptsObserved": false,
+        "claim": "No retry is inferred only from the immutable observed stage inventory; failures remain listed."
+      },
+      "observedProviderFailures": [
+        {
+          "attemptId": "rc3-extreme-paired-a-baseline-long-1792133646178",
+          "sequence": 11,
+          "sessionId": "test-session-6556293a95f02e1f",
+          "finish": "error",
+          "code": "TRANSPORT",
+          "usageStatus": "unknown",
+          "unknownReason": "incomplete-all-zero-usage"
+        }
+      ],
+      "capabilityAssessment": {
+        "finalFrozenJudgeAvailable": false,
+        "networkOrTransportFailuresObserved": true,
+        "inference": "No final frozen capability score is available; incomplete transport-terminated tasks do not establish model capability differences."
+      },
+      "cleanupErrorCount": 0
+    },
+    {
+      "arm": "candidate",
+      "status": "failed-preserved",
+      "observedComplete": true,
+      "accepted": false,
+      "plannedPackage": {
+        "name": "@dsh-external/dsh-ultra-mode",
+        "version": "0.5.0-rc.3",
+        "sha256": "788d17409e227cc88b4d99096f27223c7b7f9fe20c44c3fdda991d01025bba18"
+      },
+      "plannedRounds": {
+        "beforeRestart": 7,
+        "afterRestart": 3,
+        "total": 10,
+        "stressCycles": 4,
+        "cancelledTurns": 0
+      },
+      "actualCompletedPublicTurns": 10,
+      "sameRootColdResume": {
+        "sameSession": true,
+        "differentProcesses": true,
+        "reportedByHost": true,
+        "nativeCumulativeCountsMatch": true,
+        "nativeSessionIds": [
+          "test-session-3cc470a01b3953a4"
+        ]
+      },
+      "stages": [
+        {
+          "id": "rc3-extreme-paired-a-long-1792133646201",
+          "mode": "long",
+          "startedAt": "2026-10-16T06:54:06.517Z",
+          "finishedAt": "2026-10-16T07:08:01.331Z",
+          "status": "passed",
+          "rawStatus": "passed",
+          "completedPublicTurnsThisProcess": 7,
+          "nativeCompletedTurnsSnapshot": 7,
+          "publicTurnFailures": [],
+          "requests": 24,
+          "failedChecks": [],
+          "failure": null,
+          "publicSourceFiles": [
+            {
+              "name": "launch.json",
+              "sha256": "6927ab379b0ddb4ad1dece03cf5472b93d2873b37a525f0f36e69845a01f8e7d"
+            },
+            {
+              "name": "result.json",
+              "sha256": "c1271f8d8dc82febbcbb8c5338ec0a1289d82fabba1bdfbd6afe4aa91ddf0c55"
+            },
+            {
+              "name": "model-requests.jsonl",
+              "sha256": "01fdb28b5d998ccdafdaa46bd76d634412e3406095481c95898b6dd1fb206a3d"
+            }
+          ],
+          "readIssue": null
+        },
+        {
+          "id": "rc3-extreme-paired-a-resume-1792134481521",
+          "mode": "resume",
+          "startedAt": "2026-10-16T07:08:01.840Z",
+          "finishedAt": "2026-10-16T07:13:18.361Z",
+          "status": "failed-launch",
+          "rawStatus": "failed",
+          "completedPublicTurnsThisProcess": 3,
+          "nativeCompletedTurnsSnapshot": 10,
+          "publicTurnFailures": [],
+          "requests": 11,
+          "failedChecks": [
+            "final structured JSON",
+            "literal human label",
+            "tail batch exact",
+            "tail checksum exact",
+            "both conflicting values preserved",
+            "conflict remains unresolved",
+            "conflict left exact source quote",
+            "conflict right exact source quote",
+            "execution is distinct from verification",
+            "latest footer retained",
+            "valid public source quotations",
+            "tail values have exact source quotations",
+            "cold resumed real model quality checks passed"
+          ],
+          "failure": {
+            "name": "AssertionError",
+            "message": "cold resumed real model quality checks passed"
+          },
+          "publicSourceFiles": [
+            {
+              "name": "launch.json",
+              "sha256": "ea2a46a63cb46ff11459d1c418e76044afe7e8c3c80f384b9e0c4835ae1fc5e2"
+            },
+            {
+              "name": "result.json",
+              "sha256": "9f857e451de4ac7746bd8ef84f1ba7291372713a4cef3176e351fa7b6b651b1b"
+            },
+            {
+              "name": "model-requests.jsonl",
+              "sha256": "a82471c78be4fc2e9e0d24bd800cc53a71b02f9ae248c42cc96a4ddf13eb174e"
+            }
+          ],
+          "readIssue": null
+        }
+      ],
+      "usage": {
+        "requests": 35,
+        "knownUsageRequests": 31,
+        "unknownUsageRequests": 4,
+        "incompleteAllZeroUnknownRequests": 4,
+        "knownReportedTotalTokens": 7544126,
+        "componentSums": {
+          "inputTokens": 2756783,
+          "outputTokens": 61839,
+          "totalTokens": 7544126,
+          "cacheReadTokens": 4725504,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 0
+        },
+        "componentReportingCounts": {
+          "inputTokens": 31,
+          "outputTokens": 31,
+          "totalTokens": 31,
+          "cacheReadTokens": 28,
+          "cacheWriteTokens": 0,
+          "reasoningTokens": 0
+        },
+        "duplicateGateRecords": [],
+        "groupsByRoleSessionEffortCap": [
+          {
+            "role": "main",
+            "basis": "same native root session; no more specific purpose supplied",
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "purpose": "conversation",
+            "effort": "medium",
+            "cap": 16384,
+            "requests": 21,
+            "knownUsageRequests": 21,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 7410945
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-07c13cddf299ca7f",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 5524
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-c758ca08134da160",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 7098
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-21f97487aa3588a8",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 8790
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-792d07d4f946381e",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 2,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 1,
+            "knownReportedTotalTokens": 20212
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-5de66f98dcf5439f",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 2,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 1,
+            "knownReportedTotalTokens": 21792
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-66f3ab33f20d7920",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 0,
+            "unknownUsageRequests": 1,
+            "knownReportedTotalTokens": 0
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-aa80639c19d77b31",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 2,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 1,
+            "knownReportedTotalTokens": 21122
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-ed10ebf5eedfe740",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 11180
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-86126a322a1f95a8",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 1,
+            "knownUsageRequests": 1,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 9787
+          },
+          {
+            "role": "auxiliary-role-unconfirmed",
+            "basis": "not root; purpose did not identify role",
+            "sessionId": "test-session-0a77e0f73d437711",
+            "purpose": "conversation",
+            "effort": "max",
+            "cap": 16384,
+            "requests": 2,
+            "knownUsageRequests": 2,
+            "unknownUsageRequests": 0,
+            "knownReportedTotalTokens": 27676
+          }
+        ],
+        "knownObserverPacingWaitMs": 1037094,
+        "accounting": "Unique canonical gate request IDs. Missing/all-zero incomplete usage stays unknown. Cache and reasoning are separate components, never added again to totalTokens; root usage[] is not summed."
+      },
+      "quality": {
+        "passed": false,
+        "passedChecks": 0,
+        "totalChecks": 12,
+        "checks": [
+          {
+            "name": "final structured JSON",
+            "passed": false
+          },
+          {
+            "name": "literal human label",
+            "passed": false
+          },
+          {
+            "name": "tail batch exact",
+            "passed": false
+          },
+          {
+            "name": "tail checksum exact",
+            "passed": false
+          },
+          {
+            "name": "both conflicting values preserved",
+            "passed": false
+          },
+          {
+            "name": "conflict remains unresolved",
+            "passed": false
+          },
+          {
+            "name": "conflict left exact source quote",
+            "passed": false
+          },
+          {
+            "name": "conflict right exact source quote",
+            "passed": false
+          },
+          {
+            "name": "execution is distinct from verification",
+            "passed": false
+          },
+          {
+            "name": "latest footer retained",
+            "passed": false
+          },
+          {
+            "name": "valid public source quotations",
+            "passed": false
+          },
+          {
+            "name": "tail values have exact source quotations",
+            "passed": false
+          }
+        ]
+      },
+      "constraints": {
+        "selectedFrozenChecks": [
+          {
+            "name": "literal human label",
+            "present": true,
+            "passed": false
+          },
+          {
+            "name": "conflict remains unresolved",
+            "present": true,
+            "passed": false
+          },
+          {
+            "name": "execution is distinct from verification",
+            "present": true,
+            "passed": false
+          },
+          {
+            "name": "latest footer retained",
+            "present": true,
+            "passed": false
+          }
+        ],
+        "detectedOmissions": null,
+        "actualConstraintMisses": null,
+        "assessmentStatus": "strict-format-unparseable",
+        "strictGradeValuePresent": false,
+        "structuredJsonCheckPassed": false,
+        "semanticConstraintAssessmentAvailable": false,
+        "unassessedSelectedChecks": [
+          "literal human label",
+          "conflict remains unresolved",
+          "execution is distinct from verification",
+          "latest footer retained"
+        ],
+        "executionAttempts": 0,
+        "interpretation": "Strict frozen score and check booleans are preserved. Without a parsed grade.value and a passing structured-JSON check, actual semantic constraint omissions remain unassessed; false checks caused by parse failure are not evidence of lost constraints. No supplementary scoring or model calls."
+      },
+      "finalOriginalSourceReadback": {
+        "verifiedBoth": true,
+        "recordedCheckPassed": true,
+        "details": {
+          "alpha": true,
+          "beta": true,
+          "targetedReads": [
+            {
+              "id": "payload-alpha",
+              "offset": 1500000,
+              "chars": 181
+            },
+            {
+              "id": "payload-beta",
+              "offset": 1500000,
+              "chars": 167
+            }
+          ],
+          "originalMemorySources": []
+        },
+        "interpretation": "Host-observed targeted final reads or canonical memory gets, not merely final answer mentions."
+      },
+      "inputProof": {
+        "packageMatchesPlanAndArchive": true,
+        "fixtureSourceSnapshotsMatchPlan": true,
+        "driverSnapshotsMatchPlan": true,
+        "observedMainEffortAndCapMatchPlan": true,
+        "observedReadSourceHashChecks": [
+          {
+            "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+            "id": "brief",
+            "sha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "expectedSha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+            "id": "payload-alpha",
+            "sha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "expectedSha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+            "id": "payload-beta",
+            "sha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "expectedSha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+            "id": "round-3",
+            "sha256": "3ae83ca505b3a067b3458691a045ea9413e34c85a1614b058dcda121109b0935",
+            "expectedSha256": "3ae83ca505b3a067b3458691a045ea9413e34c85a1614b058dcda121109b0935",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+            "id": "state",
+            "sha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "expectedSha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "brief",
+            "sha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "expectedSha256": "74a762e98973498f6b52bfa3b82fe8f99ebce2ecc0798cc246f7cdcf4b79f92b",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "distractor",
+            "sha256": "426284a1a20a80d077aca0645ac0c8de077cd34e688efeb47cd8a4384e594c75",
+            "expectedSha256": "426284a1a20a80d077aca0645ac0c8de077cd34e688efeb47cd8a4384e594c75",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "payload-alpha",
+            "sha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "expectedSha256": "e0ab39f81e82810340f29a7632df0049e1c9ffa055d80c63a433a137d938ebe7",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "payload-beta",
+            "sha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "expectedSha256": "a1080bf582106b9144ac6aa8eda4d6725f4ddc1fe840f5816cf724939153efbe",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "round-4",
+            "sha256": "adbd7b96175c694fd92f890b1e4d3fc5728e9aab5f6842b959b129532db01174",
+            "expectedSha256": "adbd7b96175c694fd92f890b1e4d3fc5728e9aab5f6842b959b129532db01174",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "round-5",
+            "sha256": "4a07bd1f3d93a596c853d0ddfa3b77f0ae8be4fb2be4bc49dff26da2ad62b7c7",
+            "expectedSha256": "4a07bd1f3d93a596c853d0ddfa3b77f0ae8be4fb2be4bc49dff26da2ad62b7c7",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "round-6",
+            "sha256": "4db0f0a43192c8a749aef27334b75717c4610fd724c25f1516b27e86fa1f1520",
+            "expectedSha256": "4db0f0a43192c8a749aef27334b75717c4610fd724c25f1516b27e86fa1f1520",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "state",
+            "sha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "expectedSha256": "d8af48845d4d82b1db397090c1a8d688931b0ecf9fcfb458c5200aab97100bfa",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "vendor-a",
+            "sha256": "01a6341b7343071dec91819e57604f67d021945af66ce6ac0434521665bd0520",
+            "expectedSha256": "01a6341b7343071dec91819e57604f67d021945af66ce6ac0434521665bd0520",
+            "matches": true
+          },
+          {
+            "attemptId": "rc3-extreme-paired-a-resume-1792134481521",
+            "id": "vendor-b",
+            "sha256": "170a2d517b3892f7c5ce75cd0b962c1de08c61450375ae64d44018c338cab97a",
+            "expectedSha256": "170a2d517b3892f7c5ce75cd0b962c1de08c61450375ae64d44018c338cab97a",
+            "matches": true
+          }
+        ],
+        "actualUserPromptHashes": [
+          "640477c350aa9bbb1b954f4c6953aa3ecb2a0643b714618007e7f27d7dcb78df",
+          "2c0a51e3d2645c65a25261154257bc5973957c46ed4cb65af7c46cc08b27b023",
+          "4d9c5c33f3b78f56f3081a888fe9e3fa87f2f5eaa8093560668c200a85495ffa",
+          "4e08cb7a1b6d2ea879b1613285890894ed7e727f8b3be65a02f5d1c1f601e1af",
+          "241cdbfd7f391dc6eb53b68936e67f26c83a4103459cc35dd6112edb9ec1136e",
+          "8ed4f20476042469ab52d257d00f5b2413cb74ac17fa6139af63d879cf81e87c",
+          "82203fafbc9ae9418a24011b799a91d8517d7282492ac99d1943fa8eae68b8aa",
+          "6566ff412bbf6108720eff839f81b3382adc643dac2fb4c6b88826e9aa12242b",
+          "71b2bbd4e5d8698fac09d9da61f9e25d262e5a72b0571d52831709956188232a",
+          "ee75e5ecff280f7c93c59ff5b0cbd4852ba7ecb43934ae8a22a175f13ce342c8"
+        ],
+        "actualUserPromptSequenceSha256": "39b3c213e2d65ca9ff5cc539ac3888beef31444933c823121325731bf042f7b7",
+        "completedPublicTurnPromptHashes": [
+          "640477c350aa9bbb1b954f4c6953aa3ecb2a0643b714618007e7f27d7dcb78df",
+          "2c0a51e3d2645c65a25261154257bc5973957c46ed4cb65af7c46cc08b27b023",
+          "4d9c5c33f3b78f56f3081a888fe9e3fa87f2f5eaa8093560668c200a85495ffa",
+          "4e08cb7a1b6d2ea879b1613285890894ed7e727f8b3be65a02f5d1c1f601e1af",
+          "241cdbfd7f391dc6eb53b68936e67f26c83a4103459cc35dd6112edb9ec1136e",
+          "8ed4f20476042469ab52d257d00f5b2413cb74ac17fa6139af63d879cf81e87c",
+          "82203fafbc9ae9418a24011b799a91d8517d7282492ac99d1943fa8eae68b8aa",
+          "6566ff412bbf6108720eff839f81b3382adc643dac2fb4c6b88826e9aa12242b",
+          "71b2bbd4e5d8698fac09d9da61f9e25d262e5a72b0571d52831709956188232a",
+          "ee75e5ecff280f7c93c59ff5b0cbd4852ba7ecb43934ae8a22a175f13ce342c8"
+        ],
+        "tenActualPromptHashesPresent": true
+      },
+      "wallClock": {
+        "completedPhaseElapsedMs": 1151335,
+        "completedPhaseDriverElapsedMs": 1146233,
+        "firstFinishedStageStart": "2026-10-16T06:54:06.517Z",
+        "lastFinishedStageEnd": "2026-10-16T07:13:18.361Z",
+        "elapsedAcrossFinishedStagesMs": 1151844,
+        "meaning": "Includes configured thirty-second local pacing waits, provider time and process overhead; span also includes restart gaps. Not pure algorithm latency."
+      },
+      "nativePruning": {
+        "snapshotsAvailable": 2,
+        "uniqueNativePrunes": 12,
+        "deduplicatedBySessionAndSequence": [
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 50
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 61
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 63
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 74
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 100
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 102
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 113
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 124
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 126
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 137
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 162
+          },
+          {
+            "sessionId": "test-session-3cc470a01b3953a4",
+            "seq": 164
+          }
+        ]
+      },
+      "featureConfiguration": {
+        "compaction": {
+          "owner": "candidate local Ultra",
+          "targetTokens": 30000,
+          "outputReserveTokens": 16384,
+          "toolReserveTokens": 2048
+        },
+        "mainEffort": "medium",
+        "mainMaxTokens": 16384,
+        "assistEffort": "max",
+        "assistMaxTokens": 16384,
+        "minimumLocalRequestIntervalMs": 30000,
+        "localGateConcurrency": 1
+      },
+      "gate": {
+        "observedPeak": 1,
+        "configuredSingleStreamObserved": true,
+        "perStagePacing": [
+          {
+            "id": "rc3-extreme-paired-a-long-1792133646201",
+            "declaredMinimumIntervalMs": 30000,
+            "reportedAllLocalStartsSpaced": true,
+            "minimumObservedLocalStartIntervalMs": 30000,
+            "knownObserverWaitMs": 672919,
+            "providerRpmInferred": false,
+            "upstreamSlotReleaseInferred": false,
+            "interpretation": "Local native stream start pacing and configured concurrency only. A local cancellation/error does not establish upstream occupancy or slot release; thirty seconds is conservative spacing, not a provider RPM claim."
+          },
+          {
+            "id": "rc3-extreme-paired-a-resume-1792134481521",
+            "declaredMinimumIntervalMs": 30000,
+            "reportedAllLocalStartsSpaced": true,
+            "minimumObservedLocalStartIntervalMs": 30003,
+            "knownObserverWaitMs": 364175,
+            "providerRpmInferred": false,
+            "upstreamSlotReleaseInferred": false,
+            "interpretation": "Local native stream start pacing and configured concurrency only. A local cancellation/error does not establish upstream occupancy or slot release; thirty seconds is conservative spacing, not a provider RPM claim."
+          }
+        ],
+        "upstreamSlotReleaseInferred": false
+      },
+      "noAutomaticRerun": {
+        "plannedExtraRepairTurns": 0,
+        "duplicateStageModes": [],
+        "unexpectedModes": [],
+        "extraAttemptsObserved": false,
+        "claim": "No retry is inferred only from the immutable observed stage inventory; failures remain listed."
+      },
+      "observedProviderFailures": [
+        {
+          "attemptId": "rc3-extreme-paired-a-long-1792133646201",
+          "sequence": 19,
+          "sessionId": "test-session-66f3ab33f20d7920",
+          "finish": "error",
+          "code": "TRANSPORT",
+          "usageStatus": "unknown",
+          "unknownReason": "incomplete-all-zero-usage"
+        }
+      ],
+      "capabilityAssessment": {
+        "finalFrozenJudgeAvailable": true,
+        "networkOrTransportFailuresObserved": true,
+        "inference": "Only the final frozen judge is scored. Transport failures remain operational failures and are not interpreted as capability deficits."
+      },
+      "cleanupErrorCount": 0
+    }
+  ],
+  "pairUsage": {
+    "requests": 46,
+    "knownUsageRequests": 41,
+    "unknownUsageRequests": 5,
+    "incompleteAllZeroUnknownRequests": 5,
+    "knownReportedTotalTokens": 11059533,
+    "componentSums": {
+      "inputTokens": 3836095,
+      "outputTokens": 70414,
+      "totalTokens": 11059533,
+      "cacheReadTokens": 7153024,
+      "cacheWriteTokens": 0,
+      "reasoningTokens": 0
+    },
+    "componentReportingCounts": {
+      "inputTokens": 41,
+      "outputTokens": 41,
+      "totalTokens": 41,
+      "cacheReadTokens": 37,
+      "cacheWriteTokens": 0,
+      "reasoningTokens": 0
+    },
+    "duplicateGateRecords": [],
+    "groupsByRoleSessionEffortCap": [
+      {
+        "role": "main",
+        "basis": "same native root session; no more specific purpose supplied",
+        "sessionId": "test-session-6556293a95f02e1f",
+        "purpose": "conversation",
+        "effort": "medium",
+        "cap": 16384,
+        "requests": 8,
+        "knownUsageRequests": 7,
+        "unknownUsageRequests": 1,
+        "knownReportedTotalTokens": 2699073
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-bd0d57e1a333feeb",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 2779
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-338a20804f127c13",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 273499
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-f0cadd87fa769efb",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 540056
+      },
+      {
+        "role": "main",
+        "basis": "same native root session; no more specific purpose supplied",
+        "sessionId": "test-session-3cc470a01b3953a4",
+        "purpose": "conversation",
+        "effort": "medium",
+        "cap": 16384,
+        "requests": 21,
+        "knownUsageRequests": 21,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 7410945
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-07c13cddf299ca7f",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 5524
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-c758ca08134da160",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 7098
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-21f97487aa3588a8",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 8790
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-792d07d4f946381e",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 2,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 1,
+        "knownReportedTotalTokens": 20212
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-5de66f98dcf5439f",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 2,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 1,
+        "knownReportedTotalTokens": 21792
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-66f3ab33f20d7920",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 0,
+        "unknownUsageRequests": 1,
+        "knownReportedTotalTokens": 0
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-aa80639c19d77b31",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 2,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 1,
+        "knownReportedTotalTokens": 21122
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-ed10ebf5eedfe740",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 11180
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-86126a322a1f95a8",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 1,
+        "knownUsageRequests": 1,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 9787
+      },
+      {
+        "role": "auxiliary-role-unconfirmed",
+        "basis": "not root; purpose did not identify role",
+        "sessionId": "test-session-0a77e0f73d437711",
+        "purpose": "conversation",
+        "effort": "max",
+        "cap": 16384,
+        "requests": 2,
+        "knownUsageRequests": 2,
+        "unknownUsageRequests": 0,
+        "knownReportedTotalTokens": 27676
+      }
+    ],
+    "knownObserverPacingWaitMs": 1357456,
+    "accounting": "Unique canonical gate request IDs. Missing/all-zero incomplete usage stays unknown. Cache and reasoning are separate components, never added again to totalTokens; root usage[] is not summed."
+  },
+  "unrecognizedArmAttempts": [],
+  "comparison": {
+    "readyForObservedDifferences": false,
+    "matchedCompleteOutcome": false,
+    "completeKnownUsage": false,
+    "observedDifference": null,
+    "noSavingsOrAdvantageClaimWhileIncomplete": true,
+    "superiorityClaim": null,
+    "money": null,
+    "meaning": "No savings/advantage or numeric cross-arm difference is issued for incomplete, failed, unmatched or incomplete-usage conditions."
+  },
+  "collection": {
+    "sourceFiles": [
+      {
+        "name": "pair-plan.json",
+        "sha256": "12740f608a92c2946b210bfe516e4a580ff87b2fb5234718349560c2aab9c0aa"
+      },
+      {
+        "name": "pair-result.json",
+        "sha256": "af66ee4155101183c65a22a0cfa92e1fbd4edde997ce22ad2d0ec71f9986bbe6"
+      }
+    ],
+    "pairResultReadIssue": null,
+    "launchReadIssues": [],
+    "onlyFinishedAttemptResultsRead": true,
+    "rawPrivateLogsRead": false,
+    "credentialsRead": false,
+    "modelOrHostLaunches": 0,
+    "originalFilesModified": false
+  },
+  "limits": [
+    "原版0.4.0-rc.3插件+native auto压缩，对比候选0.5.0-rc.3+local30K，是声明产品配置的对比；不是只隔离一个算法，也不要求相同prune次数。",
+    "native auto按1000000上下文窗口压力触发，可能零次；local30K是软目标，不能由配置推断每次实际请求都低于30K。",
+    "两臂共用同一公开十轮fixture与冻结12项评分；新memory/quote专用协议在两臂均关闭，最终公共引文及双源真实读回仍要求。",
+    "墙钟包含30秒本地节流等待、模型服务时间、进程和冷恢复开销；不是纯算法延迟。未知usage不当零，缓存与reasoning不重复叠加。",
+    "一对受控样本没有统计推广意义；并发运行的通道负载与缓存是实测条件，不据此推算金额或普遍节省。",
+    "原错误、未完成阶段和额外尝试均保留；未结束不预写成功，不自动重跑，也不把本地取消等同上游slot释放。",
+    "TRANSPORT/Connection error单列为运行失败，不解释成模型能力差；一臂未完成十轮时，整任务token/耗时优势保持null。共同完成prompt SHA前缀不等于可比请求前缀，缺逐请求turn边界时不比较其用量。",
+    "结论仅适用于plan及实际launch核对的冻结包SHA；后续检索修复的新TGZ不继承本对照的通过、失败或成本结论。",
+    "严格JSON无法解析或grade.value缺失时，冻结评分原样保留，但实际约束遗漏为未判定；解析失败产生的其余false不自动解释为原值、限制或状态已丢失。未追加补充分数。",
+    "本新对照与旧rc.2不同条件的样本分开陈列，不合并成更大的A/B样本。"
+  ]
+}

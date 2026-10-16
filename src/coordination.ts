@@ -8,6 +8,8 @@ export interface RouteProgress {
   kind: 'tool' | 'assistant'
   text: string
   at: number
+  evidenceIds?: string[]
+  originalChars?: number
 }
 export interface SteeringDirective { routeId: string; instruction: string }
 export interface CoordinationDecision { assessment: string; directives: SteeringDirective[] }
@@ -18,6 +20,7 @@ export interface CoordinationSnapshot {
   status: 'starting' | 'running' | 'completed' | 'failed'
   progress?: RouteProgress
   report?: string
+  evidenceIds?: string[]
 }
 
 /** Persistent decision history already retains older rounds; avoid resending them. */
@@ -59,6 +62,7 @@ export function buildCoordinationPrompt(task: string, snapshots: readonly Coordi
   const limit = Math.min(Math.max(reportChars, 1000), 4000)
   const evidence = snapshots.map(snapshot => ({
     routeId: snapshot.routeId, status: snapshot.status,
+    ...(snapshot.evidenceIds?.length ? { evidenceIds: snapshot.evidenceIds } : {}),
     ...(snapshot.progress === undefined ? {} : { progress: { ...snapshot.progress, text: snapshot.progress.text.slice(0, 2000) } }),
     ...(snapshot.report === undefined ? {} : { report: snapshot.report.slice(0, limit) }),
   }))

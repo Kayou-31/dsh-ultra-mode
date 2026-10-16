@@ -15,6 +15,13 @@ export interface RunConfig extends CollaborationHostConfig {
     coordinationIntervalMs?: number;
     /** -1 removes the round cap, 0 disables coordination, positives set a cap. */
     coordinationMaxRounds?: number;
+    /** Stop intermediate reviews after consecutive failures; 0 disables this limit. */
+    coordinationFailureLimit?: number;
+    /** Explicit per-request output ceilings; 0/undefined inherit native defaults. */
+    planningMaxTokens?: number;
+    researchMaxTokens?: number;
+    decisionMaxTokens?: number;
+    coordinationMaxTokens?: number;
 }
 export interface RunOptions {
     parent: RouteParent;
