@@ -1,0 +1,43 @@
+# 合入当前profile的既有ultra-mode条目，不要再插入重复插件。
+# provider/model必须换成DSH设置中已有的精确值；不填密钥。
+- id: ultra-mode
+  config:
+    collaborationModelPool:
+      explicitModelId: '' # 用户固定ID优先；空值恢复自主选择
+      fallback: error # default/inherit须由配置用户明确允许
+      maxConcurrent: 2
+      maxRequests: 40 # 本轮普通池请求准入预算，不含主Agent/Ultra/其他profile
+      failureLimit: 3
+      models:
+        - id: code
+          name: 编码候选
+          enabled: true
+          provider: your-configured-provider-a
+          model: your-actual-model-id
+          strengths: 代码理解、实现和测试
+          suitableFor: 边界清晰的实现子任务
+          avoidFor: 未声明支持的图像输入
+          isDefault: true
+          maxConcurrent: 1
+          allowCrossProvider: false
+          # true表示配置用户允许试用未知工具兼容性，绝非已验证证明。
+          allowUnverifiedTools: false
+          costSource: user
+          costNote: 尚未独立测量，不据名称估价
+          speedSource: user
+          speedNote: 尚未独立测量
+        - id: review
+          name: 独立审查候选
+          enabled: true
+          provider: your-configured-provider-b
+          model: your-actual-model-id
+          strengths: 独立审查和失败路径分析
+          suitableFor: 只读审查与交叉核验
+          avoidFor: 需要超出父Agent权限的操作
+          # reasoningEffort: high # 仅在此精确模型的宿主元数据声明支持时填写
+          # maxTokens: 8192 # 可选；供应商硬最大值仍需实际核对
+          isDefault: false
+          maxConcurrent: 1
+          # 实际跨provider委派及未知工具试用由配置用户明确改为true。
+          allowCrossProvider: false
+          allowUnverifiedTools: false

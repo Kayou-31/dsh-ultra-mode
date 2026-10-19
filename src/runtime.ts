@@ -58,13 +58,19 @@ export interface RouteRunOptions {
   planningOnly?: boolean
 }
 
+export interface SteeringMetadata {
+  directiveId: string
+  isCurrent?(): boolean
+  onDelivery?(status: 'queued' | 'admitted' | 'request-visible', sourceId: string): void
+}
+
 /** A persistent decision loop can plan, then receive evidence in a later turn. */
 export interface RouteHandle {
   id: string
   run(prompt: ContentBlock[], options?: RouteRunOptions): Promise<RouteOutcome>
   setReadOnly(readOnly: boolean): void
   subscribeProgress?(listener: (progress: RouteProgress) => void): () => void
-  steer?(instruction: string): boolean
+  steer?(instruction: string, meta?: SteeringMetadata): boolean
   dispose(): Promise<void>
 }
 
@@ -88,6 +94,7 @@ interface RouteState {
   maxTokens?: number
   reportSubmission?: boolean
   planningOnly?: boolean
+  steeringDeliveries: Map<string, { text: string; meta: SteeringMetadata; admitted: boolean; visible: boolean }>
   submittedReport?: { text: string; evidenceIds: string[]; uncertainties: string[]; conflicts: string[] }
 }
 
@@ -115,6 +122,7 @@ interface ApprovalPolicy {
 /** Continuable children are owned by the native manager, beyond a route's handle. */
 interface SubagentLifecycle {
   drainContinuableDescendants?(parents: readonly Agent[]): Promise<void>
+  drainDescendants?(parents: readonly Agent[]): Promise<void>
 }
 /** Optional policy plugins own these known durable events; the loop itself does not type them. */
 interface PolicyLog {
@@ -165,6 +173,18 @@ export function routeParentOf(agent: Agent): Agent | undefined {
   return ancestorState(agent)?.parent
 }
 
+/** Knowledge publication is a configured host write, never a delegated research capability. */
+export function canPublishKnowledge(agent: Agent): boolean {
+  if (agent.status !== 'running') return false
+  try {
+    const sandbox = agent.ctx.get('sandboxPolicy') as SandboxPolicy | undefined
+    if (sandbox?.resolve({ session: agent.session }).mode === 'read-only') return false
+  } catch { return false }
+  const state = ancestorState(agent)
+  return state ? state.agent === agent && state.running && !state.readOnly && !state.planningOnly && !state.signal.aborted
+    : agent.session.header.parentSession === undefined
+}
+
 /** Apply a route's read-only allow list to every direct or PTC sub-dispatch. */
 export function researchToolDenial(agent: Agent | undefined, toolName: string): string | undefined {
   if (agent === undefined) return undefined
@@ -174,6 +194,7 @@ export function researchToolDenial(agent: Agent | undefined, toolName: string): 
     ? undefined : 'Ultra report submission is available only to the exact active research worker.'
   if (state?.submittedReport) return 'Ultra worker already submitted its public report; no further research dispatch is allowed.'
   if (state?.readOnly !== true) return undefined
+  if (toolName === 'ultra_knowledge_publish' || toolName === 'ultra_knowledge_revoke') return 'ULTRA research routes cannot execute knowledge publication or revocation.'
   // PTC can run arbitrary JavaScript, including direct filesystem access outside
   // nested tool dispatch. A tool allow list cannot make that transport read-only.
   // Keep research routes on native tools until confined PTC is verified end to end.
@@ -389,6 +410,7 @@ function releaseRouteCapabilities(state: RouteState): void {
   state.running = false
   state.acceptingSteering = false
   state.progressListeners.clear()
+  state.steeringDeliveries.clear()
   const errors: unknown[] = []
   for (const agent of [...state.attachedAgents]) {
     if (state.parent.ctx.agents.get(agent.id) === agent) continue
@@ -403,7 +425,8 @@ function releaseRouteCapabilities(state: RouteState): void {
 async function drainRouteDescendants(state: RouteState): Promise<void> {
   if (state.agent === undefined || state.parent.ctx.agents.get(state.agent.id) !== state.agent) return
   const subagents = state.parent.ctx.get('subagents') as SubagentLifecycle | undefined
-  await subagents?.drainContinuableDescendants?.([state.agent])
+  if (subagents?.drainDescendants) await subagents.drainDescendants([state.agent])
+  else await subagents?.drainContinuableDescendants?.([state.agent])
 }
 
 /** Release observers after native children and the route have settled. */
@@ -473,10 +496,18 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     acceptingSteering: false,
     sequence: 0,
     progressListeners: new Set(),
+    steeringDeliveries: new Map(),
     memory: options.memory ?? memoryFor(parent),
   }
   routes.set(options.id, state)
   const stopSessionEvents = parent.ctx.root.on('session/event', (session, event) => {
+    if (session.id === options.id && event.type === 'user/message') {
+      const delivery = state.steeringDeliveries.get(event.data.id)
+      if (delivery && !delivery.admitted) {
+        delivery.admitted = true
+        try { delivery.meta.onDelivery?.('admitted', event.data.id) } catch { /* Observers cannot fail native admission. */ }
+      }
+    }
     if (session.id === options.id && event.type === 'turn/end') {
       // The loop may still report running at turn/end. Never let late feedback
       // survive completion and wake an extra turn.
@@ -490,6 +521,29 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     publishProgress(state, session.id, 'assistant', message.data.message.content
       .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
       .map(block => block.text).join(''), evidenceIds)
+  })
+  const stopDeliveryRequests = (parent.ctx.root as unknown as { on(name: string, callback: unknown, options?: unknown): () => void }).on('llm/stream', async function* (request: { sessionId?: string; messages?: { content?: unknown }[] }, next: () => AsyncIterable<unknown>) {
+    if (request.sessionId === options.id && Array.isArray(request.messages)) {
+      for (const [sourceId, delivery] of state.steeringDeliveries) {
+        const visible = request.messages.some(message => Array.isArray(message.content) && message.content.some((block: { type?: string; text?: string }) => block.type === 'text' && block.text === delivery.text))
+        if (visible && !delivery.visible && delivery.meta.isCurrent?.() === false) {
+          throw new Error(`Ultra expired or superseded steering ${sourceId} was already admitted; refusing the model request without rewriting its recorded history`)
+        }
+        if (!delivery.visible && delivery.admitted && visible) {
+          delivery.visible = true
+          try { delivery.meta.onDelivery?.('request-visible', sourceId) } catch { /* Observer only. */ }
+        }
+      }
+    }
+    yield* next()
+  }, { prepend: true })
+  const stopExpiredSteering = (parent.ctx.root as unknown as RuntimeEvents).on('agent/pre-step', async (payload, next) => {
+    if (payload.agent === state.agent) {
+      for (const [sourceId, delivery] of state.steeringDeliveries) {
+        if (!delivery.visible && delivery.meta.isCurrent?.() === false) state.agent?.inbox.remove(sourceId as Parameters<Agent['inbox']['remove']>[0])
+      }
+    }
+    return next()
   })
   // The registry's serial creation notification precedes the child's first turn.
   // Listen at deployment scope: lifecycle ownership is independent of preset scopes.
@@ -542,7 +596,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
   } catch (error) {
     const failures: unknown[] = [error]
     try { await drainRouteDescendants(state) } catch (failure) { failures.push(failure) }
-    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (failure) { failures.push(failure) }
+    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents, stopDeliveryRequests, stopExpiredSteering]) } catch (failure) { failures.push(failure) }
     if (failures.length > 1) throw new AggregateError(failures, `ULTRA route ${options.id} creation and rollback failed`)
     throw error
   }
@@ -550,12 +604,13 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
   let collaboration: CollaborationHostHandle | undefined
   try {
     state.memory?.bind(child, options.id)
-    if (config.collaborationEnabled) collaboration = installCollaboration(child, config)
+    // The ordinary model pool must not reroute Ultra workers/decision or their delegates.
+    if (config.collaborationEnabled) collaboration = installCollaboration(child, { ...config, collaborationModelPool: undefined })
   } catch (error) {
     const failures: unknown[] = [error]
     try { await drainRouteDescendants(state) } catch (failure) { failures.push(failure) }
     try { await handle.dispose() } catch (failure) { failures.push(failure) }
-    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (failure) { failures.push(failure) }
+    try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents, stopDeliveryRequests, stopExpiredSteering]) } catch (failure) { failures.push(failure) }
     throw failures.length > 1 ? new AggregateError(failures, 'Ultra collaboration installation and rollback failed') : error
   }
   let active = false
@@ -573,16 +628,20 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       state.progressListeners.add(listener)
       return () => { state.progressListeners.delete(listener) }
     },
-    steer(instruction) {
+    steer(instruction, meta) {
       if (!active || !state.acceptingSteering || options.signal.aborted || disposal !== undefined ||
         child.status !== 'running' || typeof instruction !== 'string' || instruction.trim() === '') return false
       // Public native next-step delivery keeps the same driver/turn and is
       // durably recorded by the loop even when the current request ends in text.
+      // A governed envelope carries up to 2000 instruction + 1000 stop-condition
+      // characters and its separator; preserve it within a bounded transport.
       const feedback = createUserMessage({
-        content: [{ type: 'text', text: `Ultra 决策研究改向：不扩权、原任务优先。以下仅为下一步研究反馈，继续遵守现有工具、权限和委派深度限制。\n${instruction.trim().slice(0, 2000)}` }],
+        content: [{ type: 'text', text: `Ultra 决策研究改向：不扩权、原任务优先。以下仅为下一步研究反馈，继续遵守现有工具、权限和委派深度限制。\n${instruction.trim().slice(0, meta ? 4000 : 2000)}` }],
         source: { kind: 'ultra-steering', form: 'feedback', summary: 'Ultra 运行中研究方向反馈' },
       })
-      child.steer(feedback)
+      if (meta) state.steeringDeliveries.set(feedback.id, { text: feedback.content.filter(block => block.type === 'text').map(block => block.text).join(''), meta, admitted: false, visible: false })
+      try { child.steer(feedback) } catch (error) { state.steeringDeliveries.delete(feedback.id); throw error }
+      try { meta?.onDelivery?.('queued', feedback.id) } catch { /* Observer only. */ }
       state.memory?.recordDelivery?.(feedback.id, child.id, 'queued')
       return true
     },
@@ -645,7 +704,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
         try { await drainRouteDescendants(state) } catch (error) { failures.push(error) }
         try { await handle.dispose() } catch (error) { failures.push(error) }
         options.signal.removeEventListener('abort', onAbort)
-        try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents]) } catch (error) { failures.push(error) }
+        try { finishRouteCleanup(state, options.id, [stopDescendants, stopSessionEvents, stopDeliveryRequests, stopExpiredSteering]) } catch (error) { failures.push(error) }
         if (failures.length > 0) throw new AggregateError(failures, `ULTRA route ${options.id} teardown failed`)
       })()
     },

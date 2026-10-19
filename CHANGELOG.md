@@ -2,6 +2,39 @@
 
 发布文件以 [GitHub Releases](https://github.com/Kayou-31/dsh-ultra-mode/releases) 为准。此页概述行为变化；按版本记录的测试、失败和验收边界保留在 `docs/verification-*.md`，不以新通过覆盖旧失败。
 
+## 0.6.0-dev.3 — 2026-10-18／19（三包预发布）
+
+- 增加两个独立附属包：`packages/dsh-ultra-memory/` 的 `@dsh-external/dsh-ultra-memory` `0.1.0-dev.1` 提供原始证据检索、可选原生压缩和显式授权知识；`packages/dsh-ultra-decision/` 的 `@dsh-external/dsh-ultra-decision` `0.1.0-dev.1` 提供普通 Team、多模型池和只读 decision 意图／诊断／验收，没有 Max 多路线入口。额外 decision 默认关闭，显式 `/decision on` 开启，`/team` 独立控制普通协作。
+- 完整 Ultra 保留关闭／辅助／手动 2～5 路、Team、模型池、治理及证据／上下文／知识能力。根 `src/` 为共同核心权威，附属包构建为自包含 bundle，包内保留来源清单和可读共同源码，不引入未发布远程包依赖、服务或密钥。
+- 支持独立安装、Memory＋Decision、Ultra＋Memory。Ultra＋Decision 同 scope 重复主动启用协调插件明确拒绝。原生 `ultraEvidenceSupport` lease 复用唯一证据服务，配置权威 Memory > Ultra > Decision，授权不并集；切换权威重查授权且不能扩大旧发布快照，释放一个 lease 保留其余插件，最后 lease 才排空。安装、路径与回滚见[附属插件说明](docs/companion-plugins.md)；三个最终包哈希和独立／组合原生验收仍以本轮交付报告为准，不预填通过成绩。
+- 新增默认关闭的 `globalKnowledge`，通过原生 Config／Settings 配置同 profile 的项目目录、read／publish 与 `shareWith`。启用状态切换后重载插件或重启；已启用时项目授权热修改即时用于后续操作。
+- 新增 `ultra_knowledge_search`、`ultra_knowledge_get`、`ultra_knowledge_publish`、`ultra_knowledge_revoke`。普通主 Agent 与当前可写 decision 才可发布／撤销；原生只读沙箱、worker、辅助和普通嵌套子代理不能写入，即使工具被加入研究白名单也不扩大权限。
+- 发布只保存整理文本及最多四条逐字来源片段；重新读取持久证据，核对当前授权会话、完整来源 SHA256 与精确引文。知识及记忆检索结果不作为可再次发布的原始来源，不自动公开整条会话或扫描全部项目历史。
+- 读取先核对同 profile、当前授权、发布时读者快照及发布者／读者规范目录哈希，再匹配、计数和返回摘录。同项目 ID 更换目录不继承旧共享；新增读者须显式发布新版本。get 重新核验来源并按包含元数据的实际 JSON 字符预算分页，`source-match` 不代表结论正确，始终 `hostVerified: false`。
+- 发布／替代／撤销采用带校验和的不可变记录、单写锁和原子提交；当前有效相同发布幂等，不同内容须精确 `supersedes`。读者不见失效记录；发布者撤销历史只保留元数据，正文及查询命中不再暴露。遗留锁失败关闭，不自动抢占。
+- 保留 dev.2 治理、普通协作模型池与手动模式，不新增模型调用、数据库或 embedding。精确新旧宿主回归、最终包哈希和独立 profile 离线验收以本轮交付报告为准，不移植历史模型成绩；未声明完整 Electron UI、Windows DACL 隔离或真实模型质量已验证。
+- 全局知识依赖宿主原生 `profileContext.dir`，本轮原生知识闭环针对 `0.2.1-rc.2`；旧 `0.2.0-rc.2` 的原模式／SDK 回归不代表其具备该原生服务。缺少 profile 元数据时明确失败关闭，不用环境变量补造知识库身份。
+- 配置、授权边界、来源状态与迁移回滚见[知识库说明](docs/global-knowledge.md)和[示例](docs/global-knowledge.example.yml)。三包一起提供于 [v0.6.0-dev.3](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0-dev.3)；[发布验证](docs/releases/0.6.0-dev.3.md)记录最终包、来源、496／495通过及离线原生验收与未验证项。未安装日常环境。
+
+## 0.6.0-dev.2 — 2026-10-17（本地开发检查点，未发布）
+
+- 新增默认 false 的 `decisionGovernance`：在已有 decision 规划、协调与最终调用内加入意图、诊断和验收协议，不新建优化器、路线或模型调用，不强制辅助模式额外终验。
+- 保留不可变用户原文、SHA256、宿主来源与整体 `task-result` 条件；用户条目必须是逐字引文，机器补充不新增授权。部分条件不能替代整体完成，缺证据及无效验收协议保持未验证。
+- 诊断按任务哈希、版本、活动路线与来源白名单校验，增加停止条件、TTL、跨轮去重和显式替代。原生入队、pre-step 准入、实际请求可见及独立效果证明分别记录；生产路径不自动升级效果证明。
+- 验收只接受实际观察的工具结果来源；报告保持 `assessment: model`、`hostVerified: false`。治理审计复用 EvidenceStore 的 `recordGovernance`，RPC／界面展示紧凑状态与错误。
+- 宿主目标扩大到精确的 `0.2.0-rc.2 || 0.2.1-rc.2`；复用原生会话、工具、权限、收件箱、pre-step 与 JSONL。新版 continuable 子代理每次冷重建都重新应用继承的工具限制，保留普通模型池配置与实例快照。
+- 补齐此前遗留的模型池验收纯函数，保持离线配置、挑战和证据判定，不注册适配器或启动真实模型请求。最终包离线复验、旧宿主回归与未验证项以本轮交付材料为准，不移植历史在线模型成绩。
+- 中文启用、迁移及回滚见[决策治理说明](docs/decision-governance.md)。本地检查点未发布，未安装日常环境；Electron 完整界面和真实模型效果不在本轮离线验证范围内。
+
+## 0.6.0-dev.1 — 2026-10-16（本地开发检查点，未发布）
+
+- 普通协作模型池复用宿主模型目录、凭据和原生continuable创建；主Agent按候选ID及一句理由选型，配置用户固定ID优先。空池维持旧行为，Ultra worker/decision及主模型不变。
+- 新增紧凑“模型池”配置面板，native Settings/profile持久化和volatile热更新。运行实例及续作保留原快照，不另建宿主框架或密钥库。
+- 子代理使用原生工具链，实际请求校验模型、effort、输出cap、真实输入、工具授权与预算；同步预占并发，原生嵌套后代也受池限制。未知工具能力默认拒绝，用户可明确允许试用，成功结果另记观察证据。
+- 选模与公开用量审计复用EvidenceStore，不写旧宿主无法恢复的未知Session事件；记录请求入口、待结算、终态和落盘失败，保留drain失败后的残留守卫与额度。
+- 真实rc.2 SDK＋本地适配器跑通两provider工具调用→ToolRuntime→后续请求读取结果；独立CLI验证Settings热保存和进程重启恢复。精确测试数、包来源和未验证项见本轮交付材料，不移植旧真实模型成绩。
+- 未在线测试、未安装日常环境、未push或发布。配置与回滚见[模型池说明](docs/model-pool.md)。
+
 ## 0.5.0-rc.3 — 2026-10-15／16（预发布版）
 
 [Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.5.0-rc.3) · [安装TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/dsh-external-dsh-ultra-mode-0.5.0-rc.3.tgz) · [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/SHA256SUMS-0.5.0-rc.3.txt) · [源码ZIP](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.5.0-rc.3/dsh-ultra-mode-0.5.0-rc.3-source.zip)

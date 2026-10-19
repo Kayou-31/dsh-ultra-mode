@@ -1,5 +1,10 @@
 /** Session-scoped Ultra button: main-agent assistance or 2–5 routes, with one decision route. */
 import React from 'react'
+import type { ModelPoolPanel } from './model-pool.js'
+
+declare const __DSH_ULTRA_VARIANT__: 'ultra' | 'decision' | undefined
+const decisionOnly = typeof __DSH_ULTRA_VARIANT__ !== 'undefined' && __DSH_ULTRA_VARIANT__ === 'decision'
+const PLUGIN_ID = decisionOnly ? 'dsh-ultra-decision' : 'dsh-ultra-mode'
 
 interface HostRpc {
   call(channel: string, endpoint: string, payload?: unknown): Promise<unknown>
@@ -75,6 +80,13 @@ interface UltraStateSnapshot {
   warnings?: string[]
   collaborationEnabled?: boolean
   evidence?: EvidenceSnapshot
+  governance?: GovernanceStatus
+}
+interface GovernanceStatus {
+  enabled: true; taskHash: string; taskRevision: number; originalChars: number; intentItems: number
+  queued: number; admitted: number; requestVisible: number; effectVerified: number; closedDirections: number
+  verification: null | { satisfied: number; failed: number; unverified: number; allSatisfied: boolean; hostVerified: false }
+  durable: boolean; closed: boolean; errors: string[]
 }
 
 interface ButtonState {
@@ -94,9 +106,9 @@ interface SessionScope {
   revision: number
 }
 
-const RPC_CHANNEL = '/dsh-ultra-mode'
-const LOCALE_NAMESPACE = 'dsh-ultra-mode'
-const LEVELS = [0, 1, 2, 3, 4, 5] as const
+const RPC_CHANNEL = decisionOnly ? '/dsh-ultra-decision' : '/dsh-ultra-mode'
+const LOCALE_NAMESPACE = PLUGIN_ID
+const LEVELS: readonly (0 | 1 | 2 | 3 | 4 | 5)[] = decisionOnly ? [0, 1] : [0, 1, 2, 3, 4, 5]
 const ROUTE_SESSION_PREFIX = 'ultra-route-'
 
 /** Hide internal durable route records from the installed DSH 0.2 session list. */
@@ -155,6 +167,11 @@ const zh = {
   'collaboration.title': '独立开关：增强普通 DSH Agent 的协作，不强制 Max，也不改变 Ultra 模式。',
   'collaboration.on': '已开启',
   'collaboration.off': '已关闭',
+  'pool.label': '普通协作模型池',
+  'pool.compact': '模型池',
+  'pool.narrow': '池',
+  'pool.title': '配置普通协作子代理的候选模型、能力和选择记录；不改变主 Agent 或 Ultra 路线。',
+  'pool.loading': '载入模型池…',
   'trigger.title': 'Ultra：{count} 路并发执行 + 1 路独立决策；默认 max 思考',
   'trigger.assistedTitle': 'Ultra：正常主 Agent 执行 + 1 路 Max 自动决策辅助',
   'menu.title': 'Ultra 模式',
@@ -180,6 +197,13 @@ const zh = {
   'status.runs': '{phase} · {count} 个任务',
   'status.lastRun': '上次运行 {seconds} 秒',
   'evidence.title': '证据与资源',
+  'governance.title': '意图与验收',
+  'governance.contract': '任务契约 v{version} · 原话 {chars} 字符 · 意图条目 {items}',
+  'governance.delivery': '方向建议：待处理 {queued} · 已准入 {admitted} · 进入请求 {visible} · 独立效果验证 {verified}',
+  'governance.review': '验收（模型判断）：满足 {satisfied} · 失败 {failed} · 未验证 {unverified}；不代表宿主验证',
+  'governance.noReview': '验收尚未形成；不推断任务通过',
+  'governance.durable': '治理快照已保存到证据库',
+  'governance.memoryOnly': '治理快照尚未确认持久化',
   'evidence.stage': '当前阶段：{phase}',
   'evidence.available': '证据服务可用',
   'evidence.unavailable': '证据服务不可用；覆盖未知',
@@ -217,6 +241,11 @@ const en: Record<keyof typeof zh, string> = {
   'collaboration.title': 'Independent toggle for ordinary DSH Agent cooperation; does not force Max or change Ultra mode.',
   'collaboration.on': 'On',
   'collaboration.off': 'Off',
+  'pool.label': 'Ordinary collaboration model pool',
+  'pool.compact': 'Pool',
+  'pool.narrow': 'Pool',
+  'pool.title': 'Configure ordinary child model choices, capabilities and records; parent and Ultra routes keep their models.',
+  'pool.loading': 'Loading model pool…',
   'trigger.title': 'Ultra: {count} execution routes + 1 independent decision route; max reasoning by default',
   'trigger.assistedTitle': 'Ultra: normal main Agent execution + 1 automatic Max decision assistant',
   'menu.title': 'Ultra mode',
@@ -242,6 +271,13 @@ const en: Record<keyof typeof zh, string> = {
   'status.runs': '{phase} · {count} tasks',
   'status.lastRun': 'Last run: {seconds} s',
   'evidence.title': 'Evidence and resources',
+  'governance.title': 'Intent and acceptance',
+  'governance.contract': 'Task contract v{version} · original {chars} characters · {items} intent items',
+  'governance.delivery': 'Directions: pending {queued} · admitted {admitted} · request-visible {visible} · independently verified effects {verified}',
+  'governance.review': 'Acceptance (model assessment): satisfied {satisfied} · failed {failed} · unverified {unverified}; not host verification',
+  'governance.noReview': 'No acceptance report yet; task success is not inferred',
+  'governance.durable': 'Governance snapshot saved to evidence storage',
+  'governance.memoryOnly': 'Durable governance storage has not been confirmed',
   'evidence.stage': 'Current stage: {phase}',
   'evidence.available': 'Evidence service available',
   'evidence.unavailable': 'Evidence unavailable; coverage unknown',
@@ -263,23 +299,45 @@ const en: Record<keyof typeof zh, string> = {
   'error.retry': 'Retry',
 }
 
+if (decisionOnly) {
+  Object.assign(zh, {
+    'menu.title': 'Decision 辅助', 'menu.description': '普通主 Agent + 可选单条只读决策辅助',
+    'menu.off': '关闭决策辅助', 'trigger.offTitle': 'Decision 辅助已关闭；保持普通主 Agent。',
+    'trigger.assistedTitle': 'Decision：正常主 Agent 执行 + 1 路只读 Max 决策辅助',
+    'status.disabled': 'Decision 辅助已关闭', 'error.invalidResponse': '服务端返回了无效的 Decision 状态',
+    'error.connection': '无法连接 Decision 服务',
+    'collaboration.title': '独立开关：增强普通 DSH Agent 的协作，不改变决策辅助开关。',
+    'pool.title': '配置普通协作子代理的候选模型、能力和选择记录。',
+  })
+  Object.assign(en, {
+    'menu.title': 'Decision assistance', 'menu.description': 'Ordinary Agent with one optional read-only decision assistant',
+    'menu.off': 'Disable decision assistance', 'trigger.offTitle': 'Decision assistance is off; use the ordinary Agent.',
+    'trigger.assistedTitle': 'Decision: ordinary Agent with one read-only Max decision assistant',
+    'status.disabled': 'Decision assistance is off', 'error.invalidResponse': 'Invalid Decision state from the server',
+    'error.connection': 'Cannot connect to Decision service',
+    'collaboration.title': 'Independent Team toggle for the ordinary DSH Agent.',
+    'pool.title': 'Configure ordinary collaboration model candidates and inspect their actual request records.',
+  })
+}
+
 const ULTRA_CSS = [
-  // Fixed toolbar footprint: 44px collaboration + 4px gap + 84px Ultra.
+  // Retain the host-measured footprint while adding an on-demand model-pool entry.
   // The host measures this group alongside its original model selector.
   '.dsh-ultra{position:relative;display:inline-flex;align-items:center;gap:4px;box-sizing:border-box;flex:0 0 132px;width:132px;max-width:132px;min-width:0;font-family:inherit;--ultra-surface:rgb(from var(--dsw-specific-menu,#fff) r g b / 1);--ultra-ink:rgb(from var(--dsw-alias-label-primary,#20242c) r g b / 1);--ultra-accent:rgb(from var(--dsw-alias-state-info-label,#5069cb) r g b / 1);--ultra-danger:rgb(from var(--dsw-alias-state-error-primary,#d84c4c) r g b / 1);--ultra-hover:color-mix(in srgb,var(--ultra-surface) 92%,var(--ultra-ink) 8%)}',
-  '.dsh-ultra-team{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:28px;padding:0 4px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
+  '.dsh-ultra-team{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:28px;padding:0 1px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
   '.dsh-ultra-team:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
   '.dsh-ultra-team[aria-pressed=true]{color:var(--ultra-accent);background:color-mix(in srgb,var(--ultra-surface) 90%,var(--ultra-accent) 10%)}',
   '.dsh-ultra-team:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
   '.dsh-ultra-team:disabled{color:var(--dsw-alias-label-dimmed,#9599a1);cursor:default}',
-  '.dsh-ultra-trigger{position:relative;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:3px;flex:0 0 84px;width:84px;height:28px;padding:0 4px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
+  '.dsh-ultra-pool-trigger{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:28px;padding:0 1px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-weight:500;font-size:11px;line-height:20px;white-space:nowrap;cursor:pointer}.dsh-ultra-pool-trigger:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}.dsh-ultra-pool-trigger:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}.dsh-ultra-pool-trigger:disabled{opacity:.55;cursor:default}.dsh-ultra-pool-narrow{display:none}.dsh-ultra-pool-status{position:absolute;right:0;bottom:calc(100% + 8px);z-index:40;width:240px;padding:12px;border-radius:8px;background:var(--ultra-surface,#fff);box-shadow:0 4px 20px #0003;font-size:12px;overflow-wrap:anywhere}',
+  '.dsh-ultra-trigger{position:relative;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:2px;flex:0 0 56px;width:56px;height:28px;padding:0 1px;border:0;border-radius:24px;background:var(--ultra-surface,#fff);color:var(--dsw-alias-label-secondary,#686c75);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer}',
   '.dsh-ultra-trigger:hover:not(:disabled){background:var(--ultra-hover,#edf0f5)}',
   '.dsh-ultra-trigger:focus-visible{outline:2px solid var(--dsw-alias-border-l3,#7a9be0);outline-offset:2px}',
   '.dsh-ultra-trigger:disabled{color:var(--dsw-alias-label-dimmed,#9599a1);cursor:default}',
   '.dsh-ultra[data-enabled=true] .dsh-ultra-trigger{color:var(--dsw-alias-state-info-label,#5069cb);background:color-mix(in srgb,var(--ultra-surface) 90%,var(--ultra-accent) 10%)}',
   '.dsh-ultra-value,.dsh-ultra-chevron{color:var(--dsw-alias-label-caption,#858994)}',
   '.dsh-ultra[data-enabled=true] .dsh-ultra-value{color:inherit}',
-  '.dsh-ultra-chevron{flex:none;width:8px;height:8px;transition:transform 120ms ease}',
+  '.dsh-ultra-chevron{display:none;flex:none;width:8px;height:8px;transition:transform 120ms ease}',
   '.dsh-ultra-trigger[aria-expanded=true] .dsh-ultra-chevron{transform:rotate(180deg)}',
   '.dsh-ultra-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;clip:rect(0,0,0,0);overflow:hidden;white-space:nowrap}',
   '.dsh-ultra[data-running=true] .dsh-ultra-trigger:after,.dsh-ultra[data-pending=true] .dsh-ultra-trigger:after,.dsh-ultra[data-error=true] .dsh-ultra-trigger:after{content:"";position:absolute;right:2px;top:2px;width:4px;height:4px;border-radius:50%;background:currentColor}',
@@ -300,7 +358,7 @@ const ULTRA_CSS = [
   '.dsh-ultra-retry{flex:none;padding:0;border:0;background:inherit;color:inherit;font:inherit;font-weight:600;cursor:pointer}',
   '.dsh-ultra-warning{padding:7px 8px;margin:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#828691);overflow-wrap:anywhere}',
   '@keyframes dsh-ultra-pulse{0%,100%{opacity:.45}50%{opacity:1}}',
-  '@container(max-width:440px){.dsh-ultra{flex-basis:96px;width:96px;max-width:96px}.dsh-ultra-trigger{flex-basis:48px;width:48px}.dsh-ultra-name{display:none}}',
+  '@container(max-width:440px){.dsh-ultra{flex-basis:96px;width:96px;max-width:96px}.dsh-ultra-pool-trigger{flex-basis:28px;width:28px}.dsh-ultra-trigger{flex-basis:30px;width:30px}.dsh-ultra-pool-full,.dsh-ultra-name{display:none}.dsh-ultra-pool-narrow{display:inline}}',
   '@media(prefers-reduced-motion:reduce){.dsh-ultra-trigger:after{animation:none!important}.dsh-ultra-chevron{transition:none}}',
 ].join('')
 
@@ -385,6 +443,28 @@ function evidenceLines(evidence: EvidenceSnapshot, t: Translate): string[] {
   return lines
 }
 
+function validGovernance(value: unknown): value is GovernanceStatus {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const item = value as Record<string, unknown>
+  const count = (n: unknown) => Number.isSafeInteger(n) && Number(n) >= 0
+  if (item.enabled !== true || typeof item.taskHash !== 'string' || !/^[a-f0-9]{64}$/.test(item.taskHash)
+    || !count(item.taskRevision) || item.taskRevision === 0
+    || !['originalChars', 'intentItems', 'queued', 'admitted', 'requestVisible', 'effectVerified', 'closedDirections'].every(key => count(item[key]))
+    || typeof item.durable !== 'boolean' || typeof item.closed !== 'boolean'
+    || !Array.isArray(item.errors) || item.errors.length > 64 || !item.errors.every(error => typeof error === 'string' && error.length <= 2000)) return false
+  if (item.verification !== null) {
+    if (!item.verification || typeof item.verification !== 'object') return false
+    const review = item.verification as Record<string, unknown>
+    if (review.hostVerified !== false || typeof review.allSatisfied !== 'boolean' || !['satisfied', 'failed', 'unverified'].every(key => count(review[key]))) return false
+  }
+  return true
+}
+function governanceLines(value: GovernanceStatus, t: Translate): string[] {
+  return [t('governance.contract', { version: value.taskRevision, chars: value.originalChars, items: value.intentItems }),
+    t('governance.delivery', { queued: value.queued, admitted: value.admitted, visible: value.requestVisible, verified: value.effectVerified }),
+    value.verification ? t('governance.review', value.verification) : t('governance.noReview'),
+    t(value.durable ? 'governance.durable' : 'governance.memoryOnly'), ...value.errors]
+}
 /** Validate the custom RPC channel's untrusted envelope and state fields. */
 function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
   const invalid = (): never => { throw new Error(t('error.invalidResponse')) }
@@ -397,6 +477,7 @@ function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
   const value = result.value as Partial<UltraStateSnapshot>
   if (
     typeof value.enabled !== 'boolean'
+    || (decisionOnly && value.concurrency !== 1)
     || (value.concurrency !== 1 && value.concurrency !== 2 && value.concurrency !== 3 && value.concurrency !== 4 && value.concurrency !== 5)
     || typeof value.running !== 'boolean'
     || !Number.isInteger(value.activeRuns) || (value.activeRuns ?? -1) < 0
@@ -410,6 +491,7 @@ function readSnapshot(raw: unknown, t: Translate): UltraStateSnapshot {
     || (value.warnings !== undefined && (!Array.isArray(value.warnings) || value.warnings.some(item => typeof item !== 'string')))
     || (value.collaborationEnabled !== undefined && typeof value.collaborationEnabled !== 'boolean')
     || (value.evidence !== undefined && !validEvidence(value.evidence))
+    || (value.governance !== undefined && !validGovernance(value.governance))
   ) return invalid()
   return value as UltraStateSnapshot
 }
@@ -429,6 +511,10 @@ function phaseLabel(snapshot: UltraStateSnapshot, t: Translate): string {
 function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): React.ReactElement {
   const [view, setView] = React.useState<ButtonState>({ sessionId, snapshot: null, pending: false, syncError: null, actionError: null })
   const [open, setOpen] = React.useState(false)
+  const [poolOpen, setPoolOpen] = React.useState(false)
+  const [poolPanel, setPoolPanel] = React.useState<typeof ModelPoolPanel | null>(null)
+  const [poolLoading, setPoolLoading] = React.useState(false)
+  const [poolError, setPoolError] = React.useState<string | null>(null)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const optionRefs = React.useRef<(HTMLButtonElement | null)[]>([])
@@ -449,6 +535,9 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     const scope = scopeRef.current
     scope.disposed = false
     setOpen(false)
+    setPoolOpen(false)
+    setPoolLoading(false)
+    setPoolError(null)
     setView({ sessionId, snapshot: null, pending: false, syncError: null, actionError: null })
     if (!available) return () => { scope.disposed = true }
     const sync = async (): Promise<void> => {
@@ -488,6 +577,25 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
   const close = (restoreFocus = false): void => {
     setOpen(false)
     if (restoreFocus) triggerRef.current?.focus()
+  }
+
+  const togglePool = (): void => {
+    if (!available) return
+    setOpen(false)
+    if (poolOpen) { setPoolOpen(false); return }
+    setPoolOpen(true)
+    if (poolPanel || poolLoading) return
+    const scope = scopeRef.current
+    setPoolLoading(true); setPoolError(null)
+    // Keep the editor and its host directory reads off the composer startup path.
+    void import('./model-pool.js').then(module => {
+      if (scopeRef.current !== scope || scope.disposed) return
+      setPoolPanel(() => module.ModelPoolPanel)
+    }).catch(cause => {
+      if (scopeRef.current === scope && !scope.disposed) setPoolError(cause instanceof Error ? cause.message : t('error.connection'))
+    }).finally(() => {
+      if (scopeRef.current === scope && !scope.disposed) setPoolLoading(false)
+    })
   }
 
   const mutate = async (patch: { enabled?: boolean; concurrency?: number; collaborationEnabled?: boolean }, closeMenu: boolean): Promise<void> => {
@@ -560,7 +668,7 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
       ...(anchor && desiredLeft !== undefined ? { left: desiredLeft - anchor.left, right: 'auto' } : {}),
     } : undefined
   return React.createElement('div', {
-    ref: rootRef, className: 'dsh-ultra', 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error),
+    ref: rootRef, className: 'dsh-ultra', 'data-plugin': PLUGIN_ID, 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error),
     'data-running': snapshot?.running === true, 'data-pending': current.pending, onKeyDown,
     onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
       if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return
@@ -575,16 +683,26 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => { event.stopPropagation() },
   }, t('collaboration.compact')),
   React.createElement('button', {
+    type: 'button', className: 'dsh-ultra-pool-trigger', disabled: !available,
+    'aria-label': t('pool.label'), 'aria-haspopup': 'dialog', 'aria-expanded': poolOpen,
+    title: t('pool.title'), onClick: togglePool,
+    onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => { event.stopPropagation() },
+  }, React.createElement('span', { className: 'dsh-ultra-pool-full' }, t('pool.compact')),
+  React.createElement('span', { className: 'dsh-ultra-pool-narrow', 'aria-hidden': true }, t('pool.narrow'))),
+  React.createElement('button', {
     ref: triggerRef, type: 'button', className: 'dsh-ultra-trigger', disabled: !available,
     'aria-label': t('menu.title'), 'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-controls': open ? menuId : undefined,
     title: ultraDescription, 'aria-description': ultraDescription, 'aria-busy': current.pending,
-    onClick: () => { setOpen(previous => !previous) },
+    onClick: () => { setPoolOpen(false); setOpen(previous => !previous) },
   },
-  React.createElement('span', { className: 'dsh-ultra-name' }, 'Ultra'),
+  React.createElement('span', { className: 'dsh-ultra-name' }, decisionOnly ? 'Decision' : 'Ultra'),
   React.createElement('span', { className: 'dsh-ultra-value' }, available ? valueLabel : t('trigger.off')),
   React.createElement('span', { className: 'dsh-ultra-status', role: 'status', 'aria-live': 'polite' }, ultraDescription),
   React.createElement('svg', { className: 'dsh-ultra-chevron', viewBox: '0 0 10 10', fill: 'none', 'aria-hidden': true },
     React.createElement('path', { d: 'm2 3.5 3 3 3-3', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }))),
+  poolOpen && (poolLoading || poolError) ? React.createElement('div', { className: 'dsh-ultra-pool-status', role: poolError ? 'alert' : 'status' }, poolError ?? t('pool.loading')) : null,
+  poolOpen && poolPanel && available ? React.createElement(poolPanel, { key: sessionId, sessionId: sessionId as string, rpc,
+    anchor: rootRef.current?.getBoundingClientRect?.(), viewport: { width: window.innerWidth, height: window.innerHeight }, onClose: () => { setPoolOpen(false) } }) : null,
   !open ? null : React.createElement('div', { className: 'dsh-ultra-menu', id: menuId, role: 'menu', 'aria-label': t('menu.title'), style: menuStyle },
     React.createElement('div', { className: 'dsh-ultra-heading' }, t('menu.title'),
       React.createElement('div', { className: 'dsh-ultra-description' }, t('menu.description'))),
@@ -612,6 +730,9 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
     evidence ? React.createElement('details', { className: 'dsh-ultra-warning', 'aria-label': t('evidence.title') },
       React.createElement('summary', null, t('evidence.title')),
       ...evidenceLines(evidence, t).map((line, index) => React.createElement('div', { key: index }, line))) : null,
+    snapshot?.governance ? React.createElement('details', { className: 'dsh-ultra-warning', 'aria-label': t('governance.title') },
+      React.createElement('summary', null, t('governance.title')),
+      ...governanceLines(snapshot.governance, t).map((line, index) => React.createElement('div', { key: index }, line))) : null,
     React.createElement('div', { className: 'dsh-ultra-footer', role: 'status', 'aria-live': 'polite' },
       snapshot === null ? t('trigger.loading') : t('status.runs', { phase: status, count: snapshot.activeRuns }),
       snapshot?.running ? React.createElement('div', null, t('menu.runningHint')) : null,
@@ -628,18 +749,18 @@ export const inject = ['slots', 'connection', 'locale', 'sessions']
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as { rpc?: HostRpc } | undefined
   const rpc = connection?.rpc
-  if (rpc === undefined) throw new Error('dsh-ultra-mode requires connection.rpc')
+  if (rpc === undefined) throw new Error(PLUGIN_ID + ' requires connection.rpc')
   ctx.effect(() => hideRouteSessions(ctx.sessions.list), 'dsh-ultra-mode: internal route sessions')
   ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, { zh, en }), 'dsh-ultra-mode: dictionaries')
   ctx.effect(() => {
     const style = document.createElement('style')
-    style.dataset.plugin = 'dsh-ultra-mode'
+    style.dataset.plugin = PLUGIN_ID
     style.textContent = ULTRA_CSS
     document.head.appendChild(style)
     return () => { style.remove() }
   }, 'dsh-ultra-mode: styles')
   ctx.effect(() => ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
-    name: 'conversation.input.right', id: 'dsh-ultra-mode', order: 30, label: 'Ultra', locale: LOCALE_NAMESPACE,
+    name: 'conversation.input.right', id: PLUGIN_ID, order: 30, label: decisionOnly ? 'Decision' : 'Ultra', locale: LOCALE_NAMESPACE,
     // Session identity is a registrant-owned face on the installed DSH slot API.
     inject: sessionId => ({ sessionId }),
   }, props => React.createElement(UltraButton, { ...props, key: props.sessionId, rpc }))), 'dsh-ultra-mode: button')

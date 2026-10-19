@@ -72,6 +72,20 @@ test('spawn publishes before child completion and a slow creation does not stall
   } finally { ready.resolve(); await h.team.close() }
 })
 
+test('ordinary collaboration forwards a configured model choice and records public task metadata', async () => {
+  const h = harness()
+  try {
+    const result = await h.team.spawn(h.rootId, { taskName: 'specialist', message: 'Review auth edges', modelConfigId: 'review', reason: 'Review specialist fits auth analysis' }, signal())
+    assert.equal(h.record.spawned[0].request.modelConfigId, 'review')
+    assert.equal(h.record.spawned[0].request.reason, 'Review specialist fits auth analysis')
+    h.team.annotate(result.id, { model: { selectedConfigId: 'review', provider: 'local', model: 'm' } })
+    assert.equal(h.team.listAgents(h.rootId)[0].model.selectedConfigId, 'review')
+    const copy = h.team.listAgents(h.rootId)[0]; copy.model.provider = 'mutated'
+    assert.equal(h.team.listAgents(h.rootId)[0].model.provider, 'local')
+    assert.equal(result.task, 'Review auth edges')
+  } finally { await h.team.close() }
+})
+
 test('capacity reservations include children whose asynchronous creation is still pending', { timeout: 1000 }, async () => {
   const entered = deferred(), ready = deferred()
   const h = harness({ maxAgents: 1 }, { spawn: async () => { entered.resolve(); await ready.promise } })

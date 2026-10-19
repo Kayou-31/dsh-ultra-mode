@@ -1,4 +1,6 @@
-# 子代理协作增强（0.4.0-rc.2 预发布版）
+# 子代理协作增强
+
+当前本地开发检查点新增[普通协作多模型池](model-pool.md)。下文涉及旧版本的真实模型数字仅属于各自历史版本，不代表新模型池已在线验证。
 
 协作增强为 Agent 提供后台派发、代理间信息、续作、事件等待、中断和状态查询。它与 Ultra 算力模式分别开关：可以让普通 Agent 使用协作，也可以让 Agent + 决策或并发 Ultra 使用协作。当前预发布版为 [v0.4.0-rc.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.4.0-rc.2)，正式版仍为 [v0.3.2](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.3.2)；不能用旧版本的验收记录声称新增协作功能已经通过真实模型验收。
 
@@ -30,7 +32,7 @@ rc.1 的本机真实测试发现首请求缺少六个协作工具，随后原生
 
 | 工具 | 参数 | 返回与行为 |
 | --- | --- | --- |
-| `ultra_spawn_agent` | `task_name`、`message` | 返回真实子代理 `id`、父 ID、任务名及状态。只等待子代理创建和初始任务被接受，不等待任务完成；父 Agent 可以继续独立工作 |
+| `ultra_spawn_agent` | `task_name`、`message`，可选 `model_config_id`、`model_reason` | 返回真实ID和状态，不等待任务完成；普通协作可按模型池ID选型，空池沿用原有模型继承 |
 | `ultra_send_message` | `target`、`message` | 返回 `{ queued: true, wakeup: false }`。信息进入有界邮箱，运行中的目标在后续步骤接收，空闲目标保持空闲 |
 | `ultra_followup_task` | `target`、`message` | 给自己的直接子代理追加任务，复用真实 ID 和已有上下文。运行中进入后续步骤，空闲子代理由宿主续接；一并发送此前排队的信息 |
 | `ultra_wait_agent` | `targets`、可选 `timeout_ms`、`after_cursor` | 等待 1–8 个子代理中首个新完成、失败或取消；返回 `agents`、`cursor`、`timedOut`。默认 30000 毫秒，允许 0–60000；超时返回进展，不取消子代理 |

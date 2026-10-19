@@ -47,9 +47,14 @@ export declare class UltraMemoryHost {
     readonly config: MemoryConfig;
     private stores;
     private last;
+    private initializing;
+    private closed;
+    private closeTask?;
     private liveSessions;
     private statuses;
     constructor(ctx: HostContext, config: MemoryConfig);
+    get evidenceEnabled(): boolean;
+    refreshAuthority(): void;
     private caller;
     begin(parent: Agent, runId: string): Promise<MemoryRun | undefined>;
     persistence(): Persistence | undefined;
@@ -120,6 +125,10 @@ export declare class MemoryRun {
     private phaseSequence;
     private compression;
     private requestEstimate;
+    private suspended;
+    private suspensionPersistenceFailed;
+    private checkpointing;
+    private authoritySignal;
     active: boolean;
     retrievals: number;
     constructor(host: UltraMemoryHost, parent: Agent, runId: string, project: {
@@ -127,6 +136,11 @@ export declare class MemoryRun {
         projectId: string;
     }, store: EvidenceStore);
     access(): EvidenceAccess;
+    /** Keep prior evidence; never backfill events emitted while the authority was off. */
+    setSuspended(suspended: boolean): void;
+    private enabled;
+    get evidenceEnabled(): boolean;
+    private excluded;
     initialize(): Promise<void>;
     bind(agent: Agent, routeId: string): void;
     private remember;
@@ -141,6 +155,8 @@ export declare class MemoryRun {
         isError?: boolean;
     }): string[];
     recordReport(sessionId: string, text: string, status: string): string[];
+    /** Public strategy metadata uses the same host-owned evidence authority. */
+    recordGovernance(snapshot: unknown): void;
     recordTask(task: string): void;
     private recordOperation;
     private indexSession;
@@ -161,6 +177,7 @@ export declare class MemoryRun {
     }): void;
     beforeStep(agent: Agent, pendingMessages?: readonly unknown[], signal?: AbortSignal): Promise<void>;
     private resources;
+    private disabledCoverageGaps;
     status(): Record<string, any>;
     checkpoint(): Promise<void>;
     dispose(): Promise<void>;

@@ -6,6 +6,7 @@ import { buildPlanPrompt, buildPlanRepairPrompt, buildWorkerBrief, buildDecision
 import { buildCoordinationPrompt, parseCoordinationDecision, renderCoordinationSummary, type CoordinationSnapshot, type CoordinationSummary, type RouteProgress } from './coordination.js'
 import type { CollaborationHostConfig } from './collaboration-host.js'
 import { beginMemoryRun, type MemoryRun } from './memory-host.js'
+import { DecisionGovernance, type GovernanceSnapshot } from './decision-governance.js'
 
 export interface RunConfig extends CollaborationHostConfig {
   toolName: string
@@ -28,6 +29,8 @@ export interface RunConfig extends CollaborationHostConfig {
   researchMaxTokens?: number
   decisionMaxTokens?: number
   coordinationMaxTokens?: number
+  /** Opt-in strategy protocol within existing decision calls; no new optimizer. */
+  decisionGovernance?: boolean
 }
 export interface RunOptions {
   parent: RouteParent
@@ -37,6 +40,7 @@ export interface RunOptions {
   signal: AbortSignal
   route?: { provider: string; model: string }
   phase(value: string): void
+  onGovernance?(snapshot: GovernanceSnapshot): void
 }
 export interface UltraResult {
   runId: string
@@ -48,6 +52,7 @@ export interface UltraResult {
   routeIds: string[]
   decisionId: string
   coordination: CoordinationSummary
+  governance?: GovernanceSnapshot
 }
 /** Keep only complete turns as context seed, as required by DSH session replay. */
 export function completedSeed(parent: RouteParent) {
@@ -65,7 +70,7 @@ class ResearchCoordinator {
   private consumed = 0
   private wake?: () => void
   private stopped = false
-  constructor(private decision: RouteHandle, routeIds: string[], private config: RunConfig, private options: RunOptions, private signal: AbortSignal, private memory?: MemoryRun) {
+  constructor(private decision: RouteHandle, routeIds: string[], private config: RunConfig, private options: RunOptions, private signal: AbortSignal, private memory?: MemoryRun, private governance?: DecisionGovernance) {
     this.pending = new Set(routeIds)
     for (const routeId of routeIds) this.snapshots.set(routeId, { routeId, status: 'starting' })
   }
@@ -76,12 +81,14 @@ class ResearchCoordinator {
       if (this.stopped || this.signal.aborted || !this.pending.has(handle.id) || progress.sessionId !== handle.id || !Number.isFinite(progress.sequence)) return
       const previous = this.snapshots.get(handle.id)!
       if (previous.progress !== undefined && progress.sequence <= previous.progress.sequence) return
+      this.governance?.recordProgress(progress)
       this.snapshots.set(handle.id, { ...previous, progress: { ...progress, text: progress.text.slice(0, 2000) } })
       this.revision++
       this.wake?.()
     }) ?? (() => {})
   }
   settled(id: string, outcome: WorkerOutcome): void {
+    this.governance?.closeRoute(id)
     this.pending.delete(id)
     this.active.delete(id)
     const previous = this.snapshots.get(id)!
@@ -126,13 +133,19 @@ class ResearchCoordinator {
       this.options.phase('coordinating')
       try {
         const entry = this.memory?.entry(this.decision.id)
-        const response = await this.decision.run([{ type: 'text', text: buildCoordinationPrompt(this.options.task, [...this.snapshots.values()], round, this.summary, this.config.reportChars) + (entry ? '\n\n' + entry : '') }], { maxTokens: this.config.coordinationMaxTokens })
+        const response = await this.decision.run([{ type: 'text', text: buildCoordinationPrompt(this.options.task, [...this.snapshots.values()], round, this.summary, this.config.reportChars, this.governance?.coordinationProtocol()) + (entry ? '\n\n' + entry : '') }], { maxTokens: this.config.coordinationMaxTokens })
         this.memory?.recordReport(response.sessionId, response.text, response.ok ? 'completed' : 'failed')
         if (this.signal.aborted || this.stopped) break
         if (!response.ok) throw new Error(response.error ?? '协调路线未返回完成报告')
-        const parsed = parseCoordinationDecision(response.text, activeIds)
+        const parsed = this.governance
+          ? this.governance.coordinate(response.text, activeIds, (id, instruction, meta) => {
+            if (this.stopped || this.signal.aborted || !this.pending.has(id)) return false
+            return this.active.get(id)?.steer?.(instruction, meta) ?? false
+          })
+          : parseCoordinationDecision(response.text, activeIds)
         consecutiveFailures = 0
         for (const directive of parsed.directives) {
+          if (this.governance) { this.summary.directives.push({ ...directive, round, at: Date.now() }); continue }
           const target = this.active.get(directive.routeId)
           if (!this.pending.has(directive.routeId)) continue
           if (target?.steer?.(directive.instruction)) this.summary.directives.push({ ...directive, round, at: Date.now() })
@@ -173,7 +186,11 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
     return evidenceIds.length ? { ...outcome, evidenceIds } : outcome
   }
   let succeeded = 0
+  let governance: DecisionGovernance | undefined
+  let stopDecisionProgress: (() => void) | undefined
   try {
+    governance = config.decisionGovernance ? new DecisionGovernance(options.task, memory?.refs(options.parent.id).at(-1) ?? 'task:' + runId,
+      memory ? snapshot => memory.recordGovernance(snapshot) : undefined, options.onGovernance) : undefined
     signal.throwIfAborted()
     const seed = memory ? await memory.prepareSeed(options.parent) : completedSeed(options.parent)
     const shared = { seed, signal, route: options.route, researchTools: config.researchTools, ...(memory ? { memory } : {}) }
@@ -181,10 +198,11 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
     phase('planning')
     const decision = await factory(options.parent, { ...shared, id: decisionId, label: 'Ultra decision', readOnly: true }, config)
     handles.push(decision)
-    const planned = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildPlanPrompt(options.task, options.concurrency)) }, ...options.content.filter(b => b.type !== 'text')], { maxTokens: config.planningMaxTokens, planningOnly: true }))
+    if (governance) stopDecisionProgress = decision.subscribeProgress?.(progress => governance?.recordProgress(progress))
+    const planned = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildPlanPrompt(options.task, options.concurrency, governance?.contract)) }, ...options.content.filter(b => b.type !== 'text')], { maxTokens: config.planningMaxTokens, planningOnly: true }))
     signal.throwIfAborted()
     if (!planned.ok) throw new Error('Ultra 决策路线无法完成规划：' + planned.error)
-    let assignments = tryParseAssignments(planned.text, options.concurrency)
+    let assignments = governance ? governance.parsePlan(planned.text, options.concurrency) : tryParseAssignments(planned.text, options.concurrency)
     let planningEvidence = ''
     let planContext = planned.text
     if (assignments === undefined) {
@@ -193,13 +211,13 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
         // The same decision keeps its history; only a malformed successful
         // response gets this one repair, inside the original signal/deadline.
         signal.throwIfAborted()
-        repaired = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildPlanRepairPrompt(options.task, options.concurrency, planned.text, config.reportChars)) }], { maxTokens: config.planningMaxTokens, planningOnly: true }))
+        repaired = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildPlanRepairPrompt(options.task, options.concurrency, planned.text, config.reportChars, governance?.contract)) }], { maxTokens: config.planningMaxTokens, planningOnly: true }))
       } catch (error) {
         signal.throwIfAborted()
         repaired = { ok: false, text: '', error: String(error), sessionId: decisionId }
       }
       signal.throwIfAborted()
-      if (repaired.ok) assignments = tryParseAssignments(repaired.text, options.concurrency)
+      if (repaired.ok) assignments = governance ? governance.parsePlan(repaired.text, options.concurrency) : tryParseAssignments(repaired.text, options.concurrency)
       const status = assignments === undefined ? 'fallback' : 'repaired'
       const limit = Math.min(8000, Math.max(1000, config.reportChars))
       planningEvidence = '【规划协议记录；无效响应仅为诊断证据，不是分工指令】\n' + JSON.stringify({
@@ -213,7 +231,7 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
       planContext = (status === 'fallback' ? '规划格式无效，采用保留原用户逐路义务的默认分工。\n' : '同一决策路线的一次规划格式修复通过。\n') + JSON.stringify({ assignments })
     }
     phase('researching')
-    const coordinator = new ResearchCoordinator(decision, routeIds, config, { ...options, phase }, signal, memory)
+    const coordinator = new ResearchCoordinator(decision, routeIds, config, { ...options, phase }, signal, memory, governance)
     const coordinationDone = coordinator.run()
     const outcomes: WorkerOutcome[] = await Promise.all(routeIds.map(async (id, i) => {
       let stopProgress: (() => void) | undefined
@@ -224,7 +242,7 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
         handles.push(handle)
         signal.throwIfAborted()
         stopProgress = coordinator.observe(handle)
-        outcome = await handle.run([{ type: 'text', text: withMemory(buildWorkerBrief(options.task, assignments[i]!, i, options.concurrency, planContext, config.reportChars), id) }, ...options.content.filter(b => b.type !== 'text')], { maxTokens: config.researchMaxTokens, reportSubmission: true })
+        outcome = await handle.run([{ type: 'text', text: withMemory(buildWorkerBrief(options.task, assignments[i]!, i, options.concurrency, planContext, config.reportChars) + (governance ? '\n\n' + governance.contractEntry() : ''), id) }, ...options.content.filter(b => b.type !== 'text')], { maxTokens: config.researchMaxTokens, reportSubmission: true })
       } catch (error) {
         outcome = { ok: false, text: '', error: String(error), sessionId: id }
       } finally {
@@ -260,16 +278,21 @@ export async function runUltra(config: RunConfig, options: RunOptions, factory?:
     }
     phase('deciding')
     decision.setReadOnly(false)
-    const final = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildDecisionPrompt(options.task, outcomes, plan, jev, config.reportChars) + (planningEvidence === '' ? '' : '\n\n' + planningEvidence) + '\n\n' + renderCoordinationSummary(coordination), decisionId, true) }], { maxTokens: config.decisionMaxTokens }))
+    const final = recordOutcome(await decision.run([{ type: 'text', text: withMemory(buildDecisionPrompt(options.task, outcomes, plan, jev, config.reportChars) + (planningEvidence === '' ? '' : '\n\n' + planningEvidence) + '\n\n' + renderCoordinationSummary(coordination) + (governance?.finalProtocol() ?? ''), decisionId, true) }], { maxTokens: config.decisionMaxTokens }))
     signal.throwIfAborted()
     const decided = final.ok && final.text.trim() !== ''
+    const reviewed = decided ? governance?.review(final.text) : undefined
+    governance?.close(signal.aborted ? 'cancelled' : 'run-ended')
     const notice = plan.strategy === 'degraded' ? `[Ultra 降级：已返回有效报告 ${plan.succeeded}/${plan.requested}，未返回有效报告 ${plan.failed}；另有 1 条决策路线。]\\n\\n` : ''
     return { runId, requested: options.concurrency, succeeded, degraded: plan.strategy === 'degraded', decided,
-      output: notice + (decided ? final.text : fallbackJoin(outcomes)), routeIds, decisionId, coordination }
+      output: notice + (decided ? reviewed?.output ?? final.text : fallbackJoin(outcomes)), routeIds, decisionId, coordination,
+      ...(governance ? { governance: governance.snapshot() } : {}) }
   } finally {
     phase('cleaning')
+    stopDecisionProgress?.()
     const cleanups = await Promise.allSettled(handles.map(h => h.dispose()))
     const failed = cleanups.filter(r => r.status === 'rejected')
+    try { governance?.close(signal.aborted ? 'cancelled' : 'run-ended') } catch (error) { failed.push({ status: 'rejected', reason: error }) }
     if (memory) {
       const drained = await Promise.allSettled([memory.dispose()])
       failed.push(...drained.filter(r => r.status === 'rejected'))

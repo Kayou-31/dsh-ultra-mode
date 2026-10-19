@@ -3,7 +3,7 @@
  *
  * node scripts/host-acceptance/run-profile.mjs --runtime /extracted/dsh \
  *   --candidate /packages/candidate.tgz --work /new/acceptance-root [core]
- * Optional: --node /path/to/node[.exe], --mode core|resume|disabled|dump.
+ * Optional: --node /path/to/node[.exe], --mode core|resume|disabled|dump|model-pool|model-pool-resume.
  * Run core before resume, using the same --work and candidate bytes. The work
  * root must be new/empty or previously owned by this runner. Every invocation
  * re-extracts the TGZ and keeps its attempt, package hashes, logs and outcome.
@@ -17,10 +17,11 @@ import crypto from 'node:crypto'
 import { spawn, spawnSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const format = 'dsh-ultra-isolated-host-acceptance-v1'
-const modes = new Set(['core', 'resume', 'disabled', 'dump'])
+const modes = new Set(['core', 'resume', 'disabled', 'dump', 'model-pool', 'model-pool-resume'])
 const { values, positionals } = parseArgs({
   options: {
     runtime: { type: 'string' }, candidate: { type: 'string' }, work: { type: 'string' },
@@ -28,12 +29,12 @@ const { values, positionals } = parseArgs({
   }, allowPositionals: true, strict: true,
 })
 if (values.help) {
-  console.log('Usage: node run-profile.mjs --runtime <extracted-rc.2-root> --candidate <tgz> --work <dedicated-root> [--node <node>] [--mode <core|resume|disabled|dump>]')
+  console.log('Usage: node run-profile.mjs --runtime <extracted-rc.2-root> --candidate <tgz> --work <dedicated-root> [--node <node>] [--mode <core|resume|disabled|dump|model-pool|model-pool-resume>]')
   process.exit(0)
 }
 if (positionals.length > 1 || (positionals.length && values.mode)) throw new Error('Select one acceptance mode')
 const mode = values.mode ?? positionals[0] ?? 'core'
-if (!modes.has(mode)) throw new Error('Mode must be core, resume, disabled or dump')
+if (!modes.has(mode)) throw new Error('Mode must be core, resume, disabled, dump, model-pool or model-pool-resume')
 for (const name of ['runtime', 'candidate', 'work']) if (!values[name]) throw new Error('--' + name + ' is required')
 
 const readJson = filename => JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''))
@@ -175,6 +176,16 @@ try {
   const resultFile = path.join(attemptDir, 'result.json')
   const receiptFile = core?.receiptFile ?? path.join(attemptDir, 'core-receipt.json')
   const config = { runtimeRoot: runtime, ultraRoot: installed, projectDir, resultFile, receiptFile, mode, sessionId: 'host-acceptance-root-' + crypto.randomUUID(), modeChecks: true, compressionChecks: true, requireGlobalGate: true }
+  const modelPoolMode = mode === 'model-pool' || mode === 'model-pool-resume'
+  const latestPoolFile = assertWithin(work, path.join(work, 'latest-model-pool.json'))
+  let restoredPool
+  if (mode === 'model-pool-resume') {
+    if (!fs.existsSync(latestPoolFile) || readJson(latestPoolFile).candidateSha256 !== candidateSha256) throw new Error('Model pool resume requires a successful model-pool run with the exact candidate TGZ bytes')
+    const loadYaml = createRequire(path.join(runtime, 'package.json'))('js-yaml').load
+    const saved = loadYaml(fs.readFileSync(path.join(profileDir, 'cordis.patch.yml'), 'utf8'))
+    restoredPool = saved.findLast(row => row.id === 'ultra-mode')?.config?.collaborationModelPool
+    if (!restoredPool) throw new Error('Run successful model-pool mode before model-pool-resume')
+  }
   const rows = [
     ['timer', '@deepseek-ai/cordis-plugin-timer'], ['llm', '@deepseek-ai/dsh-llm'], ['session', '@deepseek-ai/dsh-session'],
     ['system-prompt', '@deepseek-ai/dsh-system-prompt', { includeHarnessIdentity: false, includeRuntimeContext: false }],
@@ -186,12 +197,13 @@ try {
     ['sessions', '@deepseek-ai/dsh-session-persistence-jsonl', { root: path.join(home, 'sessions'), compression: 'none' }],
     ['commands', '@deepseek-ai/dsh-commands'],
     ['global-model-stream-gate', path.join(scriptDir, 'real-model-global-limit.mjs').replaceAll('\\', '/'), { testRoot: attemptDir, logFile: path.join(attemptDir, 'global-model-streams.jsonl'), allowedProvider: 'acceptance-offline', allowedModel: 'fixture', concurrency: 2, maxRequests: 60, syntheticUsage: true }],
-    ['acceptance-driver', path.join(scriptDir, 'acceptance-plugin.mjs').replaceAll('\\', '/'), config],
+    ...(modelPoolMode ? [['config-editor', '@deepseek-ai/dsh-config-editor'], ['settings', '@deepseek-ai/dsh-settings']] : []),
+    ['acceptance-driver', path.join(scriptDir, modelPoolMode ? 'model-pool-profile-plugin.mjs' : 'acceptance-plugin.mjs').replaceAll('\\', '/'), config],
   ]
   fs.writeFileSync(path.join(profileDir, 'package.json'), JSON.stringify({ name: 'ultra-isolated-host-acceptance', private: true, type: 'module', dependencies: { [manifest.name]: manifest.version }, dsh: { profile: { bundles: [manifest.name] } } }, null, 2))
   fs.writeFileSync(path.join(profileDir, 'cordis.patch.yml'), JSON.stringify([
     { insert: rows.map(([id, name, config]) => ({ id, name, ...(config ? { config } : {}) })) },
-    { id: 'ultra-mode', config: { concurrency: 2, coordinationMaxRounds: 0, timeoutMs: 30000, jevEnabled: false, evidenceEnabled: mode !== 'disabled', contextCompression: false } },
+    { id: 'ultra-mode', config: { concurrency: 2, coordinationMaxRounds: 0, timeoutMs: 30000, jevEnabled: false, evidenceEnabled: mode !== 'disabled', contextCompression: false, ...(restoredPool ? { collaborationModelPool: restoredPool } : {}) } },
   ], null, 2))
   const args = ['--expose-internals', '--require', path.join(scriptDir, 'network-guard.cjs'), cli, '--profile', 'ultra-acceptance']
   if (mode === 'dump') args.push('--dump-config')
@@ -211,6 +223,7 @@ try {
   const outcome = { mode, passed, ...termination, timedOut, elapsedMs: Date.now() - started, resultFile, resultStatus: result?.status ?? null, networkDenials, candidateSha256, version: manifest.version }
   writeAttempt('outcome.json', outcome)
   if (passed && mode === 'core') fs.writeFileSync(latestCoreFile, JSON.stringify({ attemptId, candidateSha256, version: manifest.version, projectDir, receiptFile }, null, 2) + '\n')
+  if (passed && mode === 'model-pool') fs.writeFileSync(latestPoolFile, JSON.stringify({ attemptId, candidateSha256, version: manifest.version }, null, 2) + '\n')
   appendAttempt({ event: 'finished', ...outcome })
   console.log(JSON.stringify({ attemptId, attemptDir, ...outcome }, null, 2))
   if (!passed) process.exitCode = 1

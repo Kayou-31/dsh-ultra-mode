@@ -6,6 +6,9 @@ import vm from 'node:vm'
 import ts from 'typescript'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { parseCoordinationDecision } from '../lib/coordination.js'
+import { DecisionGovernance } from '../lib/decision-governance.js'
+
+const testMemories = new WeakMap()
 
 // Exercise the owned source directly; building the release remains separate.
 const compiled = ts.transpileModule(readFileSync(new URL('../src/assist.ts', import.meta.url), 'utf8'), {
@@ -18,7 +21,8 @@ vm.runInNewContext(compiled, {
     if (name === 'node:crypto') return { randomUUID }
     if (name === '@deepseek-ai/dsh-llm') return { createUserMessage }
     if (name === './coordination.js') return { parseCoordinationDecision }
-    if (name === './memory-host.js') return { beginMemoryRun: async () => undefined }
+    if (name === './memory-host.js') return { beginMemoryRun: async parent => testMemories.get(parent) }
+    if (name === './decision-governance.js') return { DecisionGovernance }
     throw new Error('Unexpected assist test import: ' + name)
   },
   AbortSignal, AbortController, setTimeout, clearTimeout,
@@ -31,7 +35,7 @@ const config = { toolName: 'ultra_task', timeoutMs: 5000, reportChars: 20000, re
   jevEnabled: false, coordinationIntervalMs: 100, coordinationMaxRounds: -1 }
 const answer = (parentId, instruction) => JSON.stringify({ assessment: 'Observed useful next step', directives: instruction ? [{ routeId: parentId, instruction }] : [] })
 
-function harness({ respond, create, timeoutMs, maxRounds, onFeedback, failureLimit, coordinationMaxTokens } = {}) {
+function harness({ respond, create, timeoutMs, maxRounds, onFeedback, failureLimit, coordinationMaxTokens, decisionGovernance } = {}) {
   const listeners = new Map()
   const controller = new AbortController()
   const events = [{ type: 'turn/start', data: { turn: 7 } }]
@@ -65,6 +69,9 @@ function harness({ respond, create, timeoutMs, maxRounds, onFeedback, failureLim
   const parent = { id: session.id, session, status: 'running', options: original,
     inbox, ctx: { root: { on } }, steer: message => { record.steering.push(message); inbox.nextStep.push(message); onFeedback?.(message) },
     cancel: () => { record.parentCancels++ }, followup: () => { record.followups++ } }
+  if (decisionGovernance) testMemories.set(parent, { refs: () => ['user-source'], recordGovernance() {},
+    recordTask() {}, recordDelivery() {}, recordReport() {}, stage() {}, entry: () => '',
+    captureEvent: () => ['tool-source'], prepareSeed: async () => [], dispose: async () => {} })
   const options = { parent, task: 'Implement the authorized change and deliver it normally', content: [], signal: controller.signal, phase: value => record.phases.push(value) }
   const factory = async (owner, inputs) => {
     assert.equal(owner, parent)
@@ -95,13 +102,20 @@ function harness({ respond, create, timeoutMs, maxRounds, onFeedback, failureLim
     }
     return claimed
   }
-  const start = () => startDecisionAssist({ ...config, coordinationMaxTokens, ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(maxRounds === undefined ? {} : { coordinationMaxRounds: maxRounds }), ...(failureLimit === undefined ? {} : { coordinationFailureLimit: failureLimit }) }, options, factory)
+  const start = () => startDecisionAssist({ ...config, decisionGovernance, coordinationMaxTokens, ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(maxRounds === undefined ? {} : { coordinationMaxRounds: maxRounds }), ...(failureLimit === undefined ? {} : { coordinationFailureLimit: failureLimit }) }, options, factory)
   const untilCalls = async count => {
     for (let i = 0; record.calls.length < count && i < 150; i++) await delay(10)
     assert.ok(record.calls.length >= count, `expected ${count} decision calls`)
   }
-  const listenerCount = () => [...listeners.values()].reduce((count, set) => count + set.size, 0)
-  return { parent, original, record, options, controller, factory, start, progress, finish, emit, untilCalls, listenerCount, claimNextStep }
+  const listenerCount = (name) => name ? (listeners.get(name)?.size ?? 0) : [...listeners.values()].reduce((count, set) => count + set.size, 0)
+  const request = async messages => {
+    let dispatches = 0
+    let next = async function* () { dispatches++; yield { type: 'fixture' } }
+    for (const listener of [...(listeners.get('llm/stream') ?? [])].reverse()) { const rest = next; next = () => listener({ sessionId: parent.id, messages }, rest) }
+    for await (const _ of next()) {}
+    return dispatches
+  }
+  return { parent, original, record, options, controller, factory, start, progress, finish, emit, untilCalls, listenerCount, claimNextStep, request }
 }
 
 test('assist review and its existing format correction share the explicit coordination cap', async () => {
@@ -512,4 +526,25 @@ test('zero failure limit allows later fresh assist evidence to recover', async (
   assert.equal(h.record.disposed.length, 0)
   h.finish()
   assert.equal((await sidecar.done).reason, 'turn-ended')
+})
+
+test('stopping a governed sidecar cannot dispatch an admitted but unseen cancelled direction', async () => {
+  const response = deferred()
+  const h = harness({ decisionGovernance: true, maxRounds: 1, respond: () => response.promise })
+  const sidecar = await h.start()
+  h.progress('Actual tool evidence')
+  const contract = sidecar.governance.contract
+  response.resolve(JSON.stringify({ assessment: 'Verify next', directives: [{ taskRevision: contract.revision,
+    taskHash: contract.sha256, targetRouteId: 'main', type: 'verify', reason: 'Actual receipt', evidenceIds: ['tool-source'],
+    instruction: 'Check the changed file', stopCondition: 'Stop after the receipt', ttlMs: 60000 }] }))
+  for (let i = 0; !h.record.steering.length && i < 100; i++) await delay(5)
+  assert.equal(h.record.steering.length, 1)
+  const [feedback] = h.claimNextStep()
+  assert.equal(sidecar.governance.diagnostics[0].status, 'admitted')
+  sidecar.stop(); await sidecar.done
+  assert.equal(sidecar.governance.diagnostics[0].status, 'cancelled')
+  await assert.rejects(h.request([feedback]), /过期辅助建议/)
+  assert.equal(h.record.parentCancels, 0)
+  h.finish()
+  assert.equal(h.listenerCount(), 0, 'native target turn end releases retained guards')
 })

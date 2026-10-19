@@ -1,17 +1,25 @@
 /** Bounded collaboration ledger. The host adapter owns actual DSH delegation. */
 import { randomUUID } from 'node:crypto'
+import type { ModelChoice, ModelSelection, ModelUsage } from './model-pool.js'
+
+export type TeamModel = Omit<ModelSelection, 'snapshot' | 'agentOptions'>
+export interface TeamSpawnRequest extends ModelChoice { taskName: string; message: string }
 
 export interface TeamSnapshot {
   id: string
   parentId?: string
   taskName: string
+  task?: string
+  model?: TeamModel
+  usage?: ModelUsage
+  recordingError?: string
   status: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'
   revision: number
   text?: string
   error?: string
 }
 export interface TeamAdapter {
-  spawn(callerId: string, request: { id: string; taskName: string; message: string }, signal: AbortSignal): Promise<{ id: string }>
+  spawn(callerId: string, request: TeamSpawnRequest & { id: string }, signal: AbortSignal): Promise<{ id: string }>
   /** Native waking delivery, used only by explicit follow-up tasks. */
   deliver(callerId: string, targetId: string, message: string, signal: AbortSignal): Promise<string>
   /** Optional non-waking delivery through the exact live target's public inbox. */
@@ -19,7 +27,7 @@ export interface TeamAdapter {
   interrupt(callerId: string, targetId: string, signal: AbortSignal): Promise<void>
   close(children: readonly { id: string; parentId: string }[]): Promise<void>
 }
-interface TeamOptions { runId: string; rootId: string; maxAgents?: number; maxMailbox?: number; maxTextChars?: number }
+interface TeamOptions { runId: string; rootId: string; maxAgents?: number; maxMailbox?: number; maxTextChars?: number; onChange?(members: TeamSnapshot[]): void }
 interface Mail { callerId: string; message: string }
 const terminal = (status: TeamSnapshot['status']) => status === 'completed' || status === 'failed' || status === 'cancelled'
 
@@ -66,8 +74,15 @@ export class CollaborationTeam {
     const target = this.members.get(targetId)
     if (caller?.parentId !== targetId && target?.parentId !== callerId) throw new Error('Messaging requires a direct parent/child relationship')
   }
-  private changed(): void { for (const listener of this.listeners) listener() }
-  private copy(member: TeamSnapshot): TeamSnapshot { return { ...member } }
+  private changed(): void { this.options.onChange?.([...this.members.values()].map(m => this.copy(m))); for (const listener of this.listeners) listener() }
+  private copy(member: TeamSnapshot): TeamSnapshot { return JSON.parse(JSON.stringify(member)) as TeamSnapshot }
+  annotate(id: string, value: { model?: TeamModel; usage?: ModelUsage }): void {
+    const member = this.members.get(id)
+    if (!member || this.controller.signal.aborted) return
+    Object.assign(member, JSON.parse(JSON.stringify(value)))
+    member.revision = ++this.revision
+    this.changed()
+  }
   private track<T>(operation: Promise<T>): Promise<T> {
     this.pending.add(operation)
     void operation.finally(() => this.pending.delete(operation)).catch(() => {})
@@ -75,7 +90,7 @@ export class CollaborationTeam {
   }
   has(id: string): boolean { return id === this.options.rootId || this.members.has(id) }
 
-  spawn(callerId: string, request: { taskName: string; message: string }, signal: AbortSignal): Promise<TeamSnapshot> {
+  spawn(callerId: string, request: TeamSpawnRequest, signal: AbortSignal): Promise<TeamSnapshot> {
     this.live(callerId, signal)
     const taskName = this.text(request.taskName, 'taskName')
     if (taskName.length > 128) throw new Error('taskName exceeds 128 characters')
@@ -83,13 +98,13 @@ export class CollaborationTeam {
     if ([...this.members.values()].some(member => member.parentId === callerId && member.taskName === taskName)) throw new Error('Duplicate taskName; reuse the existing collaboration child')
     if (this.members.size >= this.maxAgents) throw new Error('Ultra collaboration agent capacity reached; reuse an existing child')
     const id = 'ultra-child-' + randomUUID()
-    const member: TeamSnapshot = { id, parentId: callerId, taskName, status: 'starting', revision: ++this.revision }
+    const member: TeamSnapshot = { id, parentId: callerId, taskName, task: message, status: 'starting', revision: ++this.revision }
     this.members.set(id, member)
     const joined = AbortSignal.any([signal, this.controller.signal])
     return this.track((async () => {
       let accepted = false
       try {
-        const receipt = await this.adapter.spawn(callerId, { id, taskName, message }, joined)
+        const receipt = await this.adapter.spawn(callerId, { id, taskName, message, ...(request.modelConfigId === undefined ? {} : { modelConfigId: request.modelConfigId }), ...(request.reason === undefined ? {} : { reason: request.reason }) }, joined)
         accepted = true
         if (receipt.id !== id) throw new Error('Native child identity differs from the reserved collaboration identity')
         joined.throwIfAborted()

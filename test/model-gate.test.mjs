@@ -116,3 +116,28 @@ test('closing the gate rejects pending requests and never admits more work', asy
   assert.equal(dispatches, 1)
   assert.equal(f.gate.snapshot().active, 0)
 })
+
+test('one gate admits exact multiple provider/model pairs and keeps one shared ceiling of two', async t => {
+  const routes = [{ provider: 'provider-a', model: 'same-name' }, { provider: 'provider-b', model: 'same-name' }, { provider: 'provider-a', model: 'root' }]
+  const f = fixture(t, { allowedProvider: undefined, allowedModel: undefined, allowedRoutes: routes, maxRequests: 9 })
+  let release, active = 0, peak = 0, dispatched = 0
+  const barrier = new Promise(resolve => { release = resolve })
+  const requests = [...routes, ...routes].map((route, index) => consume(f.gate.stream({ ...options('route-' + index), ...route }, async function * () {
+    dispatched++; active++; peak = Math.max(peak, active); await barrier; yield finish; active--
+  })))
+  await tick(); assert.equal(f.gate.snapshot().active, 2); assert.equal(f.gate.snapshot().queueDepth, 4)
+  release(); await Promise.all(requests)
+  assert.equal(peak, 2); assert.equal(dispatched, 6)
+  assert.deepEqual(f.gate.snapshot().allowedRoutes, routes)
+  for (const route of [{ provider: 'provider-b', model: 'root' }, { provider: 'provider-a', model: 'unknown' }]) await assert.rejects(consume(f.gate.stream({ ...options('denied'), ...route }, async function * () { assert.fail('unauthorized route dispatched') })), { code: 'ACCEPTANCE_ROUTE_NOT_ALLOWED' })
+  routes[0].model = 'tampered'
+  await consume(f.gate.stream({ ...options('snapshot'), provider: 'provider-a', model: 'same-name' }, async function * () { yield finish }))
+  assert.equal(f.gate.snapshot().active, 0)
+})
+
+test('multiple-route gate rejects empty, duplicate, ambiguous and malformed route declarations', t => {
+  const f = fixture(t)
+  const base = { ...f.config, allowedProvider: undefined, allowedModel: undefined }
+  for (const allowedRoutes of [[], [{ provider: '', model: 'x' }], [{ provider: 'a', model: 'x' }, { provider: 'a', model: 'x' }], [{ provider: 'a', model: 'x', url: 'https://no.example' }]]) assert.throws(() => createGlobalLimit({ ...base, allowedRoutes }), /route|provider|model|nonempty|duplicate/i)
+  assert.throws(() => createGlobalLimit({ ...f.config, allowedRoutes: [{ provider: 'other', model: 'route' }] }), /legacy|included|ambiguous/i)
+})

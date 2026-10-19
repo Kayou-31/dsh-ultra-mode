@@ -37,7 +37,7 @@ export function installPreTruncationCapture(ctx: Context, host: UltraMemoryHost)
   function capture(agent: Agent | undefined, callId: string, name: string,
     content: readonly ContentBlock[], isError: boolean | undefined, ptc: boolean): void {
     if (disposed) return
-    if (name === 'ultra_memory_search' || name === 'ultra_memory_get') { counters.ignoredResults++; return }
+    if (['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(name)) { counters.ignoredResults++; return }
     try {
       const run = agent && memoryFor(agent)
       if (!agent || !run || run.host !== host || !run.active) { counters.ignoredResults++; return }

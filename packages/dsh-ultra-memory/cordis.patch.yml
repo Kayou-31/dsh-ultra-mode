@@ -1,0 +1,8 @@
+- insert:
+    - id: ultra-memory
+      name: '@dsh-external/dsh-ultra-memory'
+      config:
+        evidenceEnabled: true
+        contextCompression: false
+        globalKnowledge:
+          enabled: false

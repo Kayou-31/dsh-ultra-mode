@@ -8,6 +8,7 @@ import ts from 'typescript'
 import * as ultra from '../lib/ultra.js'
 import * as coordination from '../lib/coordination.js'
 import * as jev from '../lib/jev.js'
+import * as governance from '../lib/decision-governance.js'
 
 function sourceModule(file) {
   const exported = {}
@@ -15,6 +16,7 @@ function sourceModule(file) {
     compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS },
   }).outputText
   const imported = {
+    './decision-governance.js': governance,
     'node:crypto': { randomUUID }, './ultra.js': ultra, './coordination.js': coordination, './jev.js': jev,
     '@deepseek-ai/dsh-llm': { createUserMessage: value => ({ id: randomUUID(), ...value }) },
     './memory-host.js': { beginMemoryRun: async parent => parent.memoryRun },

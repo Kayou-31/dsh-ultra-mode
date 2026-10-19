@@ -121,3 +121,19 @@ test('native post-execute rejection cannot turn an unaccepted submitted report i
   assert.ok(f.toolResults.every(result => result.isError && !result.concludesTurn))
   assert.equal(f.requests.length, 3)
 })
+
+
+test('native steering exposes only real queue admission and actual next-request visibility', { skip: unavailable }, async t => {
+  const observed = []
+  let f
+  f = await fixture(t, { maxCalls: 2, script: ({ count }) => {
+    if (count === 1) assert.equal(f.route.steer('Check the synthetic alternative', { directiveId: 'native-directive', isCurrent: () => true, onDelivery: (status, sourceId) => observed.push({ status, sourceId }) }), true)
+    return { type: 'text', text: count === 1 ? 'Initial observation.' : 'Checked the synthetic alternative.' }
+  } })
+  const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Offline steering proof.' }]))
+  assert.equal(outcome.ok, true, outcome.error)
+  assert.deepEqual(observed.map(item => item.status), ['queued', 'admitted', 'request-visible'])
+  assert.equal(new Set(observed.map(item => item.sourceId)).size, 1)
+  assert.equal(typeof observed[0].sourceId, 'string')
+  assert.equal(f.requests.length, 2)
+})

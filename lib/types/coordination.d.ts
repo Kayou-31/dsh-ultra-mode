@@ -35,5 +35,5 @@ export interface CoordinationSnapshot {
 /** Accept only a strict bounded protocol targeting this invocation's active loops. */
 export declare function parseCoordinationDecision(text: string, activeIds: ReadonlySet<string>): CoordinationDecision;
 /** Reports are evidence only; this turn proposes directions without gaining write access. */
-export declare function buildCoordinationPrompt(task: string, snapshots: readonly CoordinationSnapshot[], round: number, previous: CoordinationSummary, reportChars: number): string;
+export declare function buildCoordinationPrompt(task: string, snapshots: readonly CoordinationSnapshot[], round: number, previous: CoordinationSummary, reportChars: number, governanceProtocol?: string): string;
 export declare function renderCoordinationSummary(summary: CoordinationSummary): string;

@@ -1,17 +1,25 @@
+import type { ModelChoice, ModelSelection, ModelUsage } from './model-pool.js';
+export type TeamModel = Omit<ModelSelection, 'snapshot' | 'agentOptions'>;
+export interface TeamSpawnRequest extends ModelChoice {
+    taskName: string;
+    message: string;
+}
 export interface TeamSnapshot {
     id: string;
     parentId?: string;
     taskName: string;
+    task?: string;
+    model?: TeamModel;
+    usage?: ModelUsage;
+    recordingError?: string;
     status: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled';
     revision: number;
     text?: string;
     error?: string;
 }
 export interface TeamAdapter {
-    spawn(callerId: string, request: {
+    spawn(callerId: string, request: TeamSpawnRequest & {
         id: string;
-        taskName: string;
-        message: string;
     }, signal: AbortSignal): Promise<{
         id: string;
     }>;
@@ -31,6 +39,7 @@ interface TeamOptions {
     maxAgents?: number;
     maxMailbox?: number;
     maxTextChars?: number;
+    onChange?(members: TeamSnapshot[]): void;
 }
 export declare class CollaborationTeam {
     private readonly options;
@@ -53,12 +62,13 @@ export declare class CollaborationTeam {
     private adjacent;
     private changed;
     private copy;
+    annotate(id: string, value: {
+        model?: TeamModel;
+        usage?: ModelUsage;
+    }): void;
     private track;
     has(id: string): boolean;
-    spawn(callerId: string, request: {
-        taskName: string;
-        message: string;
-    }, signal: AbortSignal): Promise<TeamSnapshot>;
+    spawn(callerId: string, request: TeamSpawnRequest, signal: AbortSignal): Promise<TeamSnapshot>;
     sendMessage(callerId: string, targetId: string, message: string, signal: AbortSignal): Promise<{
         queued: true;
         wakeup: false;

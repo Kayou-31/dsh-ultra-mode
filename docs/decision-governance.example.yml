@@ -1,0 +1,16 @@
+# 合并到独立测试 profile 已有的 ultra-mode 条目；不要重复插入插件。
+# 这是显式 opt-in 示例。日常默认 decisionGovernance: false。
+# concurrency 只配置路线数；在会话中手动选择 /ultra 2 才开始两路模式。
+# 不自动选择模式，不配置 provider、模型或凭据，保留既有模型池设置。
+- id: ultra-mode
+  config:
+    concurrency: 2
+    decisionGovernance: true
+    evidenceEnabled: true
+    contextCompression: false
+    jevEnabled: false
+    # 沿用现有决策调用和输出预算；0 表示继承，不主动增加调用。
+    planningMaxTokens: 0
+    researchMaxTokens: 0
+    coordinationMaxTokens: 0
+    decisionMaxTokens: 0

@@ -95,14 +95,14 @@ function lifecycleFixture({ drain, handleDispose, unpublishedFailure, memory } =
   }
   const imported = {
     '@deepseek-ai/dsh-agent': { agentCarrier: agent => agent },
-    '@deepseek-ai/dsh-llm': { ReasoningEffortId: value => value, createUserMessage: value => value },
+    '@deepseek-ai/dsh-llm': { ReasoningEffortId: value => value, createUserMessage: value => ({ id: "fixture-message-" + Math.random(), ...value }) },
     '@deepseek-ai/dsh-session': { SessionId: value => value, SessionLogOffset: value => value },
     '@deepseek-ai/dsh-scope': { scopeParentOf: () => undefined },
     './memory-host.js': { memoryFor: agent => agent.memoryRun },
   }
   vm.runInNewContext(compiled, { exports: runtime, require: name => imported[name], AggregateError, Error, Map, Set, WeakMap, Promise })
   return {
-    runtime, record, agents, parent, services, disposeAgent,
+    runtime, record, agents, parent, services, disposeAgent, hooks,
     async request(config) { return [...(hooks.get('agent/request') ?? [])][0]({}, async () => config) },
     emit: (name, ...args) => { for (const listener of hooks.get(name) ?? []) listener(...args) },
     create: () => runtime.createRoute(parent, { id: 'ultra-route-lifecycle', label: 'Offline lifecycle',
@@ -131,6 +131,36 @@ test('per-run output caps reach every request while Max is preserved and inherit
   await route.run([{ type: 'text', text: 'next phase inherits' }], { maxTokens: 0 })
   assert.deepEqual(observed.map(value => value.maxTokens), [16384, 16384, 8192, 8192])
   assert.ok(observed.every(value => value.reasoningEffort === 'max'))
+  await route.dispose()
+})
+
+test('knowledge publishing is confined to an active writable owner and cannot be allowlisted for research', async () => {
+  const f = lifecycleFixture()
+  assert.equal(typeof f.runtime.canPublishKnowledge, 'function')
+  f.parent.status = 'running'
+  assert.equal(f.runtime.canPublishKnowledge(f.parent), true)
+  const route = await f.runtime.createRoute(f.parent, { id: 'knowledge-role-route', label: 'Ultra decision', readOnly: true,
+    researchTools: ['read', 'ultra_knowledge_publish', 'ultra_knowledge_revoke'], signal: new AbortController().signal }, { toolName: 'ultra_task' })
+  const child = f.agents.get(route.id)
+  assert.equal(f.runtime.canPublishKnowledge(child), false)
+  assert.match(f.runtime.researchToolDenial(child, 'ultra_knowledge_publish'), /knowledge|cannot execute/i)
+  assert.match(f.runtime.researchToolDenial(child, 'ultra_knowledge_revoke'), /knowledge|cannot execute/i)
+  const nested = await f.descendant(route.id)
+  assert.equal(f.runtime.canPublishKnowledge(nested), false)
+  route.setReadOnly(false)
+  assert.equal(f.runtime.canPublishKnowledge(child), false, 'idle writable route has no publication authority')
+  const events = []
+  child.session.snapshotEvents = () => events
+  child.followup = () => {}
+  child.whenIdle = async () => {
+    assert.equal(f.runtime.canPublishKnowledge(child), true)
+    assert.equal(f.runtime.canPublishKnowledge(nested), false)
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'done' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  }
+  await route.run([{ type: 'text', text: 'authorized decision phase' }])
+  assert.equal(f.runtime.canPublishKnowledge(child), false)
+  f.parent.ctx.get = name => name === 'sandboxPolicy' ? { resolve: () => ({ mode: 'read-only' }) } : f.services[name]
+  assert.equal(f.runtime.canPublishKnowledge(f.parent), false, 'global grant cannot bypass a native read-only sandbox')
   await route.dispose()
 })
 
@@ -645,4 +675,83 @@ test('real SDK tool progress routes child evidence to its worker and steering re
     await route.dispose()
     assert.equal(route.steer('disposed feedback'), false)
   } finally { await f.close() }
+})
+
+
+test('steering delivery observer follows real identity admission and actual model-facing messages', async () => {
+  const f = lifecycleFixture(), route = await f.create(), agent = f.agents.get(route.id), observed = [], events = []
+  let feedback
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => { agent.status = 'running' }
+  agent.steer = message => { feedback = message }
+  agent.whenIdle = async () => {
+    assert.equal(route.steer('Check alternate facts', { directiveId: 'directive-one', onDelivery: (status, sourceId) => observed.push({ status, sourceId }) }), true)
+    assert.deepEqual(observed.map(item => item.status), ['queued'])
+    f.emit('session/event', agent.session, { type: 'user/message', data: { ...feedback, id: 'wrong-id' } })
+    assert.equal(observed.length, 1)
+    f.emit('session/event', agent.session, { type: 'user/message', data: feedback })
+    assert.deepEqual(observed.map(item => item.status), ['queued', 'admitted'])
+    const listeners = f.hooks.get('llm/stream') ?? []
+    for (const listener of listeners) for await (const ignored of listener({ sessionId: agent.id, messages: [{ role: 'user', content: feedback.content }] }, async function* () {})) {}
+    assert.deepEqual(observed.map(item => item.status), ['queued', 'admitted', 'request-visible'])
+    assert.ok(observed.every(item => item.sourceId === feedback.id))
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'done' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+    agent.status = 'idle'
+  }
+  const outcome = await route.run([{ type: 'text', text: 'Research' }])
+  assert.equal(outcome.ok, true, outcome.error)
+  await route.dispose()
+})
+
+
+test('expired steering removes only its own pending input and blocks admitted stale input before adapter dispatch', async () => {
+  const f = lifecycleFixture(), route = await f.create(), agent = f.agents.get(route.id), events = [], pending = new Map()
+  let feedback, current = true, adapterCalls = 0
+  agent.session.snapshotEvents = () => events
+  agent.inbox = { remove(id) { return pending.delete(id) } }
+  agent.followup = () => { agent.status = 'running' }
+  agent.steer = message => { feedback = message; pending.set(message.id, message) }
+  agent.whenIdle = async () => {
+    route.steer('Expiring guidance', { directiveId: 'expires', isCurrent: () => current })
+    pending.set('unrelated', { id: 'unrelated' })
+    current = false
+    const pre = [...(f.hooks.get('agent/pre-step') ?? [])][0]
+    await pre({ agent, signal: new AbortController().signal }, async () => undefined)
+    assert.equal(pending.has(feedback.id), false)
+    assert.equal(pending.has('unrelated'), true)
+    f.emit('session/event', agent.session, { type: 'user/message', data: feedback })
+    for (const stream of f.hooks.get('llm/stream') ?? []) {
+      await assert.rejects(async () => { for await (const ignored of stream({ sessionId: agent.id, messages: [{ role: 'user', content: feedback.content }] }, async function* () { adapterCalls++ })) {} }, /expired|superseded|过期|撤销/)
+    }
+    assert.equal(adapterCalls, 0)
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'safe' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+    agent.status = 'idle'
+  }
+  const outcome = await route.run([{ type: 'text', text: 'Research' }])
+  assert.equal(outcome.ok, true, outcome.error)
+  await route.dispose()
+})
+
+
+test('governed steering preserves maximum valid instruction and stop condition while legacy feedback stays capped', async () => {
+  const f = lifecycleFixture(), route = await f.create(), agent = f.agents.get(route.id), events = [], feedback = []
+  const instruction = 'I'.repeat(2000), stopCondition = 'S'.repeat(989) + 'STOP_AT_END'
+  const governed = instruction + '\n停止条件：' + stopCondition
+  agent.session.snapshotEvents = () => events
+  agent.followup = () => { agent.status = 'running' }
+  agent.steer = message => feedback.push(message.content[0].text)
+  agent.whenIdle = async () => {
+    assert.equal(route.steer(governed, { directiveId: 'long-valid-feedback' }), true)
+    assert.equal(feedback[0].slice(feedback[0].indexOf('\n') + 1), governed, 'legal stop condition must arrive complete after the maximum length instruction')
+    assert.equal(route.steer('L'.repeat(5000)), true)
+    assert.equal(feedback[1].slice(feedback[1].indexOf('\n') + 1), 'L'.repeat(2000), 'legacy steering retains its original cap')
+    assert.equal(route.steer('G'.repeat(5000), { directiveId: 'bounded-governed-feedback' }), true)
+    assert.equal(feedback[2].slice(feedback[2].indexOf('\n') + 1).length, 4000, 'governed transport remains bounded')
+    events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: 'done' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' } } })
+    agent.status = 'idle'
+  }
+  try {
+    const outcome = await route.run([{ type: 'text', text: 'Offline bounded feedback proof.' }])
+    assert.equal(outcome.ok, true, outcome.error)
+  } finally { await route.dispose() }
 })

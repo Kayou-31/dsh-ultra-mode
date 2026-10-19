@@ -6,21 +6,21 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
-export async function buildClient() {
+export async function buildClient(options = {}) {
   let build
   try {
     ;({ build } = await import('esbuild'))
   } catch {
     throw new Error('esbuild is missing. Run npm install in this project before building.')
   }
-  const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+  const manifest = options.manifest ?? JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
   if (typeof manifest.name !== 'string' || !manifest.name.trim()) {
     throw new Error('package.json must define the DSH plugin name')
   }
   await build({
     absWorkingDir: root,
     entryPoints: [path.join(root, 'src', 'client', 'index.ts')],
-    outfile: path.join(root, 'lib', 'client.js'),
+    outfile: options.outfile ?? path.join(root, 'lib', 'client.js'),
     bundle: true,
     splitting: false,
     platform: 'browser',
@@ -38,7 +38,7 @@ export async function buildClient() {
       '@deepseek-ai/dsh-client-*',
       'cordis',
     ],
-    define: { 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production') },
+    define: { 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'), __DSH_ULTRA_VARIANT__: JSON.stringify(options.variant ?? 'ultra') },
     banner: {
       js: `window.__ModuleLoader__.load({ id: ${JSON.stringify(manifest.name)}, factory: (require) => {\nvar module = { exports: {} }; var exports = module.exports;`,
     },

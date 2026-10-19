@@ -20,7 +20,7 @@ const deferred = () => {
 }
 
 /** Small hook runner: tests own effect scheduling rather than depending on a browser fixture. */
-function harness(handler = async () => response(), { sessionList, language = 'zh', anchor, viewport = { width: 800, height: 640 } } = {}) {
+function harness(handler = async () => response(), { sessionList, language = 'zh', anchor, variant, viewport = { width: 800, height: 640 } } = {}) {
   const slots = []
   const effects = []
   const timers = new Map()
@@ -84,7 +84,7 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
     },
     window: { innerWidth: viewport.width, innerHeight: viewport.height,
       setInterval(fn) { const id = timers.size + 1; timers.set(id, fn); return id }, clearInterval: id => timers.delete(id) },
-    document, Node: class Node {}, Error,
+    document, Node: class Node {}, Error, __DSH_ULTRA_VARIANT__: variant,
   }, { filename: 'client/index.ts' })
   module.exports.apply({
     sessions: { list },
@@ -156,6 +156,21 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
     alerts: () => findAll(node => node.props.role === 'alert').map(textOf),
   }
 }
+
+test('Decision client has its own module identity, RPC, locale, and only off/assist choices', async () => {
+  const ui = harness(async () => response({ concurrency: 1 }), { variant: 'decision' })
+  assert.equal(ui.slots[0].options.id, 'dsh-ultra-decision')
+  assert.equal(ui.slots[0].options.locale, 'dsh-ultra-decision')
+  assert.equal(ui.styles[0].dataset.plugin, 'dsh-ultra-decision')
+  ui.render('decision-session')
+  await ui.settle()
+  ui.open()
+  assert.equal(ui.calls[0].channel, '/dsh-ultra-decision')
+  assert.deepEqual(ui.options().map(option => option.props.key), [0, 1])
+  assert.match(ui.text(), /Decision/)
+  assert.doesNotMatch(ui.text(), /2 路|3 路|4 路|5 路/)
+  ui.dispose()
+})
 
 test('absolute menu stays within horizontal viewport margins without changing its vertical placement', async () => {
   for (const [width, anchor, expectedLeft, below] of [
@@ -698,4 +713,26 @@ test('session-list bridge rejects an unwritable descriptor with a clear compatib
   const original = list.getSnapshot
   assert.throws(() => harness(undefined, { sessionList: list }), /requires a writable sessions\.list\.getSnapshot/)
   assert.equal(list.getSnapshot, original)
+})
+
+test('decision governance displays delivery stages and model-only acceptance without claiming effects', async () => {
+  const governance = { enabled: true, taskHash: 'a'.repeat(64), taskRevision: 1, originalChars: 40, intentItems: 4,
+    queued: 1, admitted: 0, requestVisible: 1, effectVerified: 0, closedDirections: 0,
+    verification: { satisfied: 1, failed: 0, unverified: 1, allSatisfied: false, hostVerified: false }, durable: true, closed: false, errors: [] }
+  const ui = harness(async () => response({ governance }))
+  ui.render('session-a'); await ui.settle(); ui.open()
+  assert.match(ui.text(), /意图与验收/)
+  assert.match(ui.text(), /待处理 1/)
+  assert.match(ui.text(), /进入请求 1/)
+  assert.match(ui.text(), /独立效果验证 0/)
+  assert.match(ui.text(), /模型判断/)
+  assert.match(ui.text(), /未验证 1/)
+  ui.dispose()
+})
+
+test('invalid governance telemetry cannot turn a model judgement into host verification', async () => {
+  const ui = harness(async () => response({ governance: { enabled: true, verification: { hostVerified: true } } }))
+  ui.render('session-a'); await ui.settle(); ui.open()
+  assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+  ui.dispose()
 })

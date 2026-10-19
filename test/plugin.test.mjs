@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
 import * as policy from '../lib/ultra.js'
+import * as poolSettings from '../lib/model-pool-settings.js'
+import * as governance from '../lib/decision-governance.js'
 
 const compiled = ts.transpileModule(readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
@@ -13,10 +15,11 @@ const CONFIG = { toolName: 'ultra_task', concurrency: 3, sectionOrder: 117.5, ma
   timeoutMs: 10000, reportChars: 20000, researchTools: ['read', 'subagent'], jevEnabled: false }
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 const cooperationToolNames = ['ultra_spawn_agent', 'ultra_send_message', 'ultra_followup_task', 'ultra_wait_agent', 'ultra_interrupt_agent', 'ultra_list_agents']
-function boot({ runner, assistRunner, config, lateConnection = false, collaborationClose, beforeAssemblyWaterfall, memoryBeforeStep } = {}) {
+function boot({ runner, assistRunner, config, variant, lateConnection = false, collaborationClose, beforeAssemblyWaterfall, memoryBeforeStep, sharedServices = {} } = {}) {
   const record = { tools: [], guards: [], commands: [], sections: [], handlers: new Map(), events: new Map(), calls: [], assists: [], pending: [], disposers: [], injections: [],
     agents: new Map(), cooperationMounts: new Map(), assemblies: [] }
   const services = {
+    ...sharedServices,
     agents: { get: id => record.agents.get(id), roots: () => [...record.agents.values()].filter(a => !a.runtimeOwner) },
     systemPrompt: { section: value => record.sections.push(value), async assemble(context) {
       // Installed SDK SystemPrompt collects schemas BEFORE its assembly
@@ -37,6 +40,7 @@ function boot({ runner, assistRunner, config, lateConnection = false, collaborat
     connection: services.connection,
     tools: { register: value => record.tools.push(value), guard: value => record.guards.push(value) },
     get: name => services[name],
+    provide(name, value) { services[name] = value; sharedServices[name] = value; record.disposers.push(() => { delete services[name]; delete sharedServices[name] }) },
     effect: fn => { const dispose = fn(); if (typeof dispose === 'function') record.disposers.push(dispose); return dispose },
     on: (name, fn) => record.events.set(name, fn),
     inject(names, callback) {
@@ -47,6 +51,16 @@ function boot({ runner, assistRunner, config, lateConnection = false, collaborat
   }
   const schema = new Proxy({}, { get: () => () => schema })
   const imported = {
+    './evidence-support.js': { acquireEvidenceSupport(_ctx, _config, options) {
+      record.evidenceOwner = options.owner
+      return { memory: { capture() {}, async beforeStep(...args) { return memoryBeforeStep?.(...args) }, observeRequest() {}, status() {} },
+        readTools: [], captureStatus() {}, knowledgeStatus() {}, ready: async () => {}, async release() { record.evidenceReleased = (record.evidenceReleased ?? 0) + 1 } }
+    } },
+    './knowledge-integration.js': { installKnowledgeIntegration: () => undefined },
+    './knowledge-settings.js': { GlobalKnowledgeSchema: schema },
+    './decision-governance.js': governance,
+    './model-pool-settings.js': poolSettings,
+    './model-pool-audit.js': { readCollaborationAudit: async () => [] },
     './capture-memory.js': { installPreTruncationCapture() { return { dispose() {}, status() { return {} } } } },
     './memory-host.js': { installMemoryHost() { return { capture() {}, async beforeStep(...args) { return memoryBeforeStep?.(...args) }, observeRequest() {}, status() {}, async close() {} } }, uninstallMemoryHost() {} },
     '@deepseek-ai/schemastery': { __esModule: true, default: schema },
@@ -58,7 +72,7 @@ function boot({ runner, assistRunner, config, lateConnection = false, collaborat
       record.collaborationStarts = (record.collaborationStarts ?? 0) + 1
       const mounted = { generation: record.collaborationStarts }
       record.cooperationMounts.set(agent, mounted)
-      return { async close() {
+      return { records: () => [], async close() {
         record.collaborationStops = (record.collaborationStops ?? 0) + 1
         await collaborationClose?.({ agent, generation: mounted.generation })
         if (record.cooperationMounts.get(agent) === mounted) record.cooperationMounts.delete(agent)
@@ -84,9 +98,9 @@ function boot({ runner, assistRunner, config, lateConnection = false, collaborat
   }
   const exports = {}
   vm.runInNewContext(compiled, { exports, require: name => { if (!(name in imported)) throw new Error(name); return imported[name] }, Date, Map, Set, Error, String, Number, AbortController, AbortSignal })
-  exports.apply(ctx, { ...CONFIG, ...config })
+  const ready = exports.apply(ctx, { ...CONFIG, ...config }, variant)
   return { record, tool: record.tools[0], section: record.sections[0], command: record.commands.find(value => value.name === 'ultra'), teamCommand: record.commands.find(value => value.name === 'team'),
-    rpc: (...args) => record.handlers.get('/dsh-ultra-mode')(...args), mountConnection: () => record.pending.forEach(fn => fn(ctx)),
+    ready, rpc: (...args) => record.handlers.get(variant === 'decision' ? '/dsh-ultra-decision' : '/dsh-ultra-mode')(...args), mountConnection: () => record.pending.forEach(fn => fn(ctx)),
     startTurn(root, turn = 1) {
       root.session ??= { id: root.id }
       record.agents.set(root.id, root)
@@ -99,6 +113,41 @@ const agent = (id = 'root') => ({ id, ctx: { waterfall: async (_carrier, event, 
   assert.equal(event, 'agent/request'); return { ...await next(), provider: 'selected-provider', model: 'selected-model' }
 } }, options: { provider: 'fallback', model: 'fallback' } })
 const exec = a => ({ agent: a, signal: new AbortController().signal })
+
+test('Decision companion defaults to ordinary Agent, exposes only decision/team, and hard rejects route controls', async () => {
+  const h = boot({ variant: 'decision', config: { concurrency: 5 } })
+  assert.equal(h.record.evidenceOwner, 'decision')
+  assert.equal(h.record.tools.some(tool => tool.name === 'ultra_task'), false)
+  assert.deepEqual(h.record.commands.map(command => command.name).sort(), ['decision', 'team'])
+  assert.equal(h.record.handlers.has('/dsh-ultra-mode'), false)
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.enabled, false)
+  assert.equal(h.rpc('get', { sessionId: 'root' }).value.concurrency, 1)
+  for (const concurrency of [2, 3, 4, 5]) {
+    assert.equal(h.rpc('set', { sessionId: 'root', enabled: true, concurrency }).ok, false)
+    assert.equal(h.rpc('get', { sessionId: 'root' }).value.enabled, false, 'rejection is atomic')
+  }
+  const command = h.record.commands.find(command => command.name === 'decision')
+  for (const rawInput of ['1', '2', '3', '4', '5']) assert.equal(command.handler({ agent: agent(), rawInput }).kind, 'error')
+  const user = { id: 'decision-default', source: { kind: 'user' }, content: [{ type: 'text', text: 'normal task' }] }
+  const payload = { agent: agent(), step: 1, turn: 1, signal: exec().signal, messages: [user] }
+  await h.record.events.get('agent/pre-step')(payload, async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(h.record.assists.length, 0)
+  command.handler({ agent: payload.agent, rawInput: 'on' })
+  await h.record.events.get('agent/pre-step')(payload, async () => ({ kind: 'enter', messages: [user] }))
+  assert.equal(h.record.assists.length, 1)
+  assert.equal(h.record.calls.length, 0)
+  await h.ready
+  for (const dispose of h.record.disposers) await dispose()
+  assert.equal(h.record.evidenceReleased, 1)
+})
+
+test('native coordination owner rejects full Ultra plus Decision in either order before registering entries', () => {
+  for (const variants of [['ultra', 'decision'], ['decision', 'ultra']]) {
+    const sharedServices = {}
+    boot({ variant: variants[0], sharedServices })
+    assert.throws(() => boot({ variant: variants[1], sharedServices }), /coordination|协调.*选择|同时/i)
+  }
+})
 
 test('registers automatic observer, tool, guard, command, prompt and RPC', () => {
   const h = boot()

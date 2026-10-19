@@ -1,0 +1,33 @@
+# 合并到独立测试 profile 当前配置权威的已有条目，不要重复插入插件。
+# 本例为独立 Memory 或包含 Memory 的组合；仅完整 Ultra 时将 id 改为 ultra-mode，
+# 独立 Decision 时改为 ultra-decision。包应先通过原生本地 TGZ 入口安装启用。
+# 配置权威 Memory > Ultra > Decision，只用一份配置，项目授权不并集。
+# 不要同时填写三份以尝试合并授权；移除 Memory 后先核对接替配置。
+# 日常默认 globalKnowledge.enabled: false；这里是显式开启示例。
+# 首次切换 enabled 后重载插件或重启；已启用时项目授权热修改用于后续操作。
+# 先创建并替换下面两个真实绝对目录；不能复用同一 ID 或同一规范目录。
+# profile 位置由宿主 profileContext.dir 提供，不配置密钥、任意知识库路径或额外模型。
+- id: ultra-memory
+  config:
+    evidenceEnabled: true
+    globalKnowledge:
+      enabled: true
+      projects:
+        - id: project-a
+          root: 'E:\Projects\knowledge-project-a'
+          read: true
+          publish: true
+          shareWith:
+            - project-b
+        - id: project-b
+          root: 'E:\Projects\knowledge-project-b'
+          read: true
+          publish: false
+          shareWith: []
+      # 整个返回结果的 JSON 字符预算，包含元数据及转义；请求只能向下收紧。
+      maxSearchChars: 6000
+      maxGetChars: 12000
+# A 可发布给 B；B 只能读取发布时已共享给其当前真实目录且当前仍获授权的记录。
+# 新增读者或更换项目目录后，旧记录不会自动扩大共享，需要显式 supersedes 新版本。
+# 配置权威切换也不能扩大旧发布的读者快照；在途旧操作会取消并清理后重查授权。
+# Ultra 模式、Team、模型池及压缩继续沿用已有设置；本示例不替你开启并发。

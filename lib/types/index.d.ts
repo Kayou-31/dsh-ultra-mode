@@ -18,12 +18,103 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 export declare const name = "@dsh-external/dsh-ultra-mode";
 export declare const inject: string[];
-export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+export declare const ConfigFields: {
     toolName: z<string, string, "defined">;
     concurrency: z<number, number, "defined">;
     collaborationEnabled: z<boolean, boolean, "defined">;
     collaborationProvider: z<string, string, "defined">;
     collaborationMaxAgents: z<number, number, "defined">;
+    collaborationModelPool: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
     sectionOrder: z<number, number, "defined">;
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;
@@ -35,7 +126,203 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     coordinationIntervalMs: z<number, number, "defined">;
     coordinationMaxRounds: z<number, number, "defined">;
     coordinationFailureLimit: z<number, number, "defined">;
+    decisionGovernance: z<boolean, boolean, "defined">;
     evidenceEnabled: z<boolean, boolean, "defined">;
+    globalKnowledge: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
+    memorySearchChars: z<number, number, "defined">;
+    memoryGetChars: z<number, number, "defined">;
+    contextTargetTokens: z<number, number, "defined">;
+    contextOutputReserveTokens: z<number, number, "defined">;
+    contextToolReserveTokens: z<number, number, "defined">;
+    contextCompression: z<boolean, boolean, "defined">;
+    memoryMaxRequests: z<number, number, "defined">;
+    memoryMaxTokens: z<number, number, "defined">;
+    researchTools: z<string[], string[], "defined">;
+    jevEnabled: z<boolean, boolean, "defined">;
+    jevKeyEnv: z<string, string, "defined">;
+    jevModel: z<string, string, "defined">;
+    jevBaseUrl: z<string, string, "defined">;
+    jevTimeoutMs: z<number, number, "defined">;
+};
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    toolName: z<string, string, "defined">;
+    concurrency: z<number, number, "defined">;
+    collaborationEnabled: z<boolean, boolean, "defined">;
+    collaborationProvider: z<string, string, "defined">;
+    collaborationMaxAgents: z<number, number, "defined">;
+    collaborationModelPool: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
+    sectionOrder: z<number, number, "defined">;
+    maxSessions: z<number, number, "defined">;
+    timeoutMs: z<number, number, "defined">;
+    reportChars: z<number, number, "defined">;
+    planningMaxTokens: z<number, number, "defined">;
+    researchMaxTokens: z<number, number, "defined">;
+    decisionMaxTokens: z<number, number, "defined">;
+    coordinationMaxTokens: z<number, number, "defined">;
+    coordinationIntervalMs: z<number, number, "defined">;
+    coordinationMaxRounds: z<number, number, "defined">;
+    coordinationFailureLimit: z<number, number, "defined">;
+    decisionGovernance: z<boolean, boolean, "defined">;
+    evidenceEnabled: z<boolean, boolean, "defined">;
+    globalKnowledge: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
     memorySearchChars: z<number, number, "defined">;
     memoryGetChars: z<number, number, "defined">;
     contextTargetTokens: z<number, number, "defined">;
@@ -56,6 +343,97 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     collaborationEnabled: z<boolean, boolean, "defined">;
     collaborationProvider: z<string, string, "defined">;
     collaborationMaxAgents: z<number, number, "defined">;
+    collaborationModelPool: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        models: z<({
+            id?: string | null | undefined;
+            name?: string | null | undefined;
+            enabled?: boolean | null | undefined;
+            provider?: string | null | undefined;
+            model?: string | null | undefined;
+            strengths?: string | null | undefined;
+            suitableFor?: string | null | undefined;
+            avoidFor?: string | null | undefined;
+            reasoningEffort?: string | null | undefined;
+            maxTokens?: number | null | undefined;
+            isDefault?: boolean | null | undefined;
+            maxConcurrent?: number | null | undefined;
+            allowCrossProvider?: boolean | null | undefined;
+            allowUnverifiedTools?: boolean | null | undefined;
+            costNote?: string | null | undefined;
+            costSource?: "user" | "measured" | null | undefined;
+            speedNote?: string | null | undefined;
+            speedSource?: "user" | "measured" | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            name: z<string, string, "plain">;
+            enabled: z<boolean, boolean, "defined">;
+            provider: z<string, string, "plain">;
+            model: z<string, string, "plain">;
+            strengths: z<string, string, "defined">;
+            suitableFor: z<string, string, "defined">;
+            avoidFor: z<string, string, "defined">;
+            reasoningEffort: z<string, string, "plain">;
+            maxTokens: z<number, number, "plain">;
+            isDefault: z<boolean, boolean, "defined">;
+            maxConcurrent: z<number, number, "defined">;
+            allowCrossProvider: z<boolean, boolean, "defined">;
+            allowUnverifiedTools: z<boolean, boolean, "defined">;
+            costNote: z<string, string, "defined">;
+            costSource: z<"user" | "measured", "user" | "measured", "defined">;
+            speedNote: z<string, string, "defined">;
+            speedSource: z<"user" | "measured", "user" | "measured", "defined">;
+        }>>[], "defined">;
+        explicitModelId: z<string, string, "defined">;
+        fallback: z<"default" | "error" | "inherit", "default" | "error" | "inherit", "defined">;
+        maxConcurrent: z<number, number, "defined">;
+        maxRequests: z<number, number, "defined">;
+        failureLimit: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
     sectionOrder: z<number, number, "defined">;
     maxSessions: z<number, number, "defined">;
     timeoutMs: z<number, number, "defined">;
@@ -67,7 +445,43 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     coordinationIntervalMs: z<number, number, "defined">;
     coordinationMaxRounds: z<number, number, "defined">;
     coordinationFailureLimit: z<number, number, "defined">;
+    decisionGovernance: z<boolean, boolean, "defined">;
     evidenceEnabled: z<boolean, boolean, "defined">;
+    globalKnowledge: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        enabled: z<boolean, boolean, "defined">;
+        projects: z<({
+            id?: string | null | undefined;
+            root?: string | null | undefined;
+            read?: boolean | null | undefined;
+            publish?: boolean | null | undefined;
+            shareWith?: string[] | null | undefined;
+        } & import("@deepseek-ai/cosmokit").Dict)[], Schemastery.ObjectT<NoInfer<{
+            id: z<string, string, "plain">;
+            root: z<string, string, "plain">;
+            read: z<boolean, boolean, "defined">;
+            publish: z<boolean, boolean, "defined">;
+            shareWith: z<string[], string[], "defined">;
+        }>>[], "defined">;
+        maxSearchChars: z<number, number, "defined">;
+        maxGetChars: z<number, number, "defined">;
+    }>>>, "volatile-defined">;
     memorySearchChars: z<number, number, "defined">;
     memoryGetChars: z<number, number, "defined">;
     contextTargetTokens: z<number, number, "defined">;
@@ -88,6 +502,7 @@ export interface Config extends RunConfig {
     sectionOrder: number;
     maxSessions: number;
     evidenceEnabled?: boolean;
+    globalKnowledge?: unknown;
     memorySearchChars?: number;
     memoryGetChars?: number;
     contextTargetTokens?: number;
@@ -98,4 +513,4 @@ export interface Config extends RunConfig {
     memoryMaxTokens?: number;
 }
 /** Registers automatic turn dispatch, the independent button RPC, and manual command/tool entries. */
-export declare function apply(ctx: Context, config: Config): void;
+export declare function apply(ctx: Context, config: Config, variant?: 'ultra' | 'decision'): Promise<void>;

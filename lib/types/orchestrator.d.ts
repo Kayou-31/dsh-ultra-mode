@@ -1,6 +1,7 @@
 import type { AgentLike as RouteParent, ContentBlock, createRoute } from './runtime.js';
 import { type CoordinationSummary } from './coordination.js';
 import type { CollaborationHostConfig } from './collaboration-host.js';
+import { type GovernanceSnapshot } from './decision-governance.js';
 export interface RunConfig extends CollaborationHostConfig {
     toolName: string;
     timeoutMs: number;
@@ -22,6 +23,8 @@ export interface RunConfig extends CollaborationHostConfig {
     researchMaxTokens?: number;
     decisionMaxTokens?: number;
     coordinationMaxTokens?: number;
+    /** Opt-in strategy protocol within existing decision calls; no new optimizer. */
+    decisionGovernance?: boolean;
 }
 export interface RunOptions {
     parent: RouteParent;
@@ -34,6 +37,7 @@ export interface RunOptions {
         model: string;
     };
     phase(value: string): void;
+    onGovernance?(snapshot: GovernanceSnapshot): void;
 }
 export interface UltraResult {
     runId: string;
@@ -45,6 +49,7 @@ export interface UltraResult {
     routeIds: string[];
     decisionId: string;
     coordination: CoordinationSummary;
+    governance?: GovernanceSnapshot;
 }
 /** Keep only complete turns as context seed, as required by DSH session replay. */
 export declare function completedSeed(parent: RouteParent): import("@deepseek-ai/dsh-session/types").SessionEvent[];

@@ -1,4 +1,6 @@
 /** Parallel research routes, plus an optional normal-agent decision assistant. */
+import { type TaskContract } from './decision-contract.js';
+import type { GovernanceStatus } from './decision-governance.js';
 export declare const MIN_CONCURRENCY = 2;
 export declare const MAX_CONCURRENCY = 5;
 export interface UltraState {
@@ -16,6 +18,7 @@ export interface UltraState {
         succeeded: number;
         runId: string;
     } | null;
+    governance?: GovernanceStatus;
 }
 export interface WorkerOutcome {
     ok: boolean;
@@ -61,6 +64,7 @@ export declare function snapshotOf(state: UltraState): {
     activeRuns: number;
     phase: string;
     error: string | null;
+    governance?: GovernanceStatus;
 };
 /** Count only completed, nonblank route output. */
 export declare function planMerge(outcomes: readonly WorkerOutcome[], requested: number): MergePlan;
@@ -71,9 +75,9 @@ export declare function parseAssignments(text: string, count: number): string[];
 /** Built-in decision policy; optional evaluators never replace this route. */
 export declare const ULTRA_DECISION_INSTRUCTIONS: string;
 /** Plan in the decision loop that later implements and synthesizes. */
-export declare function buildPlanPrompt(task: string, count: number): string;
+export declare function buildPlanPrompt(task: string, count: number, contract?: TaskContract): string;
 /** Repair formatting once on the same decision, preserving every route's obligations. */
-export declare function buildPlanRepairPrompt(task: string, count: number, invalid: string, limit: number): string;
+export declare function buildPlanRepairPrompt(task: string, count: number, invalid: string, limit: number, contract?: TaskContract): string;
 /** Share user context while giving each route a different assignment. */
 export declare function buildWorkerBrief(task: string, assignment: string, index: number, count: number, plan: string, reportLimit?: number): string;
 /** Resolve disagreements and let one route commit shared changes. */

@@ -1,0 +1,8 @@
+- insert:
+    - id: ultra-decision
+      name: '@dsh-external/dsh-ultra-decision'
+      config:
+        collaborationEnabled: false
+        decisionAssistEnabled: false
+        decisionGovernance: false
+        contextCompression: false

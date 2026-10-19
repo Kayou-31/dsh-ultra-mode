@@ -29,6 +29,18 @@ function fixture(t, config = {}) {
 }
 test('exports the host-owned evidence adapter', () => assert.equal(typeof api.UltraMemoryHost, 'function'))
 
+test('global retrieval text is not recaptured as a new local source for onward publication', enabled, async t => {
+  const f = fixture(t), run = await f.host.begin(f.root, 'retrieval-provenance')
+  for (const name of ['ultra_knowledge_search', 'ultra_knowledge_get']) {
+    const callId = 'global-' + name
+    assert.deepEqual(run.captureTool(f.root, callId, name, { content: [{ type: 'text', text: 'Shared A-only material' }] }), [])
+    assert.deepEqual(run.captureEvent(f.root.session, f.event(f.root, 'tool/call', { callId, name, arguments: '{}' })), [])
+    assert.deepEqual(run.captureEvent(f.root.session, f.event(f.root, 'tool/result', { message: { source: { callId }, content: [{ type: 'text', text: 'Shared A-only material' }] } })), [])
+  }
+  assert.equal([...run.store.recordsFor(run.access())].length, 0)
+  await run.dispose()
+})
+
 test('verified citation distinguishes the executed read resource from IDs inside its body', enabled, async t => {
   const f = fixture(t), run = await f.host.begin(f.root, 'citation')
   run.captureEvent(f.root.session, f.event(f.root, 'tool/call', { name: 'fixture_read', callId: 'read-1', arguments: JSON.stringify({ id: 'vendor-a' }) }))
@@ -289,6 +301,17 @@ test('native step cancellation during a durability checkpoint retains the origin
   assert.equal(f.session.seq, seq)
   assert.deepEqual(f.session.surface.nodes, nodes)
   assert.match(f.run.status().errors.join(' '), /native step cancelled/)
+})
+
+test('authority suspension during an in-flight compression checkpoint retains original history', enabled, async t => {
+  const f = await compressionFixture(t), checkpoint = f.run.checkpoint.bind(f.run)
+  const seq = f.session.seq, nodes = [...f.session.surface.nodes]
+  f.run.checkpoint = async () => { await checkpoint(); f.host.config.evidenceEnabled = false; f.host.refreshAuthority() }
+  await f.host.beforeStep(f.root)
+  assert.equal(f.session.seq, seq)
+  assert.deepEqual(f.session.surface.nodes, nodes)
+  assert.match(f.run.status().errors.join(' '), /authority suspended/)
+  assert.equal(f.run.entry(), '')
 })
 
 test('native pruning replacements do not create false raw evidence coverage gaps', enabled, async t => {

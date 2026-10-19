@@ -20,9 +20,27 @@ const usageOf = value => {
 }
 
 function configuration(config) {
-  for (const key of ['allowedProvider', 'allowedModel']) {
-    if (typeof config[key] !== 'string' || !config[key].trim() || config[key].length > 256 || /[\r\n\u0000]/u.test(config[key])) throw new TypeError(key + ' must be one exact nonempty route value')
+  const routeValue = (value, key) => {
+    if (typeof value !== 'string' || !value.trim() || value.length > 256 || /[\r\n\u0000]/u.test(value)) throw new TypeError(key + ' must be one exact nonempty route value')
+    return value
   }
+  const hasLegacy = config.allowedProvider !== undefined || config.allowedModel !== undefined
+  let legacy
+  if (hasLegacy) legacy = { provider: routeValue(config.allowedProvider, 'allowedProvider'), model: routeValue(config.allowedModel, 'allowedModel') }
+  let allowedRoutes
+  if (config.allowedRoutes !== undefined) {
+    if (!Array.isArray(config.allowedRoutes) || config.allowedRoutes.length < 1 || config.allowedRoutes.length > 32) throw new TypeError('allowedRoutes must contain 1 to 32 exact routes')
+    allowedRoutes = config.allowedRoutes.map(route => {
+      if (!route || typeof route !== 'object' || Array.isArray(route) || Object.keys(route).some(key => !['provider', 'model'].includes(key))) throw new TypeError('Each allowed route must contain only provider and model')
+      return Object.freeze({ provider: routeValue(route.provider, 'route provider'), model: routeValue(route.model, 'route model') })
+    })
+    if (new Set(allowedRoutes.map(route => JSON.stringify([route.provider, route.model]))).size !== allowedRoutes.length) throw new TypeError('Duplicate allowed route')
+    if (legacy && !allowedRoutes.some(route => route.provider === legacy.provider && route.model === legacy.model)) throw new TypeError('Legacy route must be included in allowedRoutes; ambiguous authorization is rejected')
+  } else {
+    if (!legacy) throw new TypeError('One exact allowed route or allowedRoutes is required')
+    allowedRoutes = [Object.freeze(legacy)]
+  }
+  Object.freeze(allowedRoutes)
   const concurrency = config.concurrency ?? 2, maxRequests = config.maxRequests ?? 60
   if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 2) throw new TypeError('Acceptance concurrency must be 1 or 2; the hard maximum is 2')
   if (!Number.isSafeInteger(maxRequests) || maxRequests < 1) throw new TypeError('Acceptance maxRequests must be a finite positive safe integer')
@@ -45,7 +63,7 @@ function configuration(config) {
     const entry = fs.lstatSync(logFile)
     if (entry.isSymbolicLink() || !entry.isFile()) throw new TypeError('Acceptance log target must be an ordinary file')
   }
-  return { allowedProvider: config.allowedProvider, allowedModel: config.allowedModel, concurrency, maxRequests, testRoot, logFile, syntheticUsage: config.syntheticUsage ?? false }
+  return { allowedProvider: config.allowedProvider, allowedModel: config.allowedModel, allowedRoutes, concurrency, maxRequests, testRoot, logFile, syntheticUsage: config.syntheticUsage ?? false }
 }
 
 /** Public only for local unit fixtures and the Loader plugin below; creates no provider. */
@@ -56,7 +74,7 @@ export function createGlobalLimit(config) {
   let closed = false, auditFailed = false
   const snapshot = () => ({ ...counters, queueDepth: pending.length, closed, auditFailed, runId,
     concurrency: selected.concurrency, maxRequests: selected.maxRequests, allowedProvider: selected.allowedProvider,
-    allowedModel: selected.allowedModel, synthetic: selected.syntheticUsage, usageMeaning: selected.syntheticUsage ? 'Synthetic local fixture counters; not real-model or billing evidence' : 'Numeric provider-reported chunks; no estimation or billing-price inference',
+    allowedModel: selected.allowedModel, allowedRoutes: selected.allowedRoutes.map(route => ({ ...route })), synthetic: selected.syntheticUsage, usageMeaning: selected.syntheticUsage ? 'Synthetic local fixture counters; not real-model or billing evidence' : 'Numeric provider-reported chunks; no estimation or billing-price inference',
     countingMeaning: 'Admitted native LLM streams; provider wire dispatch is not independently observed' })
   const close = () => {
     if (closed) return
@@ -111,12 +129,12 @@ export function createGlobalLimit(config) {
     const requestId = randomUUID()
     counters.attempted++
     const identity = { requestId, sessionId: label(options.sessionId), purpose: ['compaction', 'session-title'].includes(options.purpose) ? options.purpose : 'conversation' }
-    if (options.provider !== selected.allowedProvider || options.model !== selected.allowedModel) {
+    if (!selected.allowedRoutes.some(route => options.provider === route.provider && options.model === route.model)) {
       counters.rejected++
       emit('rejected-route', { ...identity, provider: '[unexpected-route-redacted]', model: '[unexpected-route-redacted]', code: 'ACCEPTANCE_ROUTE_NOT_ALLOWED' })
       return Promise.reject(gateError('ACCEPTANCE_ROUTE_NOT_ALLOWED', 'Acceptance route is not exactly the authorized provider and model'))
     }
-    Object.assign(identity, { provider: selected.allowedProvider, model: selected.allowedModel })
+    Object.assign(identity, { provider: options.provider, model: options.model })
     if (closed) {
       counters.rejected++
       if (!auditFailed) emit('rejected', { ...identity, code: 'ACCEPTANCE_GATE_CLOSED' })
@@ -180,7 +198,7 @@ export function createGlobalLimit(config) {
       finally { pump() }
     }
   }
-  emit('gate-created', { provider: selected.allowedProvider, model: selected.allowedModel, concurrency: selected.concurrency,
+  emit('gate-created', { provider: selected.allowedProvider, model: selected.allowedModel, allowedRoutes: selected.allowedRoutes, concurrency: selected.concurrency,
     hardMaximumConcurrency: 2, maxRequests: selected.maxRequests, privateContentLogged: false })
   return Object.freeze({ stream, snapshot, close })
 }

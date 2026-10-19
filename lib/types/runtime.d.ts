@@ -60,13 +60,18 @@ export interface RouteRunOptions {
     /** Planning protocol only: no model-visible schemas or executable tools. */
     planningOnly?: boolean;
 }
+export interface SteeringMetadata {
+    directiveId: string;
+    isCurrent?(): boolean;
+    onDelivery?(status: 'queued' | 'admitted' | 'request-visible', sourceId: string): void;
+}
 /** A persistent decision loop can plan, then receive evidence in a later turn. */
 export interface RouteHandle {
     id: string;
     run(prompt: ContentBlock[], options?: RouteRunOptions): Promise<RouteOutcome>;
     setReadOnly(readOnly: boolean): void;
     subscribeProgress?(listener: (progress: RouteProgress) => void): () => void;
-    steer?(instruction: string): boolean;
+    steer?(instruction: string, meta?: SteeringMetadata): boolean;
     dispose(): Promise<void>;
 }
 /** Whether an identity is a directly owned ULTRA loop rather than its coordinator. */
@@ -75,6 +80,8 @@ export declare function isUltraRoute(id: string): boolean;
 export declare function isResearchRoute(agent: Agent): boolean;
 /** Return the visible conversation that owns an internal loop or its delegated descendants. */
 export declare function routeParentOf(agent: Agent): Agent | undefined;
+/** Knowledge publication is a configured host write, never a delegated research capability. */
+export declare function canPublishKnowledge(agent: Agent): boolean;
 /** Apply a route's read-only allow list to every direct or PTC sub-dispatch. */
 export declare function researchToolDenial(agent: Agent | undefined, toolName: string): string | undefined;
 /** Create a loop without subagent origin or additional delegation depth. */

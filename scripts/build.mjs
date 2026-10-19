@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { buildClient } from './build-client.mjs'
+import { buildCompanions } from './build-companions.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
@@ -28,6 +29,7 @@ try {
     process.exitCode = compiled.status ?? 1
   } else {
     await buildClient()
+    await buildCompanions()
   }
 } catch (error) {
   console.error(`build: ${error instanceof Error ? error.message : String(error)}`)
