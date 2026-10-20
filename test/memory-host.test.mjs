@@ -6,7 +6,7 @@ import path from 'node:path'
 const api = await import('../lib/memory-host.js').catch(() => ({}))
 const enabled = { skip: !api.UltraMemoryHost }
 function fixture(t, config = {}) {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'ultra-host-'))
+  const cwd = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ultra-host-')))
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }))
   const agents = new Map(), logs = new Map(), hooks = new Map()
   const persistence = { async open(id, access) {
@@ -162,6 +162,7 @@ test('versioned pending retrieval metadata must match its authorized canonical c
 test('failed atomic scan checkpoint keeps the prior pending locator and recovers idempotently after a crash', enabled, async t => {
   const { syncBuiltinESMExports } = await import('node:module')
   const f = await pendingRetrievalFixture(t, 'ultra_knowledge_search'), run = await f.host.begin(f.root, 'before-scan-io-failure')
+  assert.equal(f.scanFile, path.join(run.directory, 'owners', path.basename(f.scanFile)), 'fault injection must target the canonical host checkpoint path')
   const before = fs.readFileSync(f.scanFile, 'utf8'), result = f.appendResult(), rename = fs.renameSync
   let intercepted = 0
   fs.renameSync = (from, to) => {
