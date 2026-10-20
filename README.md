@@ -1,4 +1,5 @@
 # DSH Ultra Mode
+> **RP 附属项目：** [DSH RP Memory](https://github.com/Kayou-31/dsh-rp-memory) 提供独立的角色扮演记忆预览包，包括人工采纳、分支修订、检索与分层摘要。已验证宿主为 DSH `0.2.0-rc.2`；原生压缩、严格 POV 和后台自动摘要暂不可用。与工程插件同装时，请使用 [RP 发布页](https://github.com/Kayou-31/dsh-rp-memory/releases)列出的兼容预览版本，安装与验证边界以附属仓库说明为准。
 
 > **v0.6.0 三包正式版**：完整 Ultra、独立 Memory、独立 Decision 一起提供。协作调度、多模型子代理、decision 治理、证据检索、上下文管理及显式授权知识库来自共同核心，保留手动模式和权限边界。主验收宿主为官方 DSH **0.2.1-rc.2**；旧 0.2.0-rc.2 的离线回归单列。
 
