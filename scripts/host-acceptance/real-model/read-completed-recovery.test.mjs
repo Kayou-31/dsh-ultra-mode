@@ -1,11 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import path from 'node:path'
 import * as recovery from './read-completed-recovery.mjs'
 const sha = text => createHash('sha256').update(text).digest('hex')
 const texts = Object.fromEntries(['payload-alpha', 'payload-beta', ...Array.from({ length: 20 }, (_, index) => 'load-' + index)].map(id => [id, id + ' public synthetic body']))
 const manifest = Object.fromEntries(Object.entries(texts).map(([id, text]) => [id, { chars: text.length, bytes: Buffer.byteLength(text), sha256: sha(text) }]))
 function fixture() {
+  const root = path.resolve('synthetic-read-completed-recovery-unit')
   const events = [], sessionId = 'native-existing', source = { kind: 'user' }; let seq = 0, turn = 0
   const append = (type, data) => events.push({ type, seq: ++seq, data })
   const read = id => { const callId = 'read-' + id; append('tool/call', { turn, callId, name: 'fixture_read', arguments: JSON.stringify({ id }) }); append('tool/result', { turn, message: { role: 'tool', isError: false, toolCallId: callId, source: { kind: 'tool', callId }, content: [{ type: 'text', text: `PUBLIC_FIXTURE id=${id}; totalChars=${manifest[id].chars}; offset=0; returnedChars=${manifest[id].chars}\n` + texts[id] }] } }) }
@@ -14,10 +16,10 @@ function fixture() {
     turn++; append('user/message', { id: 'user-' + turn, source, content: [{ type: 'text', text: 'Read load-' + cycle + (cycle === 2 ? '\n一次性用户决定更新：old已被替代，当前决定ID=decision-revised-842。' : cycle === 5 ? '\n一次性用户决定更新：older已被替代，当前决定ID=decision-current-953。' : '') }] })
     const boundary = seq - 1; read('load-' + cycle)
     append('turn/end', { turn, reason: cycle === 5 ? { kind: 'error', error: { code: 'TRANSPORT' } } : { kind: 'completed' } })
-    if (cycle === 5) return { events, manifest, fixtureId: 'synthetic-drift-diverse', sessionId, projectDir: 'E:/isolated/project', trustedRoute: { provider: 'opencode-go', model: 'deepseek-v4.1-flash' }, candidateSha256: 'a'.repeat(64),
+    if (cycle === 5) return { events, manifest, fixtureId: 'synthetic-drift-diverse', sessionId, projectDir: path.join(root, 'project'), trustedRoute: { provider: 'opencode-go', model: 'deepseek-v4.1-flash' }, candidateSha256: 'a'.repeat(64),
       launch: { provider: 'opencode-go', model: 'deepseek-v4.1-flash', candidateSha256: 'a'.repeat(64) },
       result: { status: 'failed', mode: 's2', fixtureId: 'synthetic-drift-diverse', provider: 'opencode-go', model: 'deepseek-v4.1-flash', native: { sessionId }, totalExecuteAttempts: 0, sentinelBodyCalls: 0, publicAnswers: [...Array.from({ length: 8 }, () => ({ sessionId, endReason: { kind: 'completed' } })), { sessionId, boundary, endReason: { kind: 'error', error: { code: 'TRANSPORT' } } }] },
-      sourceFiles: Object.fromEntries(['launch', 'result', 'manifest', 'native', 'candidate'].map(key => [key, { path: 'E:/frozen/' + key, sha256: (key === 'candidate' ? 'a' : 'b').repeat(64) }])) }
+      sourceFiles: Object.fromEntries(['launch', 'result', 'manifest', 'native', 'candidate'].map(key => [key, { path: path.join(root, 'frozen', key), sha256: (key === 'candidate' ? 'a' : 'b').repeat(64) }])) }
   }
 }
 
@@ -51,6 +53,8 @@ test('read-completed recovery rejects altered route, failure, bytes, updates, pe
     value => { const seq = value.events.at(-1).seq++; value.events.splice(-1, 0, { type: 'tool/call', seq, data: { callId: 'pending', name: 'fixture_read', arguments: '{"id":"load-6"}' } }) },
     value => { value.events.find(event => event.type === 'tool/call').data.name = 'fixture_execute' },
     value => { delete value.sourceFiles.native },
+    value => { value.projectDir = 'relative-project' },
+    ...['launch', 'result', 'manifest', 'native', 'candidate'].map(key => value => { value.sourceFiles[key].path = 'relative-source' }),
   ]) { const value = fixture(); mutate(value); assert.throws(() => recovery.buildReadCompletedRecoveryReceipt(value)) }
 })
 

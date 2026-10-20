@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import path from 'node:path'
 import * as workflow from '../scripts/host-acceptance/ocg-workflow-plugin.mjs'
 
 test('workflow provider receipts separate the two context calculations and never invent missing usage', () => {
@@ -49,10 +50,12 @@ test('workflow cycle counter deduplicates phase and group identities across chec
   assert.equal(workflow.countWorkflowCycles([{ phase: 1, qualification: { qualified: true, groupId: 'g1' } }, { phase: 1, qualification: { qualified: true, groupId: 'g1' } }, { phase: 2, qualification: { qualified: true, groupId: 'g1' } }]), 1)
 })
 test('workflow config pins the authorized model and persistent paths, accepts small calibration and finite segments', () => {
-  const input = { runtimeRoot: 'E:/runtime', ultraRoot: 'E:/candidate', projectDir: 'E:/isolated/project', resultFile: 'E:/isolated/result.json', stateFile: 'E:/isolated/state.json', provider: 'opencode-go', model: 'deepseek-v4.1-flash', mainEffort: 'low', maxRequests: 200, timeoutMs: 600000, reportRows: 1000, cycles: 30, calibrateOnly: true, segmentCycles: 1 }
+  const root = path.resolve('synthetic-workflow-config-unit')
+  const input = { runtimeRoot: path.join(root, 'runtime'), ultraRoot: path.join(root, 'candidate'), projectDir: path.join(root, 'project'), resultFile: path.join(root, 'result.json'), stateFile: path.join(root, 'state.json'), provider: 'opencode-go', model: 'deepseek-v4.1-flash', mainEffort: 'low', maxRequests: 200, timeoutMs: 600000, reportRows: 1000, cycles: 30, calibrateOnly: true, segmentCycles: 1 }
   const cfg = workflow.normalizeWorkflowConfig(input)
   assert.equal(cfg.reportRows, 1000); assert.equal(cfg.contextCapTokens, 500000); assert.equal(cfg.contextTriggerTokens, 420000)
   for (const mutate of [row => { row.provider = 'other' }, row => { row.model = 'other' }, row => { row.maxRequests = Infinity }, row => { row.reportRows = 0 }, row => { row.stateFile = 'relative.json' }]) { const row = { ...input }; mutate(row); assert.throws(() => workflow.normalizeWorkflowConfig(row)) }
+  for (const key of ['runtimeRoot', 'ultraRoot', 'projectDir', 'resultFile', 'stateFile']) assert.throws(() => workflow.normalizeWorkflowConfig({ ...input, [key]: 'relative-path' }))
   assert.equal(workflow.normalizeWorkflowConfig({ ...input, fixtureSeed: 'workflow-fixed-case:1' }).fixtureSeed, 'workflow-fixed-case:1')
   for (const fixtureSeed of ['', {}, 123, 'x'.repeat(161), '../path', 'seed\nnext']) assert.throws(() => workflow.normalizeWorkflowConfig({ ...input, fixtureSeed }))
 })
