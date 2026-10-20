@@ -32,6 +32,8 @@ export interface EvidenceInput {
     files?: string[];
     topics?: string[];
     origin?: EvidenceOrigin;
+    /** A host-only local retrieval wrapper locator, never a new searchable or publishable fact. */
+    contextReceipt?: true;
 }
 export interface EvidenceChunk {
     id: string;
@@ -61,6 +63,7 @@ export interface EvidenceRecord {
     topics: string[];
     chunks: EvidenceChunk[];
     origin?: EvidenceOrigin;
+    contextReceipt?: true;
     promotion?: {
         at: number;
         previousCoverage: 'captured' | 'truncated';
@@ -119,6 +122,7 @@ export interface ProjectState extends ProjectStateInput {
 type Resolver = (ref: EvidenceHostRef) => Promise<{
     text: string;
     attachments?: EvidenceAttachment[];
+    callId?: string;
 } | undefined>;
 export interface EvidenceQuery {
     query?: string;
@@ -133,7 +137,7 @@ export interface EvidenceQuery {
     limit?: number;
     maxChars?: number;
 }
-export type EvidenceStatus = 'host' | 'captured' | 'truncated' | 'reference-only' | 'unavailable' | 'hash-mismatch';
+export type EvidenceStatus = 'host' | 'captured' | 'truncated' | 'reference-only' | 'unavailable' | 'hash-mismatch' | 'identity-mismatch';
 export interface EvidenceSearchItem {
     id: string;
     sourceId: string;
@@ -150,12 +154,16 @@ export interface EvidenceSearchItem {
     topics?: string[];
     files?: string[];
     semanticStatus?: SemanticStatus;
+    match?: 'source-identity';
+    sourceChars?: number;
+    sourceChunks?: number;
 }
 export interface EvidenceSearchResult {
     items: EvidenceSearchItem[];
     nextOffset?: number;
     total: number;
     omitted?: number;
+    retrievalHint?: string;
 }
 export interface EvidenceGetResult {
     text: string;
@@ -166,6 +174,7 @@ export interface EvidenceGetResult {
     attachments?: EvidenceAttachment[];
     semanticStatus?: SemanticStatus;
     sourceIdsTruncated?: boolean;
+    contextReceipt?: true;
     citation?: {
         sourceId: string;
         quote: string;
@@ -234,6 +243,12 @@ export declare class EvidenceStore {
                 truncated: number;
                 'reference-only': number;
             };
+        };
+        contextReceipts: {
+            sources: number;
+            characters: number;
+            storage: string;
+            indexedBodyCharacters: number;
         };
         semantic: {
             total: number;

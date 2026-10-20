@@ -591,6 +591,10 @@ var zh = {
   "evidence.compression": "上下文压缩：{status} · {before} → {after} tokens",
   "evidence.compressionStatus": "上下文压缩：{status}；token 指标不可用",
   "evidence.historyRetained": "原始历史已保留",
+  "evidence.archive": "阶段归档：{status} · 估算包络 {before} → {after} tokens（含预留）",
+  "evidence.archiveStatus": "阶段归档：{status}；估算包络不可用",
+  "evidence.archiveReceipt": "恢复 ID：{id}",
+  "evidence.archivePaused": "归档持久化状态未确认；后续执行已暂停",
   "evidence.usage": "模型请求：已发起 {attempted} · 已结算 {settled}；实测 {tokens} tokens · 用量未知 {unknown} 次",
   "evidence.estimate": "估算下一请求：{tokens} tokens（含预留）",
   "evidence.estimated": "估算",
@@ -664,6 +668,10 @@ var en = {
   "evidence.compression": "Context compression: {status} · {before} → {after} tokens",
   "evidence.compressionStatus": "Context compression: {status}; token metrics unavailable",
   "evidence.historyRetained": "Original history retained",
+  "evidence.archive": "Stage archive: {status} · Estimated envelope {before} → {after} tokens (including reserves)",
+  "evidence.archiveStatus": "Stage archive: {status}; estimated envelope unavailable",
+  "evidence.archiveReceipt": "Recovery ID: {id}",
+  "evidence.archivePaused": "Persistence is uncertain; further execution is paused",
   "evidence.usage": "Model requests: attempted {attempted} · settled {settled}; measured {tokens} tokens · unknown usage {unknown} calls",
   "evidence.estimate": "Estimated next request: {tokens} tokens (including reserves)",
   "evidence.estimated": "Estimated",
@@ -775,10 +783,40 @@ function validEvidence(raw) {
       } else if (!budget(metrics)) return false;
     }
   }
+  if (raw.archive !== void 0 && raw.archive !== null) {
+    const value = raw.archive;
+    const keys = [
+      "status",
+      "before",
+      "after",
+      "committed",
+      "persistenceUncertain",
+      "receiptId",
+      "limits",
+      "triggerTokens",
+      "selectedSeqs",
+      "startSeq",
+      "pruneSeq",
+      "replacementSeq",
+      "endSeq",
+      "rawHistoryRetained",
+      "persistenceRecovered",
+      "reason"
+    ];
+    if (!object2(value) || Object.keys(value).some((key) => !keys.includes(key)) || !["disabled", "unsupported", "unchanged", "limited", "archived", "failed"].includes(String(value.status)) || !["committed", "persistenceUncertain", "rawHistoryRetained", "persistenceRecovered"].every((key) => optional(value[key], (item) => typeof item === "boolean")) || value.persistenceUncertain === true && value.committed !== true || !optional(value.receiptId, (item) => typeof item === "string" && /^arc_[a-f0-9]{64}$/u.test(item)) || !optional(value.limits, strings) || !optional(value.reason, text) || !["triggerTokens", "startSeq", "pruneSeq", "replacementSeq", "endSeq"].every((key) => optional(value[key], count)) || !optional(value.selectedSeqs, (item) => Array.isArray(item) && item.every(count))) return false;
+    const partial = ["failed", "unsupported", "disabled", "limited"].includes(String(value.status));
+    for (const metrics of [value.before, value.after]) {
+      if (metrics === void 0 || metrics === null) {
+        if (!partial) return false;
+      } else if (!budget(metrics) || !object2(metrics) || metrics.estimated !== true) return false;
+    }
+    if (value.status === "archived" && (value.committed !== true || typeof value.receiptId !== "string")) return false;
+  }
   if (raw.resources !== void 0) {
     const value = raw.resources;
     if (!object2(value) || !optional(value.attemptedCalls, count) || !["settledCalls", "measuredTokens", "unknownUsageCalls"].every((key) => count(value[key])) || !(value.estimates === void 0 || value.estimates === null || budget(value.estimates))) return false;
-    if (value.byRoute !== void 0 && (!object2(value.byRoute) || !Object.values(value.byRoute).every(Array.isArray))) return false;
+    const routeCounts = ["settledCalls", "measuredTokens", "unknownUsageCalls"];
+    if (value.byRoute !== void 0 && (!object2(value.byRoute) || !Object.values(value.byRoute).every((route) => object2(route) && Object.keys(route).every((key) => routeCounts.includes(key)) && routeCounts.every((key) => count(route[key]))))) return false;
   }
   if (raw.routes !== void 0 && (!Array.isArray(raw.routes) || raw.routes.length > 1e3 || !raw.routes.every((route) => object2(route) && text(route.routeId) && text(route.status)))) return false;
   return true;
@@ -800,6 +838,13 @@ function evidenceLines(evidence, t) {
     const { status, before, after, originalHistoryRetained, limits } = evidence.compression;
     lines.push(before && after ? t("evidence.compression", { status, before: before.totalTokens, after: after.totalTokens }) + (before.estimated || after.estimated ? ` (${t("evidence.estimated")})` : "") : t("evidence.compressionStatus", { status }));
     if (originalHistoryRetained) lines.push(t("evidence.historyRetained"));
+    lines.push(...limits ?? []);
+  }
+  if (evidence.archive) {
+    const { status, before, after, receiptId, persistenceUncertain, limits } = evidence.archive;
+    lines.push(before && after ? t("evidence.archive", { status, before: before.totalTokens, after: after.totalTokens }) : t("evidence.archiveStatus", { status }));
+    if (receiptId) lines.push(t("evidence.archiveReceipt", { id: receiptId }));
+    if (persistenceUncertain) lines.push(t("evidence.archivePaused"));
     lines.push(...limits ?? []);
   }
   if (evidence.resources) {
@@ -997,6 +1042,11 @@ function UltraButton({ sessionId, rpc, t }) {
       options[next]?.focus();
     }
   };
+  const detailSummary = (label) => import_react2.default.createElement("summary", {
+    onMouseDown: (event) => {
+      event.preventDefault();
+    }
+  }, label);
   const valueLabel = snapshot?.enabled ? snapshot.concurrency === 1 ? t("trigger.assistedCompact") : t("trigger.routesCompact", { count: snapshot.concurrency }) : t("trigger.off");
   const status = snapshot === null ? null : phaseLabel(snapshot, t);
   const modeDescription = snapshot?.enabled ? snapshot.concurrency === 1 ? t("trigger.assistedTitle") : t("trigger.title", { count: snapshot.concurrency }) : t("trigger.offTitle");
@@ -1020,8 +1070,10 @@ function UltraButton({ sessionId, rpc, t }) {
   return import_react2.default.createElement(
     "div",
     {
+      // Host locale already supplies labels; automatic translation can alter stable IDs.
       ref: rootRef,
       className: "dsh-ultra",
+      translate: "no",
       "data-plugin": PLUGIN_ID,
       "data-enabled": snapshot?.enabled === true,
       "data-error": Boolean(error),
@@ -1029,6 +1081,7 @@ function UltraButton({ sessionId, rpc, t }) {
       "data-pending": current.pending,
       onKeyDown,
       onBlur: (event) => {
+        if (event.relatedTarget === null) return;
         if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return;
         close();
       }
@@ -1161,19 +1214,19 @@ function UltraButton({ sessionId, rpc, t }) {
       snapshot?.warnings?.length ? import_react2.default.createElement(
         "details",
         { className: "dsh-ultra-warning" },
-        import_react2.default.createElement("summary", null, t("status.warnings", { count: snapshot.warnings.length })),
+        detailSummary(t("status.warnings", { count: snapshot.warnings.length })),
         ...snapshot.warnings.map((warning, index) => import_react2.default.createElement("div", { key: index }, warning))
       ) : null,
       evidence ? import_react2.default.createElement(
         "details",
         { className: "dsh-ultra-warning", "aria-label": t("evidence.title") },
-        import_react2.default.createElement("summary", null, t("evidence.title")),
+        detailSummary(t("evidence.title")),
         ...evidenceLines(evidence, t).map((line, index) => import_react2.default.createElement("div", { key: index }, line))
       ) : null,
       snapshot?.governance ? import_react2.default.createElement(
         "details",
         { className: "dsh-ultra-warning", "aria-label": t("governance.title") },
-        import_react2.default.createElement("summary", null, t("governance.title")),
+        detailSummary(t("governance.title")),
         ...governanceLines(snapshot.governance, t).map((line, index) => import_react2.default.createElement("div", { key: index }, line))
       ) : null,
       import_react2.default.createElement(

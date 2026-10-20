@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "root": {
     "name": "@dsh-external/dsh-ultra-mode",
-    "version": "0.6.0-dev.3"
+    "version": "0.6.0"
   },
   "coreSources": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "src/client/index.ts",
-      "sha256": "634b08a85854accd7d2cc37b43dae7a32bb496c1b3b5e88d3678008e1b18ed9c"
+      "sha256": "72cc20fee1420839a231975ebb7cd22da1e188350fc4fb5fe97e17c922900f2e"
     },
     {
       "path": "src/client/model-pool.ts",
@@ -30,8 +30,16 @@
       "sha256": "0a7b78f1b27ebf3e00ba365a083b906b82b0ff50836ffaee7e23b2248a28e306"
     },
     {
+      "path": "src/context-archive-store.ts",
+      "sha256": "023904d6b1d36b8cc8a3d84b462f0ed5e13f3ab39ff91ba401b6309b5e4e9c4a"
+    },
+    {
+      "path": "src/context-archive.ts",
+      "sha256": "44740434b96528206ede016ce67c03623d659aa40b53548950630c42cd168450"
+    },
+    {
       "path": "src/context-memory.ts",
-      "sha256": "807f5b33919cff96aa43421b1066e03ea5764f4ec13544074ee3f54e9f8e3d13"
+      "sha256": "5866580573903d02d1cebfeedc698ff1a1b2bf491c0031f87049562391c2dc97"
     },
     {
       "path": "src/coordination.ts",
@@ -55,11 +63,11 @@
     },
     {
       "path": "src/evidence.ts",
-      "sha256": "5d9d80a599b1475394132121704bafab325ff249fb48109651e56d775b018613"
+      "sha256": "87ac63d664a282dd0f9c9a53a7124e5b1753d8a3b0f76d04a19085b34600a1bf"
     },
     {
       "path": "src/index.ts",
-      "sha256": "b618e7ee2fe45365295bd14bb7a3890e5468ffdcf23e59880aa1ec2f9ed5dd8a"
+      "sha256": "6cafa6d0e231e835fa5aa540604585a3752db711208b891919a5171784eeb812"
     },
     {
       "path": "src/jev.ts",
@@ -79,19 +87,19 @@
     },
     {
       "path": "src/knowledge-store.ts",
-      "sha256": "794cef861b384b7acee29e03bc51841fc4c5c28f63a9748ce3f26d1a62109bf0"
+      "sha256": "ffa9466d63fce7d61e416e7f51d7b45be2b0e1cac300896805b5989e60b705eb"
     },
     {
       "path": "src/memory-host.ts",
-      "sha256": "fc297a4e9411a354096aa01f67cc83343d2e0862b540897d8b48bbf31087b0c4"
+      "sha256": "e1a800752fd2544e28783dd82171fc714743884b5b18dcc9dae3fa9c1b9b2f21"
     },
     {
       "path": "src/memory-plugin.ts",
-      "sha256": "076285e0b0f48c6ca3bf69d51b303655be30592f34e5ae9431b3371baba7abde"
+      "sha256": "da6e578fba1e186259b54f9c5f17d5f62391216930ccfd46384d985b8fdefc4d"
     },
     {
       "path": "src/memory-tools.ts",
-      "sha256": "fa9d024a013893077d03d14003ab37e359ae17a6d8e04ad5e76a1fab3662b36f"
+      "sha256": "a5c2aacbdefee4511f7c527234ce976e1dee381b569f07850067edc536c8d274"
     },
     {
       "path": "src/model-pool-audit.ts",
@@ -115,7 +123,7 @@
     },
     {
       "path": "src/runtime.ts",
-      "sha256": "c8255fb84c1e339b3c855e6b0d7a65da00c7d8cf4a1ed11ff100ae1d7476b007"
+      "sha256": "201b53eef1ba2e96be52751b80484828eb77d7b432fb9f5746feafc82b4f0005"
     },
     {
       "path": "src/ultra.ts",
@@ -124,13 +132,13 @@
   ],
   "package": {
     "name": "@dsh-external/dsh-ultra-memory",
-    "version": "0.1.0-dev.1"
+    "version": "0.1.0"
   },
   "buildEntry": "src/memory-plugin.ts",
   "packageEntry": "src/index.ts",
   "runtime": {
     "entry": "lib/index.js",
-    "sha256": "a1fa5f2ca3fb56761719ee06bbd43127c15ae17a45051b3052f7429da1f99d85"
+    "sha256": "ccd3426a6bd8fc8c9e3fcee6d9e20baece85b3553a5fb970250f4395fc487a0f"
   },
   "externalImports": [
     "@deepseek-ai/dsh-agent",
@@ -146,7 +154,7 @@
   "buildSources": [
     {
       "path": "scripts/build-companions.mjs",
-      "sha256": "e332dd689fe3617e321b0812e015503defe5e1f7b1573e24867c04ebd272b89d"
+      "sha256": "77acd7ae90847a735a5862b5db5208efb2065d76639da0ecf380bb8cef834181"
     },
     {
       "path": "scripts/build-client.mjs",
@@ -160,11 +168,75 @@
     },
     {
       "path": "scripts/host-acceptance/real-model-global-limit.mjs",
-      "sha256": "93d8911818cb89b81df8cee5efc83f3d74afede9ee1b4e0445d8aff72de85330"
+      "sha256": "a8651a7112b0546fe8b503fc4ec4053fcbfd6abb83e9c02b1652a897886c7682"
     },
     {
       "path": "scripts/host-acceptance/network-guard.cjs",
       "sha256": "0a55f02b67964018820c896fcd223e240d4b684aa91e5d4c80d08c9c8df70e8e"
+    },
+    {
+      "path": "scripts/host-acceptance/companion-decision-plugin.mjs",
+      "sha256": "b2d73f0b95a09b80918918c7b084cedc7bb615bdd97f67c097d9fbbd05217d79"
+    },
+    {
+      "path": "scripts/host-acceptance/model-pool-live-driver.mjs",
+      "sha256": "624e2016456dac58a4a24ee6ca12533e2b447c3e48d59315c49d757fbebf395f"
+    },
+    {
+      "path": "scripts/host-acceptance/run-decision-loop-profile.mjs",
+      "sha256": "785ad31e92dd27b867d90203abc768c3834cd54bf52219bde998f4205eab0c94"
+    },
+    {
+      "path": "scripts/host-acceptance/run-ocg-profile.mjs",
+      "sha256": "095d09a05b6dd894dc84752be713415afade18b591cc73012bb63bb525065314"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-network-guard.cjs",
+      "sha256": "d81e22469713b8a247ae2eeeb2d10eb87395b9ebc926e96bfaf0db13fd26278b"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-pool-plugin.mjs",
+      "sha256": "6fb031e126e0f97a9d2e37b5df239a8128e6185e8b1dafdebd173338fba8e14b"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-knowledge-plugin.mjs",
+      "sha256": "a091b042ccaba9b0d3ab6269d2402d0086e4591e222cc165fdf7eca2f34bdc71"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-pool-README.md",
+      "sha256": "6395cdd5149c1da71a55aea308056fac194af65a10649a81d7b39e57f6f917df"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-report.mjs",
+      "sha256": "30041296339a1398d8709e3736c029d3e783b0eca46b884b1d2e68d2c64e0279"
+    },
+    {
+      "path": "scripts/host-acceptance/real-model/driver.mjs",
+      "sha256": "d4f4522cb99454528a03d98b4b5c16609350094eb9351fecf49efba5f472e7a7"
+    },
+    {
+      "path": "scripts/host-acceptance/real-model/fixture.mjs",
+      "sha256": "703754165380707f9b3c801681bb3f289a807b92ef66c365c7016f2edad3d75a"
+    },
+    {
+      "path": "scripts/host-acceptance/real-model/read-completed-recovery.mjs",
+      "sha256": "a072aae839872119548c80de3a4ffac6200ab5c1cedabfd52d9283cc77c1a06d"
+    },
+    {
+      "path": "scripts/host-acceptance/ocg-workflow-plugin.mjs",
+      "sha256": "d30400610646331af2a7a0d26f04b243454087f999b645d42558320634dccfe6"
+    },
+    {
+      "path": "scripts/host-acceptance/workflow-fixture.mjs",
+      "sha256": "bfd329e397903c7629c567d2d5330c0d2871512830c1a225db99d1d90530d260"
+    },
+    {
+      "path": "scripts/host-acceptance/archive-proof.mjs",
+      "sha256": "fe9ca91809831d355f8df14fa308c29857ea2b2fba779a9d163b6db023089396"
+    },
+    {
+      "path": "scripts/host-acceptance/recovery-policy.mjs",
+      "sha256": "29d12ce44cf4880353b6cdadcffc961c00866ef3403d1b5b88894e3eaa01fac1"
     }
   ]
 }

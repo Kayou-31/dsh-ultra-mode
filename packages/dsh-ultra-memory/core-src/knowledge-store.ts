@@ -182,6 +182,12 @@ export class KnowledgeStore {
     let fd: number
     try { fd = openSync(file, 'wx', 0o600) } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('Knowledge writer lock exists; possible stale lock requires manual recovery')
+      if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') {
+        // Windows may refuse exclusive creation during a sharing restriction.
+        // Preserve the errno and fail closed: this is not proof that a lock
+        // exists, and never authorizes deleting it or retrying implicitly.
+        throw Object.assign(new Error('Knowledge writer lock unavailable (EPERM): concurrent writer or filesystem permission/sharing restriction; check the current owner and permissions before retrying', { cause: error }), { code: 'EPERM' })
+      }
       throw error
     }
     try {

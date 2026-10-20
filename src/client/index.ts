@@ -67,7 +67,8 @@ interface EvidenceSnapshot {
   errors?: string[]
   routes?: { routeId: string; status: string }[]
   compression?: null | { status: string; before?: EvidenceBudget | null; after?: EvidenceBudget | null; originalHistoryRetained?: boolean; limits?: string[] }
-  resources?: { attemptedCalls?: number; settledCalls: number; measuredTokens: number; unknownUsageCalls: number; estimates?: EvidenceBudget | null }
+  archive?: null | { status: 'disabled' | 'unsupported' | 'unchanged' | 'limited' | 'archived' | 'failed'; before?: EvidenceBudget | null; after?: EvidenceBudget | null; committed?: boolean; persistenceUncertain?: boolean; receiptId?: string; limits?: string[] }
+  resources?: { attemptedCalls?: number; settledCalls: number; measuredTokens: number; unknownUsageCalls: number; estimates?: EvidenceBudget | null; byRoute?: Record<string, { settledCalls: number; measuredTokens: number; unknownUsageCalls: number }> }
 }
 interface UltraStateSnapshot {
   enabled: boolean
@@ -215,6 +216,10 @@ const zh = {
   'evidence.compression': '上下文压缩：{status} · {before} → {after} tokens',
   'evidence.compressionStatus': '上下文压缩：{status}；token 指标不可用',
   'evidence.historyRetained': '原始历史已保留',
+  'evidence.archive': '阶段归档：{status} · 估算包络 {before} → {after} tokens（含预留）',
+  'evidence.archiveStatus': '阶段归档：{status}；估算包络不可用',
+  'evidence.archiveReceipt': '恢复 ID：{id}',
+  'evidence.archivePaused': '归档持久化状态未确认；后续执行已暂停',
   'evidence.usage': '模型请求：已发起 {attempted} · 已结算 {settled}；实测 {tokens} tokens · 用量未知 {unknown} 次',
   'evidence.estimate': '估算下一请求：{tokens} tokens（含预留）',
   'evidence.estimated': '估算',
@@ -289,6 +294,10 @@ const en: Record<keyof typeof zh, string> = {
   'evidence.compression': 'Context compression: {status} · {before} → {after} tokens',
   'evidence.compressionStatus': 'Context compression: {status}; token metrics unavailable',
   'evidence.historyRetained': 'Original history retained',
+  'evidence.archive': 'Stage archive: {status} · Estimated envelope {before} → {after} tokens (including reserves)',
+  'evidence.archiveStatus': 'Stage archive: {status}; estimated envelope unavailable',
+  'evidence.archiveReceipt': 'Recovery ID: {id}',
+  'evidence.archivePaused': 'Persistence is uncertain; further execution is paused',
   'evidence.usage': 'Model requests: attempted {attempted} · settled {settled}; measured {tokens} tokens · unknown usage {unknown} calls',
   'evidence.estimate': 'Estimated next request: {tokens} tokens (including reserves)',
   'evidence.estimated': 'Estimated',
@@ -403,12 +412,33 @@ function validEvidence(raw: unknown): raw is EvidenceSnapshot {
       else if (!budget(metrics)) return false
     }
   }
+  if (raw.archive !== undefined && raw.archive !== null) {
+    const value = raw.archive
+    const keys = ['status', 'before', 'after', 'committed', 'persistenceUncertain', 'receiptId', 'limits',
+      'triggerTokens', 'selectedSeqs', 'startSeq', 'pruneSeq', 'replacementSeq', 'endSeq', 'rawHistoryRetained', 'persistenceRecovered', 'reason']
+    if (!object(value) || Object.keys(value).some(key => !keys.includes(key))
+      || !['disabled', 'unsupported', 'unchanged', 'limited', 'archived', 'failed'].includes(String(value.status))
+      || !['committed', 'persistenceUncertain', 'rawHistoryRetained', 'persistenceRecovered'].every(key => optional(value[key], item => typeof item === 'boolean'))
+      || (value.persistenceUncertain === true && value.committed !== true)
+      || !optional(value.receiptId, item => typeof item === 'string' && /^arc_[a-f0-9]{64}$/u.test(item))
+      || !optional(value.limits, strings) || !optional(value.reason, text)
+      || !['triggerTokens', 'startSeq', 'pruneSeq', 'replacementSeq', 'endSeq'].every(key => optional(value[key], count))
+      || !optional(value.selectedSeqs, item => Array.isArray(item) && item.every(count))) return false
+    const partial = ['failed', 'unsupported', 'disabled', 'limited'].includes(String(value.status))
+    for (const metrics of [value.before, value.after]) {
+      if (metrics === undefined || metrics === null) { if (!partial) return false }
+      else if (!budget(metrics) || !object(metrics) || metrics.estimated !== true) return false
+    }
+    if (value.status === 'archived' && (value.committed !== true || typeof value.receiptId !== 'string')) return false
+  }
   if (raw.resources !== undefined) {
     const value = raw.resources
     if (!object(value) || !optional(value.attemptedCalls, count)
       || !['settledCalls', 'measuredTokens', 'unknownUsageCalls'].every(key => count(value[key]))
       || !(value.estimates === undefined || value.estimates === null || budget(value.estimates))) return false
-    if (value.byRoute !== undefined && (!object(value.byRoute) || !Object.values(value.byRoute).every(Array.isArray))) return false
+    const routeCounts = ['settledCalls', 'measuredTokens', 'unknownUsageCalls']
+    if (value.byRoute !== undefined && (!object(value.byRoute) || !Object.values(value.byRoute).every(route => object(route)
+      && Object.keys(route).every(key => routeCounts.includes(key)) && routeCounts.every(key => count(route[key]))))) return false
   }
   if (raw.routes !== undefined && (!Array.isArray(raw.routes) || raw.routes.length > 1000
     || !raw.routes.every(route => object(route) && text(route.routeId) && text(route.status)))) return false
@@ -430,6 +460,14 @@ function evidenceLines(evidence: EvidenceSnapshot, t: Translate): string[] {
     lines.push(before && after ? t('evidence.compression', { status, before: before.totalTokens, after: after.totalTokens })
       + (before.estimated || after.estimated ? ` (${t('evidence.estimated')})` : '') : t('evidence.compressionStatus', { status }))
     if (originalHistoryRetained) lines.push(t('evidence.historyRetained'))
+    lines.push(...(limits ?? []))
+  }
+  if (evidence.archive) {
+    const { status, before, after, receiptId, persistenceUncertain, limits } = evidence.archive
+    lines.push(before && after ? t('evidence.archive', { status, before: before.totalTokens, after: after.totalTokens })
+      : t('evidence.archiveStatus', { status }))
+    if (receiptId) lines.push(t('evidence.archiveReceipt', { id: receiptId }))
+    if (persistenceUncertain) lines.push(t('evidence.archivePaused'))
     lines.push(...(limits ?? []))
   }
   if (evidence.resources) {
@@ -642,6 +680,11 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
       options[next]?.focus()
     }
   }
+  // Keep pointer expansion inside the menu from handing focus to the host editor.
+  // The native summary click and keyboard activation continue to toggle details.
+  const detailSummary = (label: string): React.ReactElement => React.createElement('summary', {
+    onMouseDown: (event: React.MouseEvent<HTMLElement>) => { event.preventDefault() },
+  }, label)
 
   const valueLabel = snapshot?.enabled ? (snapshot.concurrency === 1 ? t('trigger.assistedCompact') : t('trigger.routesCompact', { count: snapshot.concurrency })) : t('trigger.off')
   const status = snapshot === null ? null : phaseLabel(snapshot, t)
@@ -668,9 +711,13 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
       ...(anchor && desiredLeft !== undefined ? { left: desiredLeft - anchor.left, right: 'auto' } : {}),
     } : undefined
   return React.createElement('div', {
-    ref: rootRef, className: 'dsh-ultra', 'data-plugin': PLUGIN_ID, 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error),
+    // Host locale already supplies labels; automatic translation can alter stable IDs.
+    ref: rootRef, className: 'dsh-ultra', translate: 'no', 'data-plugin': PLUGIN_ID, 'data-enabled': snapshot?.enabled === true, 'data-error': Boolean(error),
     'data-running': snapshot?.running === true, 'data-pending': current.pending, onKeyDown,
     onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
+      // Native details summaries can momentarily blur to null when clicked.
+      // Outside pointer clicks are handled above; known outside focus still closes.
+      if (event.relatedTarget === null) return
       if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return
       close()
     },
@@ -725,13 +772,13 @@ function UltraButton({ sessionId, rpc, t }: UltraProps & { rpc: HostRpc }): Reac
         type: 'button', className: 'dsh-ultra-retry', onClick: () => { void retryRef.current?.() },
       }, t('error.retry')) : null) : null,
     snapshot?.warnings?.length ? React.createElement('details', { className: 'dsh-ultra-warning' },
-      React.createElement('summary', null, t('status.warnings', { count: snapshot.warnings.length })),
+      detailSummary(t('status.warnings', { count: snapshot.warnings.length })),
       ...snapshot.warnings.map((warning, index) => React.createElement('div', { key: index }, warning))) : null,
     evidence ? React.createElement('details', { className: 'dsh-ultra-warning', 'aria-label': t('evidence.title') },
-      React.createElement('summary', null, t('evidence.title')),
+      detailSummary(t('evidence.title')),
       ...evidenceLines(evidence, t).map((line, index) => React.createElement('div', { key: index }, line))) : null,
     snapshot?.governance ? React.createElement('details', { className: 'dsh-ultra-warning', 'aria-label': t('governance.title') },
-      React.createElement('summary', null, t('governance.title')),
+      detailSummary(t('governance.title')),
       ...governanceLines(snapshot.governance, t).map((line, index) => React.createElement('div', { key: index }, line))) : null,
     React.createElement('div', { className: 'dsh-ultra-footer', role: 'status', 'aria-live': 'polite' },
       snapshot === null ? t('trigger.loading') : t('status.runs', { phase: status, count: snapshot.activeRuns }),

@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
 import { createLiveChallenges, judgeLivePhase } from './model-pool-live-driver.mjs'
 
 export const name = 'dsh-companion-decision-offline-acceptance'
@@ -12,6 +13,16 @@ const textOf = messages => messages.flatMap(message => (message.content ?? []).f
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 const teamTools = ['ultra_spawn_agent', 'ultra_send_message', 'ultra_followup_task', 'ultra_wait_agent', 'ultra_interrupt_agent', 'ultra_list_agents']
+export const COMPANION_GOVERNANCE_REDIRECT = 'COMPANION_NATIVE_VERIFY_842'
+export const COMPANION_GOVERNANCE_TASK = 'COMPANION_ASSIST_MAIN：核对本地权限回执。验收甲：主Agent已取得原生权限回执。验收乙：回执显示scopeExpanded为true。验收丙：外部结论具有原始证据。不联网、不发布、不访问业务文件，保留标签“协作”。'
+const permissionReceiptText = '{"permissionSentinel":true,"scopeExpanded":false}'
+const permissionReceiptSha = createHash('sha256').update(permissionReceiptText).digest('hex')
+function isFullPermissionQuote(value, sourceId) {
+  return ['host', 'captured'].includes(value?.status) && value.sourceIds?.includes(sourceId)
+    && value.text === permissionReceiptText && value.offset === 0 && value.citation?.sourceId === sourceId
+    && value.citation.quote === permissionReceiptText && value.citation.start === 0
+    && value.citation.end === permissionReceiptText.length && value.citation.sha256 === permissionReceiptSha
+}
 /** Grading metadata is never a persisted native model-pool candidate field. */
 export function companionPoolConfig(routes, explicitModelId) {
   return { models: routes.map(({ kind, ...route }) => ({ ...route, name: kind, enabled: true, strengths: kind, suitableFor: 'offline native acceptance', avoidFor: 'production', isDefault: kind === 'review', maxConcurrent: 1, allowCrossProvider: true, allowUnverifiedTools: true })), explicitModelId, fallback: 'error', maxConcurrent: 2, maxRequests: 24, failureLimit: 2 }
@@ -33,6 +44,107 @@ function nativeToolJson(messages, name) {
   const message = messages.findLast(message => message.role === 'tool' && calls.has(message.toolCallId))
   if (!message || message.isError) return undefined
   return JSON.parse(textOf([message]))
+}
+/** The scripted response uses only the actual native prompt and matching tool results. */
+export function companionGovernanceStep(messages) {
+  // Native pre-step appends recovery/runtime user messages after this task.
+  // Their quoted bodies (and ordinary users/tools) cannot supply host authority.
+  const nativeTask = messages.findLast(message => message.role === 'user' && message.source?.kind === 'ultra-route-task' && message.source.summary === 'Ultra decision assist')
+  assert.ok(nativeTask, 'Standalone governed assist needs the trusted native sidecar task')
+  const prompt = textOf([nativeTask]).replaceAll('\r\n', '\n')
+  const headers = [...prompt.matchAll(/^【宿主任务契约 revision=(\d+) sha256=([a-f0-9]{64}) sourceId="([^"]+)"】$/gmu)]
+  assert.equal(headers.length, 1, 'Standalone governed assist needs one unambiguous host contract')
+  const header = headers[0], contractBody = prompt.slice(header.index + header[0].length)
+  assert.ok(contractBody.startsWith('\n【用户原始任务全文】\n' + COMPANION_GOVERNANCE_TASK + '\n【结构化意图，仅作辅助】')
+    && header[2] === createHash('sha256').update(COMPANION_GOVERNANCE_TASK).digest('hex'), 'Standalone host contract must preserve the exact current task and hash')
+  const roots = [...prompt.slice(0, header.index).matchAll(/^主 Agent 的真实会话 ID：([^\n]+)$/gmu)]
+  assert.equal(roots.length, 1, 'Standalone host contract needs one original main identity')
+  const rootId = roots[0][1]
+  if (!nativeToolJson(messages, 'fixture_read')) return { toolName: 'fixture_read', args: { id: 'assist' } }
+  const search = nativeToolJson(messages, 'ultra_memory_search')
+  if (!search) return { toolName: 'ultra_memory_search', args: { query: 'permissionSentinel', kind: 'tool/result', maxChars: 4000 } }
+  const source = search.items?.find(item => item.sessionId === rootId && item.kind?.startsWith('tool/result') && item.excerpt.includes('permissionSentinel'))
+  assert.ok(source?.sourceId && source.excerpt.includes(permissionReceiptText), 'Native search must return the actual complete main permission receipt source')
+  const original = nativeToolJson(messages, 'ultra_memory_get')
+  // get(quote) returns only the quoted range, so request both observed fields.
+  if (!original) return { toolName: 'ultra_memory_get', args: { id: source.sourceId, quote: permissionReceiptText, maxChars: 4000 } }
+  assert.ok(isFullPermissionQuote(original, source.sourceId), 'Native original receipt and citation must match the selected source')
+  const user = (id, quote) => ({ id, text: quote, provenance: 'user', quote, sourceId: header[3] })
+  const evidenceIds = [source.sourceId]
+  const response = { assessment: 'The actual native receipt preserves the original permission boundary; external evidence remains unavailable.',
+    intent: { goals: [user('native-goal', '核对本地权限回执。')], constraints: [user('native-constraint', '不联网、不发布、不访问业务文件，保留标签“协作”。')],
+      acceptance: [user('native-receipt', '验收甲：主Agent已取得原生权限回执。'), user('expanded-permission', '验收乙：回执显示scopeExpanded为true。'), user('external-proof', '验收丙：外部结论具有原始证据。')],
+      assumptions: [{ id: 'scripted-scope', text: 'This is an offline native protocol fixture; provider intelligence is not measured.', provenance: 'machine' }] },
+    directives: [{ taskRevision: Number(header[1]), taskHash: header[2], targetRouteId: rootId, type: 'verify', reason: 'A real native permission receipt is present; verify a distinct read-only fixture without expanding authority.', evidenceIds,
+      instruction: COMPANION_GOVERNANCE_REDIRECT + ': call fixture_read with id=assist-verify once, then finish the existing task without any business write or publication.', stopCondition: 'Stop after one native assist-verify receipt; do not repeat the permission sentinel.', ttlMs: 10000 }],
+    verification: { criteria: [
+      { criterionId: 'task-result', status: 'unverified', evidenceIds: [], reason: 'The full task includes a deliberately false condition and absent external evidence.' },
+      { criterionId: 'native-receipt', status: 'satisfied', evidenceIds, reason: 'The original main native permission receipt was independently retrieved.' },
+      { criterionId: 'expanded-permission', status: 'failed', evidenceIds, reason: 'The actual receipt says scopeExpanded=false.' },
+      { criterionId: 'external-proof', status: 'unverified', evidenceIds: [], reason: 'No external original evidence exists in the fixture.' },
+    ] } }
+  return { text: JSON.stringify(response), rootId, sourceId: source.sourceId }
+}
+function nativeActions(events) {
+  const calls = new Map(), actions = []
+  for (const event of events) {
+    if (event.type === 'tool/call') calls.set(event.data.callId, event)
+    if (event.type !== 'tool/result') continue
+    const message = event.data.message, call = calls.get(message.toolCallId)
+    if (!call || message.source?.kind !== 'tool' || message.source.callId !== call.data.callId || event.seq <= call.seq) continue
+    actions.push({ name: call.data.name, callId: call.data.callId, callSeq: call.seq, resultSeq: event.seq, isError: message.isError === true,
+      arguments: typeof call.data.arguments === 'string' ? JSON.parse(call.data.arguments) : call.data.arguments, text: textOf([message]) })
+  }
+  return actions
+}
+/** Grading requires persisted host snapshots plus native calls, admission and requests. */
+export function auditCompanionGovernance({ rootId, requests, sessions, sourceRecords, deliveries }) {
+  try {
+    const root = sessions.find(session => session.id === rootId), sidecars = requests.filter(row => row.stage === 'assist-decision')
+    assert.ok(root && sidecars.length && new Set(sidecars.map(row => row.sessionId)).size === 1, 'Native main and one sidecar are required')
+    const sidecarId = sidecars[0].sessionId, sidecar = sessions.find(session => session.id === sidecarId)
+    assert.ok(sidecar, 'Native sidecar session is missing')
+    assert.ok([root, sidecar].every(session => session.events.findLast(event => event.type === 'turn/end')?.data.reason.kind === 'completed'), 'Main and sidecar must have actual completed native turns')
+    assert.equal(root.events.filter(event => event.type === 'user/message' && (event.data.message ?? event.data).source?.kind === 'user'
+      && textOf([event.data.message ?? event.data]) === COMPANION_GOVERNANCE_TASK).length, 1, 'Original human task must enter the native root exactly once')
+    const snapshots = sourceRecords.filter(record => record.sessionId === rootId && record.kind === 'host/decision-governance')
+      .sort((left, right) => Number(left.eventId.split(':').at(-1)) - Number(right.eventId.split(':').at(-1))).map(record => JSON.parse(record.capturedText))
+    const final = snapshots.findLast(snapshot => snapshot.closed)
+    assert.ok(final?.durable && final.contract.originalTask === COMPANION_GOVERNANCE_TASK && final.errors.length === 0, 'Closed durable original task governance is missing')
+    const taskSource = sourceRecords.find(record => record.id === final.contract.sourceId)
+    assert.ok(taskSource?.capturedText === COMPANION_GOVERNANCE_TASK && final.contract.sha256 === createHash('sha256').update(COMPANION_GOVERNANCE_TASK).digest('hex'), 'Original task source and SHA must match')
+    assert.ok(final.contract.intent.constraints.some(item => item.provenance === 'user' && item.quote.includes('不联网') && item.sourceId === taskSource.id), 'Native intent lost its original human constraint')
+    const diagnostic = final.diagnostics.find(item => item.instruction.includes(COMPANION_GOVERNANCE_REDIRECT))
+    assert.ok(diagnostic?.targetRouteId === rootId && diagnostic.wasRequestVisible && diagnostic.status !== 'effect-verified', 'Native diagnostic must be visible without claiming automatic effect proof')
+    const transitions = ['queued', 'admitted', 'request-visible'].map(status => snapshots.findIndex(snapshot => snapshot.diagnostics.some(item => item.id === diagnostic.id && item.status === status)))
+    assert.ok(transitions[0] >= 0 && transitions[0] < transitions[1] && transitions[1] < transitions[2], 'Durable diagnostic transition chain is incomplete or out of order')
+    const delivery = deliveries.find(item => item.messageId === diagnostic.requestSourceId && item.targetId === rootId)
+    assert.ok(['queued', 'admitted', 'request-visible'].every(stage => delivery?.stages.some(item => item.stage === stage)), 'Native delivery receipt chain is incomplete')
+    const feedback = root.events.find(event => event.type === 'user/message' && (event.data.message ?? event.data).id === diagnostic.requestSourceId)
+    assert.equal((feedback?.data.message ?? feedback?.data)?.source.kind, 'ultra-assist', 'Advice must be native feedback rather than a new user authorization')
+    const visible = requests.find(row => row.sessionId === rootId && row.text.includes(COMPANION_GOVERNANCE_REDIRECT) && row.messageIds?.includes(diagnostic.requestSourceId))
+    assert.ok(visible, 'No actual native request contained the admitted feedback identity')
+    const rootActions = nativeActions(root.events), sideActions = nativeActions(sidecar.events)
+    const write = rootActions.find(action => action.name === 'write' && !action.isError && action.text === permissionReceiptText)
+    const verify = rootActions.find(action => action.name === 'fixture_read' && action.arguments.id === 'assist-verify' && !action.isError
+      && action.callSeq > visible.nativeBoundary && action.resultSeq > feedback.seq && JSON.parse(action.text).fixtureId === 'assist-verify')
+    assert.ok(write && verify && rootActions.filter(action => action.name === 'write').length === 1, 'Distinct post-feedback read or single main permission receipt is missing')
+    const quoted = sideActions.filter(action => action.name === 'ultra_memory_get' && !action.isError).map(action => ({ action, value: JSON.parse(action.text) }))
+    const quotedAction = quoted.find(({ value }) => diagnostic.evidenceIds.includes(value.citation?.sourceId))
+    const proof = quotedAction?.value
+    const evidence = sourceRecords.find(record => record.id === proof?.citation?.sourceId)
+    assert.ok(evidence && isFullPermissionQuote(proof, evidence.id) && quotedAction.action.arguments.id === evidence.id
+      && quotedAction.action.arguments.quote === permissionReceiptText && evidence.sessionId === rootId && evidence.origin?.callId === write.callId
+      && evidence.sha256 === proof.citation.sha256 && evidence.sha256 === createHash('sha256').update(write.text).digest('hex'), 'Sidecar quote must resolve the actual full main native tool source')
+    assert.ok(sideActions.some(action => action.name === 'ultra_memory_search' && !action.isError), 'Native sidecar search is missing')
+    const produced = sidecar.events.filter(event => event.type === 'assistant/message').some(event => { try { const value = JSON.parse(textOf([event.data.message])); return value.intent && value.verification && value.directives?.some(item => item.instruction.includes(COMPANION_GOVERNANCE_REDIRECT)) } catch { return false } })
+    assert.ok(produced, 'Actual native sidecar output lacks the combined protocol')
+    assert.ok(final.verification?.assessment === 'model' && final.verification.hostVerified === false && final.verification.allSatisfied === false
+      && ['satisfied', 'failed', 'unverified'].every(status => final.verification.criteria.some(item => item.status === status)), 'Three-state acceptance or its uncertainty boundary is missing')
+    assert.ok(final.verification.criteria.filter(item => item.status !== 'unverified').every(item => item.evidenceIds.includes(evidence.id)), 'Acceptance cites a source unrelated to the actual receipt')
+    return { passed: true, sidecarId, diagnosticId: diagnostic.id, sourceId: evidence.id, verification: final.verification,
+      delivery, effect: { stage: 'effect-verified', requestSequence: visible.sequence, callId: verify.callId, meaning: 'Only this native read-only fixture behavior is independently verified; production governance remains model assessment.' }, final }
+  } catch (error) { return { passed: false, reason: String(error.message ?? error) } }
 }
 /** Shared by the script adapter and the native SDK protocol preflight. */
 export function companionTeamStep(messages, plan, challenge) {
@@ -110,11 +222,14 @@ async function run(ctx, config) {
       const text = textOf(options.messages), sequence = result.requests.length + 1
       assert.ok(sequence <= 40, 'Finite local adapter request budget')
       const fixture = nativeToolJson(options.messages, 'fixture_read')
-      const row = { sequence, sessionId: options.sessionId, provider: options.provider, model: options.model, reasoningEffort: options.reasoningEffort, maxTokens: options.maxTokens, tools: (options.tools ?? []).map(tool => tool.name), toolResultNonces: options.messages.filter(message => message.role === 'tool' && !message.isError).flatMap(message => { try { return [JSON.parse(textOf([message])).nonce].filter(Boolean) } catch { return [] } }), text }
+      const row = { sequence, sessionId: options.sessionId, provider: options.provider, model: options.model, reasoningEffort: options.reasoningEffort, maxTokens: options.maxTokens, tools: (options.tools ?? []).map(tool => tool.name), messageIds: options.messages.map(message => message.id), nativeBoundary: ctx.agents.get(options.sessionId)?.session.seq, toolResultNonces: options.messages.filter(message => message.role === 'tool' && !message.isError).flatMap(message => { try { return [JSON.parse(textOf([message])).nonce].filter(Boolean) } catch { return [] } }), text }
       result.requests.push(row); let content
       if (text.includes('自动决策辅助旁路') || text.includes('只修复响应格式')) {
         row.stage = 'assist-decision'
-        content = fixture ? [{ type: 'text', text: JSON.stringify({ assessment: 'The native read-only fixture was checked; no additional authorization or route is required.', directives: [] }) }] : [call('fixture_read', { id: 'assist' })]
+        const action = companionGovernanceStep(options.messages)
+        if (action.toolName === 'fixture_read') await waitUntil(() => result.toolExecutions.some(tool => tool.name === 'write' && tool.sessionId !== options.sessionId), 'Governed sidecar waits for an actual main permission receipt')
+        if (action.text) row.producedGovernance = true
+        content = action.toolName ? [call(action.toolName, action.args)] : [{ type: 'text', text: action.text }]
       } else if (String(options.sessionId).startsWith('ultra-child-')) {
         if (text.includes('COMPANION_CANCEL_CHILD')) {
           row.stage = 'cancel-child'
@@ -140,7 +255,13 @@ async function run(ctx, config) {
         content = step.toolName ? [call(step.toolName, step.args)] : [{ type: 'text', text: step.text }]
       } else if (text.includes('COMPANION_ASSIST_MAIN')) {
         row.stage = 'assist-main'; await sleep(100); options.signal?.throwIfAborted()
-        content = nativeToolJson(options.messages, 'write') ? [{ type: 'text', text: 'Main retained its original model, permissions and delivery.' }] : [call('write', {})]
+        if (!nativeToolJson(options.messages, 'write')) content = [call('write', {})]
+        else if (fixture?.fixtureId === 'assist-verify') content = [{ type: 'text', text: '协作：Main retained its own model and native permission receipt, independently checked the feedback fixture, and leaves external acceptance unverified.' }]
+        else if (text.includes(COMPANION_GOVERNANCE_REDIRECT)) content = [call('fixture_read', { id: 'assist-verify' })]
+        else {
+          await waitUntil(() => ctx.get('ultraEvidenceSupport')?.memory.status(options.sessionId)?.deliveries.some(delivery => delivery.stages.some(stage => stage.stage === 'queued')), 'Main holds its existing stream until the native sidecar has actually queued feedback')
+          content = [call('fixture_read', { id: 'assist-pacing' })]
+        }
       } else {
         row.stage = 'ordinary-off'
         content = fixture ? [{ type: 'text', text: 'Native local fixture read completed.' }] : [call('fixture_read', { id: phase.mode === 'resume' ? 'resume' : 'off' })]
@@ -155,7 +276,7 @@ async function run(ctx, config) {
     const challenge = Object.values(challenges).find(value => value.id === args.id), value = challenge ? JSON.parse(challenge.fixtureText) : { fixtureId: args.id, nonce: 'native-' + args.id + '-731', readOnly: true }
     result.toolExecutions.push({ name: 'fixture_read', sessionId: exec.agent.id, id: args.id, nonce: value.nonce, callId: exec.callId, isError: false }); return [{ type: 'text', text: JSON.stringify(value) }]
   } }))
-  const releaseWrite = ctx.tools.register(defineContentToolFixture({ name: 'write', description: 'Main permission sentinel; returns a receipt and performs no filesystem change', parameters: {}, async execute(_args, exec) { result.toolExecutions.push({ name: 'write', sessionId: exec.agent.id, callId: exec.callId, isError: false }); return [{ type: 'text', text: '{"permissionSentinel":true}' }] } }))
+  const releaseWrite = ctx.tools.register(defineContentToolFixture({ name: 'write', description: 'Main permission sentinel; returns a receipt and performs no filesystem change', parameters: {}, async execute(_args, exec) { result.toolExecutions.push({ name: 'write', sessionId: exec.agent.id, callId: exec.callId, isError: false }); return [{ type: 'text', text: permissionReceiptText }] } }))
   const createRoot = async suffix => { const handle = await ctx.agents.create({ sessionId: config.sessionId + '-' + phase.mode + suffix, meta: { cwd: config.projectDir, agentPreset: 'offline' }, agentOptions: { provider: 'companion-main', model: 'scripted-main', reasoningEffort: 'medium', maxTokens: 1024 }, setup: async scope => { await ctx.agentPresets.mount(scope, 'offline') } }); handles.push(handle); return handle.agent }
   const turn = async (agent, text) => { const boundary = agent.session.seq; await ctx.agents.withInitiator(agent, async () => { agent.followup(createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } })); await agent.whenIdle() }); const events = agent.session.snapshotEvents().filter(row => row.seq > boundary); check('native AgentLoop turn completed', events.findLast(row => row.type === 'turn/end')?.data.reason.kind === 'completed', { id: agent.id }); return events }
   const command = async (agent, text, success = true) => { const response = await ctx.commands.execute(agent, text, [], new AbortController().signal); check('native command boundary ' + text, success ? response?.result.kind === 'success' : response?.result.kind !== 'success'); return response }
@@ -202,12 +323,25 @@ async function run(ctx, config) {
       const disk = await fs.readFile(ctx.get('profileContext').patchPath, 'utf8')
       check('ConfigEditor committed both qualified candidates and explicit automatic-selection reset', disk.includes('companion-code') && disk.includes('companion-review') && disk.includes('maxRequests: 24') && !source.get().explicitModelId)
       const assist = await createRoot('-assist'); await command(assist, '/decision assist'); const assistStart = result.requests.length
-      await turn(assist, 'COMPANION_ASSIST_MAIN: retain the original main model and perform its permission sentinel; the decision sidecar may inspect only existing read-only fixtures.')
+      check('standalone Decision governance uses its explicitly configured existing sidecar round', fiber.config.decisionGovernance === true && fiber.config.coordinationMaxRounds === 1)
+      await turn(assist, COMPANION_GOVERNANCE_TASK)
       await sleep(150)
       const assistRequests = result.requests.slice(assistStart), audit = auditAssistRequests({ requests: assistRequests, rootId: assist.id, mainProvider: 'companion-main', mainModel: 'scripted-main', allowedSidecarTools: ['fixture_read', 'ultra_memory_search', 'ultra_memory_get', 'ultra_submit_report'] })
       check('assist has one read-only sidecar while the original main retains model and permissions', audit.passed && result.toolExecutions.some(row => row.name === 'write' && row.sessionId === assist.id), audit)
       check('read-only sidecar actually invoked its permitted native read tool', result.toolExecutions.some(row => row.name === 'fixture_read' && row.sessionId === audit.sidecarId))
       result.assistAudit = audit
+      const sourceRecords = []
+      const recordDirectory = path.join(config.projectDir, '.dsh-ultra', 'v1', 'records')
+      for (const filename of await fs.readdir(recordDirectory)) {
+        if (!filename.endsWith('.json')) continue
+        const envelope = JSON.parse(await fs.readFile(path.join(recordDirectory, filename), 'utf8'))
+        assert.equal(createHash('sha256').update(JSON.stringify(envelope.record)).digest('hex'), envelope.sha256, 'Governance source envelope checksum must match')
+        sourceRecords.push(envelope.record)
+      }
+      result.governanceAudit = auditCompanionGovernance({ rootId: assist.id, requests: assistRequests,
+        sessions: [...nativeSessions.values()].map(session => ({ id: session.id, events: session.snapshotEvents() })), sourceRecords,
+        deliveries: ctx.get('ultraEvidenceSupport').memory.status(assist.id)?.deliveries ?? [] })
+      check('standalone native Decision intent diagnosis delivery effect and three-state acceptance form one audited loop', result.governanceAudit.passed, result.governanceAudit)
       await command(assist, '/decision off'); const offStart = result.requests.length; await turn(assist, 'COMPANION_AFTER_OFF: finish with the existing native read fixture.'); await sleep(100)
       check('off never adds a sidecar or execution route', result.requests.slice(offStart).every(row => row.sessionId === assist.id))
       const cancelled = await createRoot('-cancel'); plans.set(cancelled.id, { kind: 'review', cancel: true }); await command(cancelled, '/team on'); const cancellationStart = result.requests.length

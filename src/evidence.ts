@@ -12,6 +12,8 @@ export interface EvidenceInput {
   seq?: number; at: number; kind: string; text: string; version?: number
   host?: EvidenceHostRef; coverage?: 'host' | 'captured' | 'truncated' | 'reference-only'
   attachments?: EvidenceAttachment[]; files?: string[]; topics?: string[]; origin?: EvidenceOrigin
+  /** A host-only local retrieval wrapper locator, never a new searchable or publishable fact. */
+  contextReceipt?: true
 }
 export interface EvidenceChunk { id: string; start: number; end: number; sha256: string; terms: string[] }
 export interface EvidenceRecord {
@@ -20,6 +22,7 @@ export interface EvidenceRecord {
   sha256: string; length: number; host?: EvidenceHostRef; coverage: NonNullable<EvidenceInput['coverage']>
   attachments: EvidenceAttachment[]; files: string[]; topics: string[]; chunks: EvidenceChunk[]
   origin?: EvidenceOrigin
+  contextReceipt?: true
   promotion?: { at: number; previousCoverage: 'captured' | 'truncated'; verifiedSha256: string }
 }
 interface SourceRecord extends EvidenceRecord { type: 'source'; capturedText?: string }
@@ -43,16 +46,17 @@ export interface ProjectState extends ProjectStateInput { id: string; projectId:
 interface StoredState extends ProjectState { type: 'state' }
 type StoredRecord = SourceRecord | StoredSemantic | StoredState
 interface VerifiedFile { fingerprint: string; record: StoredRecord }
-type Resolver = (ref: EvidenceHostRef) => Promise<{ text: string; attachments?: EvidenceAttachment[] } | undefined>
+type Resolver = (ref: EvidenceHostRef) => Promise<{ text: string; attachments?: EvidenceAttachment[]; callId?: string } | undefined>
 export interface EvidenceQuery { query?: string; id?: string; kind?: string; file?: string; topic?: string; routeId?: string; after?: number; before?: number; offset?: number; limit?: number; maxChars?: number }
-export type EvidenceStatus = 'host' | 'captured' | 'truncated' | 'reference-only' | 'unavailable' | 'hash-mismatch'
+export type EvidenceStatus = 'host' | 'captured' | 'truncated' | 'reference-only' | 'unavailable' | 'hash-mismatch' | 'identity-mismatch'
 export interface EvidenceSearchItem {
   id: string; sourceId: string; sessionId: string; routeId: string; at: number; kind: string
   excerpt: string; status: EvidenceStatus; start: number; end: number; attachments: EvidenceAttachment[]
   sourceIds?: string[]; topics?: string[]; files?: string[]; semanticStatus?: SemanticStatus
+  match?: 'source-identity'; sourceChars?: number; sourceChunks?: number
 }
-export interface EvidenceSearchResult { items: EvidenceSearchItem[]; nextOffset?: number; total: number; omitted?: number }
-export interface EvidenceGetResult { text: string; sourceIds: string[]; status: EvidenceStatus; offset: number; nextOffset?: number; attachments?: EvidenceAttachment[]; semanticStatus?: SemanticStatus; sourceIdsTruncated?: boolean; citation?: { sourceId: string; quote: string; start: number; end: number; sha256: string; origin?: EvidenceOrigin } }
+export interface EvidenceSearchResult { items: EvidenceSearchItem[]; nextOffset?: number; total: number; omitted?: number; retrievalHint?: string }
+export interface EvidenceGetResult { text: string; sourceIds: string[]; status: EvidenceStatus; offset: number; nextOffset?: number; attachments?: EvidenceAttachment[]; semanticStatus?: SemanticStatus; sourceIdsTruncated?: boolean; contextReceipt?: true; citation?: { sourceId: string; quote: string; start: number; end: number; sha256: string; origin?: EvidenceOrigin } }
 
 const CHUNK_CHARS = 2048
 const MAX_RECORD_CHARS = 8 * 1024 * 1024
@@ -79,6 +83,13 @@ function integer(value: unknown, name: string, minimum = 0): number {
 }
 function origin(value: EvidenceOrigin): EvidenceOrigin {
   return { tool: nonempty(value.tool, 'origin tool'), callId: nonempty(value.callId, 'origin callId'), ...(value.resourceId === undefined ? {} : { resourceId: nonempty(value.resourceId, 'origin resourceId', 2048) }) }
+}
+function validateContextReceipt(value: Pick<EvidenceRecord, 'contextReceipt' | 'coverage' | 'host' | 'seq' | 'eventId' | 'kind' | 'origin' | 'attachments' | 'files' | 'topics'>): void {
+  if (value.contextReceipt === undefined) return
+  if (value.contextReceipt !== true || value.coverage !== 'host' || !value.host || value.seq !== value.host.seq
+    || !value.origin || !['ultra_memory_search', 'ultra_memory_get'].includes(value.origin.tool)
+    || value.kind !== 'tool/result:' + value.origin.tool || value.eventId !== 'tool:' + value.origin.callId
+    || value.attachments.length || value.files.length || value.topics.length) throw new Error('Invalid local host context receipt')
 }
 function terms(text: string): string[] {
   const found = new Set<string>()
@@ -147,6 +158,8 @@ export class EvidenceStore {
           if (record.origin) origin(record.origin)
           if (record.id !== sourceIdentity(record) || record.sourceId !== record.id || !Array.isArray(record.chunks)) throw new Error('invalid source identity')
           if (record.coverage === 'host' && (typeof record.capturedText === 'string' || !record.host)) throw new Error('host body duplication')
+          validateContextReceipt(record)
+          if (record.contextReceipt && (record.chunks.length || !record.length)) throw new Error('Context receipt must contain only a host locator and integrity metadata')
           if (record.capturedText !== undefined && sha(record.capturedText) !== record.sha256) throw new Error('source body mismatch')
           integer(record.length, 'source length')
           integer(record.at, 'source timestamp')
@@ -169,7 +182,7 @@ export class EvidenceStore {
       if (record.type === 'source') continue
       for (const id of record.sourceIds) {
         const source = sourceIndex.get(id)
-        if (!source || source.projectId !== record.projectId) throw new Error(`Evidence integrity failure: invalid source reference in ${record.id}`)
+        if (!source || source.contextReceipt || source.projectId !== record.projectId) throw new Error(`Evidence integrity failure: invalid source reference in ${record.id}`)
       }
       if (record.type === 'semantic') for (const id of [...record.supersedes, ...record.conflicts]) {
         const target = loaded.get(id)
@@ -265,7 +278,7 @@ export class EvidenceStore {
     const id = sourceIdentity(base)
     const chunks: EvidenceChunk[] = []
     // A small overlap preserves lexical matches crossing chunk boundaries.
-    for (let start = 0; start < input.text.length || (start === 0 && input.text.length === 0); start += CHUNK_CHARS - 128) {
+    for (let start = 0; !input.contextReceipt && (start < input.text.length || (start === 0 && input.text.length === 0)); start += CHUNK_CHARS - 128) {
       const end = Math.min(start + CHUNK_CHARS, input.text.length)
       const text = input.text.slice(start, end)
       chunks.push({ id: `chunk_${sha(canonical([id, start, end]))}`, start, end, sha256: sha(text), terms: terms(text) })
@@ -276,8 +289,11 @@ export class EvidenceStore {
       sha256: sha(input.text), length: input.text.length, ...(host ? { host } : {}), coverage,
       attachments: attachments(input.attachments), files: strings(input.files, 'files'), topics: strings(input.topics, 'topics'), chunks,
       ...(input.origin ? { origin: origin(input.origin) } : {}),
+      ...(input.contextReceipt === undefined ? {} : { contextReceipt: input.contextReceipt }),
       ...(coverage === 'host' || coverage === 'reference-only' ? {} : { capturedText: input.text }),
     }
+    validateContextReceipt(record)
+    if (record.contextReceipt && !record.length) throw new Error('Context receipt requires accessible host text')
     return this.mutate(() => {
       const previous = this.records.get(id)
       if (previous) {
@@ -332,18 +348,18 @@ export class EvidenceStore {
     const sessions = access ? this.grant(access) : undefined
     for (const id of values) {
       const source = this.findSource(id)
-      if (!source || source.projectId !== projectId || (access && !this.allowed(access, source, sessions))) throw new Error('Invalid or inaccessible evidence source reference')
+      if (!source || source.contextReceipt || source.projectId !== projectId || (access && !this.allowed(access, source, sessions))) throw new Error('Invalid or inaccessible evidence source reference; context receipts cannot become provenance')
     }
     return values
   }
   private sourcesAllowed(access: EvidenceAccess, ids: readonly string[]): boolean {
     const sessions = this.grant(access)
-    return ids.length > 0 && ids.every(id => { const source = this.findSource(id); return !!source && this.allowed(access, source, sessions) })
+    return ids.length > 0 && ids.every(id => { const source = this.findSource(id); return !!source && !source.contextReceipt && this.allowed(access, source, sessions) })
   }
 
   *recordsFor(access: EvidenceAccess): Iterable<EvidenceRecord> {
     const sessions = this.grant(access)
-    for (const record of this.records.values()) if (record.type === 'source' && this.allowed(access, record, sessions)) yield this.metadata(record)
+    for (const record of this.records.values()) if (record.type === 'source' && !record.contextReceipt && this.allowed(access, record, sessions)) yield this.metadata(record)
   }
   /** Metadata identifiers only; this helper conveys no content access. */
   idsFor(sessionId: string, eventId: string): string[] {
@@ -356,6 +372,7 @@ export class EvidenceStore {
     let resolved: Awaited<ReturnType<Resolver>>
     try { resolved = await this.resolver?.(source.host!) } catch { return { text: '', status: 'unavailable' } }
     if (!resolved || typeof resolved.text !== 'string') return { text: '', status: 'unavailable' }
+    if (source.contextReceipt && resolved.callId !== source.origin?.callId) return { text: '', status: 'identity-mismatch' }
     if (resolved.text.length !== source.length || sha(resolved.text) !== source.sha256) return { text: '', status: 'hash-mismatch' }
     return { text: resolved.text, status: 'host' }
   }
@@ -381,7 +398,7 @@ export class EvidenceStore {
     }
     const candidates: { source: SourceRecord; chunk?: EvidenceChunk; semantic?: SemanticRecord; bodyKeywords?: string[]; at: number; tie: string }[] = []
     for (const record of this.records.values()) {
-      if (record.type !== 'source' || !this.allowed(access, record, sessions)) continue
+      if (record.type !== 'source' || record.contextReceipt || !this.allowed(access, record, sessions)) continue
       if (!matchesKind(record.kind)) continue
       if (query.routeId !== undefined && record.routeId !== query.routeId) continue
       if (query.file !== undefined && ![...record.files, ...(labels.get(record.id)?.files ?? [])].some(file => file.toLowerCase().includes(query.file!.toLowerCase()))) continue
@@ -413,6 +430,9 @@ export class EvidenceStore {
     }
     candidates.sort((a, b) => b.at - a.at || (b.source.seq ?? 0) - (a.source.seq ?? 0) || (b.chunk?.start ?? 0) - (a.chunk?.start ?? 0) || a.tie.localeCompare(b.tie))
     const result: EvidenceSearchResult = { items: [], total: candidates.length }
+    if (keywords.length && candidates.some(candidate => candidate.bodyKeywords?.length === 0)) {
+      result.retrievalHint = '匹配来源标识仅定位资料，摘录不是全文。请用真实sourceId作id加正文关键词精确检索，或按nextOffset翻页、get offset/maxChars读片段；quote只校验已读原文，结束标记不能替代缺失事实。'
+    }
     const cache = new Map<string, Awaited<ReturnType<EvidenceStore['resolve']>>>()
     const acceptedIndices: number[] = []
     let index = offset
@@ -434,6 +454,7 @@ export class EvidenceStore {
         id: semantic?.id ?? chunk!.id, sourceId: source.id, sessionId: source.sessionId, routeId: source.routeId, at: semantic?.at ?? source.at, kind: semantic?.kind ?? source.kind,
         excerpt: text.slice(start, start + 600), status: resolved.status, start: semantic ? 0 : chunk!.start, end: semantic ? semantic.text.length : chunk!.end, attachments: semantic ? [] : copy(source.attachments),
         ...(semantic ? { semanticStatus: semantic.status, sourceIds: copy(semantic.sourceIds), topics: copy(semantic.topics), files: copy(semantic.files) } : {}),
+        ...(!semantic && keywords.length && bodyKeywords?.length === 0 ? { match: 'source-identity' as const, sourceChars: source.length, sourceChunks: source.chunks.length } : {}),
       }
       result.nextOffset = index + 1 < candidates.length ? index + 1 : undefined
       result.items.push(item)
@@ -506,11 +527,13 @@ export class EvidenceStore {
       const start = resolved.text.indexOf(quote, offset)
       if (start < 0 || start + quote.length > last) throw new Error('Quote is not an exact substring of the requested original source range')
       const result: EvidenceGetResult = { text: quote, sourceIds: [source.id], status: resolved.status, offset: start,
+        ...(source.contextReceipt ? { contextReceipt: true as const } : {}),
         citation: { sourceId: source.id, quote, start, end: start + quote.length, sha256: source.sha256, ...(source.origin ? { origin: copy(source.origin) } : {}) } }
       if (canonical(result).length > maxChars) throw new Error('Verified quote exceeds return budget; request a shorter exact quote or a larger allowed maxChars')
       return result
     }
     const result: EvidenceGetResult = { text: resolved.text.slice(offset, Math.min(last, offset + maxChars)), sourceIds: [source.id], status: resolved.status, offset }
+    if (source.contextReceipt) result.contextReceipt = true
     if (source.attachments.length) result.attachments = copy(source.attachments)
     while (canonical(result).length > maxChars && result.text.length) result.text = result.text.slice(0, Math.max(0, result.text.length - (canonical(result).length - maxChars) - 32))
     if (result.text && offset + result.text.length < last) result.nextOffset = relativeOffset + result.text.length
@@ -597,11 +620,14 @@ export class EvidenceStore {
   }
   stats(access: EvidenceAccess) {
     const sources = [...this.recordsFor(access)]
+    const sessions = this.grant(access)
+    const receipts = [...this.records.values()].filter((record): record is SourceRecord => record.type === 'source' && record.contextReceipt === true && this.allowed(access, record, sessions))
     const semantic = this.semantics(access)
     const coverage = { host: 0, captured: 0, truncated: 0, 'reference-only': 0 }
     for (const source of sources) coverage[source.coverage]++
     return {
       raw: { sources: sources.length, chunks: sources.reduce((sum, source) => sum + source.chunks.length, 0), characters: sources.reduce((sum, source) => sum + source.length, 0), attachments: sources.reduce((sum, source) => sum + source.attachments.length, 0), coverage },
+      contextReceipts: { sources: receipts.length, characters: receipts.reduce((sum, source) => sum + source.length, 0), storage: 'host-metadata-only', indexedBodyCharacters: 0 },
       semantic: { total: semantic.length, current: semantic.filter(x => x.status === 'current').length, superseded: semantic.filter(x => x.status === 'superseded').length, unresolved: semantic.filter(x => x.status === 'unresolved').length },
       integrity: { tornWrites: this.tornWrites, status: this.tornWrites ? 'incomplete-temporary-write' : 'ok', parsedRecords: this.parsedRecords, verifiedFiles: this.verifiedFiles.size },
     }

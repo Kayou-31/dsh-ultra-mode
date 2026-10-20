@@ -35,6 +35,8 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
   let component
   let props
   let disposed = false
+  const listeners = new Map()
+  class TestNode {}
   const react = {
     createElement(type, elementProps, ...children) {
       if (anchor && elementProps?.className === 'dsh-ultra' && elementProps.ref) {
@@ -71,8 +73,8 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
     activeElement: null,
     createElement: () => ({ dataset: {}, textContent: '', remove() { styles.splice(styles.indexOf(this), 1) } }),
     head: { appendChild: style => { styles.push(style) } },
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(name, listener) { listeners.set(name, listener) },
+    removeEventListener(name, listener) { if (listeners.get(name) === listener) listeners.delete(name) },
   }
   const rpc = { async call(channel, endpoint, payload) { calls.push({ channel, endpoint, payload }); return handler(endpoint, payload) } }
   const list = sessionList ?? { getSnapshot: () => ({ ids: [], byId: {} }), subscribe: () => () => {} }
@@ -84,7 +86,7 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
     },
     window: { innerWidth: viewport.width, innerHeight: viewport.height,
       setInterval(fn) { const id = timers.size + 1; timers.set(id, fn); return id }, clearInterval: id => timers.delete(id) },
-    document, Node: class Node {}, Error, __DSH_ULTRA_VARIANT__: variant,
+    document, Node: TestNode, Error, __DSH_ULTRA_VARIANT__: variant,
   }, { filename: 'client/index.ts' })
   module.exports.apply({
     sessions: { list },
@@ -153,9 +155,52 @@ function harness(handler = async () => response(), { sessionList, language = 'zh
     toggleTeam: () => { team().props.onClick(); flush() },
     text: () => textOf(tree), pulse: () => { timers.forEach(fn => fn()) },
     toolbarText: () => visibleTextOf(team()) + visibleTextOf(trigger()),
+    root: () => tree,
+    blur: (relatedTarget = null) => { tree.props.onBlur({ relatedTarget }); flush() },
+    outsideNode: () => new TestNode(),
+    clickOutside: () => { listeners.get('mousedown')?.({ target: new TestNode() }); flush() },
+    summaries: () => findAll(node => node.type === 'summary'),
     alerts: () => findAll(node => node.props.role === 'alert').map(textOf),
   }
 }
+
+test('evidence summary null-focus blur keeps the menu inspectable while outside focus and clicks close it', async () => {
+  const ui = harness()
+  ui.render('session-a')
+  await ui.settle()
+  ui.open()
+  ui.blur(null)
+  assert.ok(ui.menu(), 'clicking a native details summary can blur to null before it receives focus')
+  ui.blur(ui.outsideNode())
+  assert.equal(ui.menu(), undefined, 'keyboard focus leaving the plugin closes the menu')
+  ui.open()
+  ui.clickOutside()
+  assert.equal(ui.menu(), undefined, 'the document pointer handler still closes the menu')
+  ui.dispose()
+})
+
+test('status detail pointer expansion retains menu focus without suppressing keyboard activation', async () => {
+  const ui = harness(async () => response({ evidence: { enabled: true, available: true, retrievals: 0, unresolvedConflicts: 0 } }))
+  ui.render('session-a')
+  await ui.settle()
+  ui.open()
+  assert.ok(ui.summaries().length > 0)
+  for (const summary of ui.summaries()) {
+    let prevented = false
+    summary.props.onMouseDown?.({ preventDefault() { prevented = true } })
+    assert.equal(prevented, true, 'pointer presses must not transfer focus to the host composer')
+    assert.equal(summary.props.onKeyDown, undefined, 'native details keyboard activation stays available')
+  }
+  ui.dispose()
+})
+
+test('localized plugin labels, configured model IDs and recovery IDs opt out of automatic translation', async () => {
+  const ui = harness()
+  ui.render('session-a')
+  await ui.settle()
+  assert.equal(ui.root().props.translate, 'no')
+  ui.dispose()
+})
 
 test('Decision client has its own module identity, RPC, locale, and only off/assist choices', async () => {
   const ui = harness(async () => response({ concurrency: 1 }), { variant: 'decision' })
@@ -629,6 +674,105 @@ test('provided compression failure metrics and retention flags remain strictly v
     const ui = harness(async () => response({ evidence: { ...evidenceStatus(), compression } }))
     ui.render('session-a'); await ui.settle(); ui.open()
     assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    ui.dispose()
+  }
+})
+
+test('archive telemetry shows estimated envelopes, recovery IDs and paused persistence without changing controls', async () => {
+  const receiptId = 'arc_' + 'a'.repeat(64)
+  for (const language of ['zh', 'en']) for (const archive of [
+    { status: 'archived', before: { totalTokens: 431000, estimated: true }, after: { totalTokens: 120000, estimated: true }, committed: true, persistenceUncertain: false, receiptId, limits: ['Protected recent messages retained'] },
+    { status: 'failed', committed: true, persistenceUncertain: true, receiptId, limits: ['Checkpoint flush unavailable'] },
+  ]) {
+    const ui = harness(async () => response({ enabled: true, concurrency: 2, evidence: { ...evidenceStatus(), archive } }), { language })
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.equal(ui.alerts().length, 0)
+    assert.equal(ui.toolbarText(), language === 'zh' ? '协作Ultra2' : 'TeamUltra2')
+    assert.equal(ui.options().length, 6)
+    assert.equal(ui.calls.length, 1)
+    assert.match(ui.text(), language === 'zh' ? /阶段归档：/ : /Stage archive:/)
+    assert.ok(ui.text().includes(archive.status))
+    assert.ok(ui.text().includes(receiptId))
+    assert.ok(ui.text().includes(archive.limits[0]))
+    if (archive.before) {
+      assert.match(ui.text(), language === 'zh' ? /估算包络.*431000.*120000/ : /Estimated envelope.*431000.*120000/)
+      assert.doesNotMatch(ui.text(), /后续执行已暂停|Further execution is paused/)
+    } else {
+      assert.match(ui.text(), language === 'zh' ? /估算包络不可用/ : /estimated envelope unavailable/)
+      assert.match(ui.text(), language === 'zh' ? /持久化状态未确认；后续执行已暂停/ : /Persistence is uncertain; further execution is paused/)
+    }
+    assert.equal(ui.text().includes('undefined'), false)
+    ui.dispose()
+  }
+})
+
+test('malformed archive budgets, state flags, recovery IDs and private fields fail closed at RPC validation', async () => {
+  for (const archive of [
+    { status: 'BODY_TEXT_MUST_NOT_RENDER' },
+    { status: 'archived', committed: true, receiptId: 'arc_' + 'a'.repeat(64), before: { totalTokens: -1, estimated: true }, after: { totalTokens: 1, estimated: true } },
+    { status: 'failed', before: { totalTokens: 3, estimated: false } },
+    { status: 'failed', after: { totalTokens: 3, estimated: 'true' } },
+    { status: 'failed', committed: 'true' },
+    { status: 'failed', committed: false, persistenceUncertain: true },
+    { status: 'failed', persistenceUncertain: true },
+    { status: 'failed', receiptId: '../secret' },
+    { status: 'failed', receiptId: 'arc_' + 'a'.repeat(63) },
+    { status: 'failed', limits: [42] },
+    { status: 'failed', reasoning: 'PRIVATE_REASONING_MUST_NOT_RENDER' },
+  ]) {
+    const ui = harness(async () => response({ evidence: { ...evidenceStatus(), archive } }))
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    assert.doesNotMatch(ui.text(), /BODY_TEXT_MUST_NOT_RENDER|PRIVATE_REASONING_MUST_NOT_RENDER|\.\.\/secret/)
+    assert.equal(ui.team().props.disabled, true)
+    ui.dispose()
+  }
+})
+
+test('absent archive telemetry remains hidden while ordinary evidence and modes stay available', async () => {
+  for (const language of ['zh', 'en']) for (const archive of [undefined, null]) {
+    const evidence = evidenceStatus()
+    if (archive !== undefined) evidence.archive = archive
+    const ui = harness(async () => response({ evidence }), { language })
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.equal(ui.alerts().length, 0)
+    assert.match(ui.text(), language === 'zh' ? /原始证据/ : /Raw evidence/)
+    assert.doesNotMatch(ui.text(), /阶段归档|Stage archive|恢复 ID|Recovery ID|后续执行已暂停|further execution is paused/)
+    assert.equal(ui.options().length, 6)
+    assert.equal(ui.team().props.disabled, false)
+    ui.dispose()
+  }
+})
+
+test('actual host-shaped per-route usage objects preserve working controls and archive visibility', async () => {
+  const evidence = evidenceStatus()
+  evidence.resources.byRoute = {
+    main: { settledCalls: 3, measuredTokens: 12000, unknownUsageCalls: 0 },
+    'worker-real': { settledCalls: 2, measuredTokens: 6000, unknownUsageCalls: 1 },
+  }
+  evidence.archive = { status: 'archived', committed: true, persistenceUncertain: false, rawHistoryRetained: true,
+    before: { totalTokens: 430240, estimated: true, remainingTokens: -300240, inputTokens: 420000, outputReserveTokens: 8192, toolReserveTokens: 2048 },
+    after: { totalTokens: 115240, estimated: true, remainingTokens: 14760 },
+    receiptId: 'arc_' + 'b'.repeat(64), triggerTokens: 130000, selectedSeqs: [7, 9, 23], startSeq: 40, pruneSeq: 41, replacementSeq: 42, endSeq: 43, limits: [] }
+  const ui = harness(async () => response({ enabled: true, concurrency: 2, evidence }))
+  ui.render('session-a'); await ui.settle(); ui.open()
+  assert.equal(ui.alerts().length, 0)
+  assert.equal(ui.team().props.disabled, false)
+  assert.ok(ui.options().every(option => option.props.disabled === false))
+  assert.match(ui.text(), /实测 18000 tokens/)
+  assert.match(ui.text(), /阶段归档：archived.*估算包络 430240 → 115240/)
+  ui.dispose()
+})
+
+test('per-route usage rejects arrays, missing counters, negative values and private arbitrary fields', async () => {
+  for (const route of [[], [1, 2, 3], { settledCalls: 2, measuredTokens: 1 },
+    { settledCalls: -1, measuredTokens: 1, unknownUsageCalls: 0 },
+    { settledCalls: 2, measuredTokens: 1, unknownUsageCalls: 0, reasoning: 'PRIVATE_ROUTE_BODY' }]) {
+    const evidence = evidenceStatus(); evidence.resources.byRoute = { main: route }
+    const ui = harness(async () => response({ evidence }))
+    ui.render('session-a'); await ui.settle(); ui.open()
+    assert.match(ui.alerts().join(''), /无效的 Ultra 状态/)
+    assert.doesNotMatch(ui.text(), /PRIVATE_ROUTE_BODY/)
     ui.dispose()
   }
 })

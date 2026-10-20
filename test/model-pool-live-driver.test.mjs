@@ -9,7 +9,7 @@ test('live driver distinguishes different configuration from actual different mo
   const same = normalizeLiveConfig(base()); assert.equal(same.routeClassification, 'same-model-different-config')
   assert.throws(() => normalizeLiveConfig({ ...base(), distinctModels: true }), /distinct|different/i)
   const value = base(); value.routes[1].model = 'other'; assert.equal(normalizeLiveConfig(value).routeClassification, 'distinct-models')
-  assert.throws(() => normalizeLiveConfig({ ...base(), maxRequests: 41 }), /request/i)
+  assert.throws(() => normalizeLiveConfig({ ...base(), maxRequests: 1001 }), /request/i)
   assert.throws(() => normalizeLiveConfig({ ...base(), routes: [base().routes[0], base().routes[0]] }), /kind|unique|duplicate/i)
 })
 test('fresh challenges are unpredictable and prompts withhold nonce and expected candidate ID', () => {
@@ -36,13 +36,24 @@ test('quality judge requires actual assembled target requests, tool execution, n
 
 test('live configuration is copied and rejects unsafe or ambiguous offline test limits', () => {
   const input = base(), normalized = normalizeLiveConfig(input)
-  assert.ok(Number.isSafeInteger(normalized.maxRequests) && normalized.maxRequests > 0 && normalized.maxRequests <= 40)
+  assert.equal(normalized.maxRequests, 24)
+  assert.equal(normalized.maxConcurrent, 2)
   assert.notEqual(normalized.routes, input.routes)
   assert.notEqual(normalized.routes[0], input.routes[0])
   for (const change of [value => { value.routes = [] }, value => { value.maxRequests = 0 }, value => { value.maxRequests = NaN }, value => { value.routes[0].maxTokens = -1 }, value => { value.routes[0].reasoningEffort = 'invented' }, value => { value.resultFile = '' }]) {
     const value = base(); change(value); assert.throws(() => normalizeLiveConfig(value))
   }
   assert.throws(() => livePhasePrompt('unknown', createLiveChallenges().code))
+})
+
+test('live configuration accepts explicit expanded concurrency and finite long-test request budgets', () => {
+  for (const [maxConcurrent, maxRequests] of [[4, 180], [32, 1000]]) {
+    const normalized = normalizeLiveConfig({ ...base(), maxConcurrent, maxRequests })
+    assert.equal(normalized.maxConcurrent, maxConcurrent)
+    assert.equal(normalized.maxRequests, maxRequests)
+  }
+  for (const maxConcurrent of [0, -1, 1.5, 33, Infinity, NaN, '4']) assert.throws(() => normalizeLiveConfig({ ...base(), maxConcurrent }), /concurrency/i)
+  for (const maxRequests of [0, -1, 1.5, 1001, Infinity, NaN, '180']) assert.throws(() => normalizeLiveConfig({ ...base(), maxRequests }), /request/i)
 })
 
 test('quality judge rejects forged, mixed-child, incomplete and unpaired observations', () => {

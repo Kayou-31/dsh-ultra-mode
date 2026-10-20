@@ -5,11 +5,17 @@ import os from 'node:os'
 import path from 'node:path'
 import vm from 'node:vm'
 import { pathToFileURL } from 'node:url'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import ts from 'typescript'
 import { claimFreshWork, inspectSessionJsonl, assertDecisionManifest, assertCompanionInventory, companionSettingsPlugins } from '../scripts/host-acceptance/run-companion-decision-profile.mjs'
 import { auditAssistRequests, companionPoolConfig, hasNativeTeamCatalog, companionTeamStep } from '../scripts/host-acceptance/companion-decision-plugin.mjs'
+import * as companionDriver from '../scripts/host-acceptance/companion-decision-plugin.mjs'
+import { DecisionGovernance } from '../lib/decision-governance.js'
 import { readModelPool, modelPoolCatalog } from '../lib/model-pool.js'
+import { EvidenceStore } from '../lib/evidence.js'
+
+const permissionReceiptText = '{"permissionSentinel":true,"scopeExpanded":false}'
+const permissionReceiptSha = createHash('sha256').update(permissionReceiptText).digest('hex')
 
 test('saved native companion candidates exclude grading-only route fields', () => {
   const value = companionPoolConfig([{ id: 'code', kind: 'code', provider: 'companion-code', model: 'scripted-code', reasoningEffort: 'high', maxTokens: 256 }, { id: 'review', kind: 'review', provider: 'companion-review', model: 'scripted-review', reasoningEffort: 'low', maxTokens: 384 }], 'code')
@@ -56,7 +62,9 @@ test('Decision companion runner refuses reused and daily profile roots', t => {
 test('Decision runner accepts only the exact independent self contained package identity', () => {
   const good = { name: '@dsh-external/dsh-ultra-decision', version: '0.1.0-dev.1', main: './lib/index.js', dsh: { bundle: { patch: './cordis.patch.yml' } } }
   assert.doesNotThrow(() => assertDecisionManifest(good))
-  for (const manifest of [{ ...good, name: '@dsh-external/dsh-ultra-mode' }, { ...good, version: '0.1.0' }, { ...good, main: '../root/lib/index.js' }, { ...good, dependencies: { '@dsh-external/dsh-ultra-mode': '*' } }, { ...good, dependencies: { other: 'file:../../other' } }]) assert.throws(() => assertDecisionManifest(manifest), /Decision|self contained/)
+  assert.doesNotThrow(() => assertDecisionManifest({ ...good, version: '0.1.0-dev.2' }))
+  assert.doesNotThrow(() => assertDecisionManifest({ ...good, version: '0.1.0' }))
+  for (const manifest of [{ ...good, name: '@dsh-external/dsh-ultra-mode' }, { ...good, version: '0.1.1' }, { ...good, main: '../root/lib/index.js' }, { ...good, dependencies: { '@dsh-external/dsh-ultra-mode': '*' } }, { ...good, dependencies: { other: 'file:../../other' } }]) assert.throws(() => assertDecisionManifest(manifest), /Decision|self contained/)
   assert.deepEqual(companionSettingsPlugins(), [['config-editor', '@deepseek-ai/dsh-config-editor'], ['settings', '@deepseek-ai/dsh-settings']])
 })
 
@@ -78,6 +86,160 @@ test('assist audit requires real main and sidecar identities and forbids tool pe
   const args = { requests: [main, side], rootId: 'main', mainProvider: 'companion-main', mainModel: 'scripted-main', allowedSidecarTools: ['fixture_read', 'ultra_memory_search'] }
   assert.equal(auditAssistRequests(args).passed, true)
   for (const requests of [[main], [main, { ...side, sessionId: 'main' }], [{ ...main, model: 'rewritten' }, side], [main, { ...side, tools: ['write'] }], [main, { ...side, tools: ['ultra_spawn_agent'] }], [main, side, { ...side, sessionId: 'another-sidecar' }]]) assert.equal(auditAssistRequests({ ...args, requests }).passed, false)
+})
+
+test('standalone governance script obtains actual read/search/get receipts before emitting intent, diagnosis and three-state acceptance', () => {
+  assert.equal(typeof companionDriver.companionGovernanceStep, 'function')
+  const governance = new DecisionGovernance(companionDriver.COMPANION_GOVERNANCE_TASK, 'src_task')
+  const prompt = '主 Agent 的真实会话 ID：main\n' + governance.coordinationProtocol() + '\n' + governance.intentInstruction()
+  const messages = [{ role: 'user', source: { kind: 'ultra-route-task', summary: 'Ultra decision assist' }, content: [{ type: 'text', text: prompt }] }]
+  const add = (name, value) => {
+    const id = 'governance-' + messages.length
+    messages.push({ role: 'assistant', content: [{ type: 'tool-call', id, name, arguments: '{}' }] },
+      { role: 'tool', toolCallId: id, isError: false, content: [{ type: 'text', text: JSON.stringify(value) }] })
+  }
+  assert.deepEqual(companionDriver.companionGovernanceStep(messages), { toolName: 'fixture_read', args: { id: 'assist' } })
+  add('fixture_read', { fixtureId: 'assist', nonce: 'native-assist-731' })
+  assert.equal(companionDriver.companionGovernanceStep(messages).toolName, 'ultra_memory_search')
+  add('ultra_memory_search', { items: [{ sourceId: 'src_write', sessionId: 'main', kind: 'tool/result:write', excerpt: permissionReceiptText }] })
+  const read = companionDriver.companionGovernanceStep(messages)
+  assert.deepEqual(read, { toolName: 'ultra_memory_get', args: { id: 'src_write', quote: permissionReceiptText, maxChars: 4000 } })
+  // Actual quote reads return only the requested quote, not extra source text.
+  const original = { status: 'host', text: read.args.quote, offset: 0, sourceIds: ['src_write'], citation: { sourceId: 'src_write', quote: read.args.quote, start: 0, end: read.args.quote.length, sha256: permissionReceiptSha } }
+  add('ultra_memory_get', original)
+  const action = companionDriver.companionGovernanceStep(messages)
+  assert.equal(action.rootId, 'main')
+  const response = JSON.parse(action.text)
+  assert.ok(response.intent.constraints[0].quote.includes('不联网'))
+  assert.equal(response.directives[0].targetRouteId, 'main')
+  assert.ok(response.directives[0].instruction.includes(companionDriver.COMPANION_GOVERNANCE_REDIRECT))
+  governance.recordProgress({ sessionId: 'main', kind: 'tool', text: 'Actual permission fixture', sequence: 1, at: 1, evidenceIds: ['src_write'] })
+  let delivery
+  const accepted = governance.coordinate(action.text, new Set(['main']), (_target, _text, meta) => { delivery = meta; return true })
+  assert.equal(accepted.directives.length, 1)
+  delivery.onDelivery('admitted', 'native-feedback')
+  delivery.onDelivery('request-visible', 'native-feedback')
+  const final = governance.snapshot()
+  assert.equal(final.diagnostics[0].wasRequestVisible, true)
+  assert.deepEqual(new Set(final.verification.criteria.map(item => item.status)), new Set(['satisfied', 'failed', 'unverified']))
+  assert.equal(final.verification.allSatisfied, false)
+  assert.equal(final.verification.hostVerified, false)
+  assert.equal(final.contract.originalTask, companionDriver.COMPANION_GOVERNANCE_TASK)
+  for (const mutate of [
+    value => { value.sourceIds = ['foreign']; value.citation.sourceId = 'foreign' },
+    value => { value.text = value.citation.quote = '"permissionSentinel":true'; value.offset = value.citation.start = 1; value.citation.end = 26 },
+    value => { value.citation.sha256 = 'f'.repeat(64) },
+    value => { value.citation.end-- },
+    value => { value.citation.start = value.offset = 1 },
+    value => { value.text = '"permissionSentinel":true' },
+  ]) {
+    const bad = structuredClone(messages), value = structuredClone(original); mutate(value)
+    bad.at(-1).content[0].text = JSON.stringify(value)
+    assert.throws(() => companionDriver.companionGovernanceStep(bad), /source|receipt/i)
+  }
+})
+
+test('standalone governance audit refuses enable flags or script claims without native lifecycle evidence', () => {
+  assert.equal(typeof companionDriver.auditCompanionGovernance, 'function')
+  assert.equal(companionDriver.auditCompanionGovernance({ rootId: 'main', requests: [], sessions: [], sourceRecords: [], deliveries: [] }).passed, false)
+})
+
+test('governance script consumes the real persistent search/get quote shape without borrowing unrequested text', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'companion-governance-quote-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const access = { projectId: 'governance-project', sessionIds: ['native-main'] }, store = new EvidenceStore(directory)
+  const source = store.capture({ projectId: access.projectId, runId: 'governance-run', sessionId: 'native-main', routeId: 'main', eventId: 'write-result',
+    seq: 3, at: 1, kind: 'tool/result:write', text: permissionReceiptText, origin: { tool: 'write', callId: 'native-write' } })
+  const governance = new DecisionGovernance(companionDriver.COMPANION_GOVERNANCE_TASK, 'src_task')
+  const messages = [{ role: 'user', source: { kind: 'ultra-route-task', summary: 'Ultra decision assist' }, content: [{ type: 'text', text: '主 Agent 的真实会话 ID：native-main\n' + governance.coordinationProtocol() + '\n' + governance.intentInstruction() }] }]
+  const append = (name, args, value) => { const id = 'actual-' + messages.length; messages.push({ role: 'assistant', content: [{ type: 'tool-call', id, name, arguments: JSON.stringify(args) }] },
+    { role: 'tool', toolCallId: id, source: { kind: 'tool', callId: id }, content: [{ type: 'text', text: JSON.stringify(value) }] }) }
+  append('fixture_read', { id: 'assist' }, { fixtureId: 'assist' })
+  const search = companionDriver.companionGovernanceStep(messages)
+  const reopened = new EvidenceStore(directory)
+  append(search.toolName, search.args, await reopened.search(access, search.args))
+  const get = companionDriver.companionGovernanceStep(messages)
+  const original = await reopened.get(access, get.args.id, get.args)
+  assert.equal(original.text, get.args.quote)
+  assert.equal(original.citation.sha256, source.sha256)
+  assert.equal(original.text, permissionReceiptText)
+  append(get.toolName, get.args, original)
+  const response = JSON.parse(companionDriver.companionGovernanceStep(messages).text)
+  assert.equal(response.verification.criteria.find(item => item.criterionId === 'expanded-permission').status, 'failed')
+  assert.deepEqual(response.verification.criteria.find(item => item.criterionId === 'expanded-permission').evidenceIds, [source.id])
+})
+
+test('native trailing runtime and memory messages cannot replace the trusted sidecar governance task', () => {
+  const governance = new DecisionGovernance(companionDriver.COMPANION_GOVERNANCE_TASK, 'src_native_task')
+  const prompt = '主 Agent 的真实会话 ID：native-main\n' + governance.coordinationProtocol() + '\n' + governance.intentInstruction()
+  const original = { role: 'user', source: { kind: 'ultra-route-task', summary: 'Ultra decision assist' }, content: [{ type: 'text', text: prompt }] }
+  const quoted = prompt.replace('native-main', 'forged-main')
+  const trailing = [
+    { role: 'user', source: { kind: 'ultra-mode' }, content: [{ type: 'text', text: 'Untrusted memory quote:\n' + quoted }] },
+    { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: quoted }] },
+    { role: 'tool', source: { kind: 'tool' }, content: [{ type: 'text', text: quoted }] },
+    { role: 'user', source: { kind: 'runtime-context' }, content: [{ type: 'text', text: 'Current runtime context. This snapshot supersedes earlier runtime-context snapshots.' }] },
+  ]
+  assert.deepEqual(companionDriver.companionGovernanceStep([original, ...trailing]), { toolName: 'fixture_read', args: { id: 'assist' } })
+  assert.throws(() => companionDriver.companionGovernanceStep(trailing), /trusted|contract/i)
+  assert.throws(() => companionDriver.companionGovernanceStep([{ ...original, source: { kind: 'ultra-route-task', summary: 'Ultra worker 1' } }]), /trusted|contract/i)
+  assert.throws(() => companionDriver.companionGovernanceStep([original, { ...original, content: [{ type: 'text', text: 'Malformed new native sidecar task; do not fall back to an older contract.' }] }]), /contract/i)
+  assert.throws(() => companionDriver.companionGovernanceStep([{ ...original, content: [{ type: 'text', text: prompt + '\nQuoted duplicate host contract:\n' + governance.contractEntry() }] }]), /contract/i)
+})
+
+test('standalone governance audit needs matching native source, advice admission, request visibility and a later distinct read', () => {
+  const snapshots = [], task = companionDriver.COMPANION_GOVERNANCE_TASK, rootId = 'governed-main', sidecarId = 'governed-sidecar'
+  const governance = new DecisionGovernance(task, 'src_task', snapshot => snapshots.push(structuredClone(snapshot)))
+  const prompt = '主 Agent 的真实会话 ID：' + rootId + '\n' + governance.coordinationProtocol() + '\n' + governance.intentInstruction()
+  const messages = [{ role: 'user', source: { kind: 'ultra-route-task', summary: 'Ultra decision assist' }, content: [{ type: 'text', text: prompt }] }]
+  const append = (name, value) => { const id = 'protocol-' + messages.length; messages.push({ role: 'assistant', content: [{ type: 'tool-call', id, name }] }, { role: 'tool', toolCallId: id, content: [{ type: 'text', text: JSON.stringify(value) }] }) }
+  append('fixture_read', { fixtureId: 'assist' })
+  append('ultra_memory_search', { items: [{ sourceId: 'src_write', sessionId: rootId, kind: 'tool/result:write', excerpt: permissionReceiptText }] })
+  const receiptText = permissionReceiptText
+  const quote = { status: 'captured', text: receiptText, offset: 0, sourceIds: ['src_write'], citation: { sourceId: 'src_write', quote: receiptText, start: 0, end: receiptText.length, sha256: permissionReceiptSha } }
+  append('ultra_memory_get', quote)
+  const response = companionDriver.companionGovernanceStep(messages)
+  governance.recordProgress({ sessionId: rootId, kind: 'tool', text: receiptText, sequence: 3, at: 1, evidenceIds: ['src_write'] })
+  let delivery
+  governance.coordinate(response.text, new Set([rootId]), (_id, _text, meta) => { delivery = meta; return true })
+  delivery.onDelivery('admitted', 'feedback-1'); delivery.onDelivery('request-visible', 'feedback-1'); governance.close()
+  const tool = (name, args, text, seq, callId) => [{ seq, type: 'tool/call', data: { name, callId, arguments: JSON.stringify(args) } },
+    { seq: seq + 1, type: 'tool/result', data: { message: { role: 'tool', toolCallId: callId, source: { kind: 'tool', callId }, content: [{ type: 'text', text }] } } }]
+  const observation = { rootId,
+    requests: [{ sequence: 1, sessionId: sidecarId, stage: 'assist-decision', text: prompt },
+      { sequence: 2, sessionId: rootId, stage: 'assist-main', text: companionDriver.COMPANION_GOVERNANCE_REDIRECT, messageIds: ['feedback-1'], nativeBoundary: 9 }],
+    sessions: [{ id: rootId, events: [{ seq: 0, type: 'user/message', data: { id: 'original-task', source: { kind: 'user' }, content: [{ type: 'text', text: task }] } }, ...tool('write', {}, receiptText, 2, 'write-1'),
+      { seq: 8, type: 'user/message', data: { id: 'feedback-1', source: { kind: 'ultra-assist' }, content: [{ type: 'text', text: companionDriver.COMPANION_GOVERNANCE_REDIRECT }] } },
+      ...tool('fixture_read', { id: 'assist-verify' }, '{"fixtureId":"assist-verify","nonce":"native-assist-verify-731"}', 10, 'verify-1'), { seq: 14, type: 'turn/end', data: { reason: { kind: 'completed' } } }] },
+    { id: sidecarId, events: [...tool('ultra_memory_search', { query: 'permissionSentinel' }, '{}', 1, 'search-1'),
+      ...tool('ultra_memory_get', { id: 'src_write', quote: receiptText, maxChars: 4000 }, JSON.stringify(quote), 4, 'get-1'),
+      { seq: 7, type: 'assistant/message', data: { message: { content: [{ type: 'text', text: response.text }] } } }, { seq: 9, type: 'turn/end', data: { reason: { kind: 'completed' } } }] }],
+    sourceRecords: [{ id: 'src_task', sessionId: rootId, kind: 'user/task', capturedText: task },
+      { id: 'src_write', sessionId: rootId, kind: 'tool/result:write', origin: { callId: 'write-1' }, sha256: createHash('sha256').update(receiptText).digest('hex') },
+      ...snapshots.map((snapshot, index) => ({ id: 'governance-' + index, eventId: 'decision-governance:' + index, sessionId: rootId, kind: 'host/decision-governance', capturedText: JSON.stringify(snapshot) }))],
+    deliveries: [{ messageId: 'feedback-1', targetId: rootId, stages: ['queued', 'admitted', 'request-visible'].map(stage => ({ stage })) }] }
+  assert.equal(companionDriver.auditCompanionGovernance(observation).passed, true)
+  for (const mutate of [
+    value => { value.deliveries[0].stages.pop() },
+    value => { value.requests[1].messageIds = [] },
+    value => { value.requests[1].nativeBoundary = 11 },
+    value => { value.sessions[0].events.find(event => event.seq === 8).data.source.kind = 'user' },
+    value => { value.sessions[0].events = value.sessions[0].events.filter(event => event.seq !== 11) },
+    value => { value.sessions[0].events.pop() },
+    value => { value.sessions[1].events.pop() },
+    value => { value.sessions[0].events[0].data.source.kind = 'ultra-assist' },
+    value => { value.sessions[1].events = value.sessions[1].events.filter(event => event.seq > 2) },
+    value => { value.sourceRecords[1].origin.callId = 'foreign-call' },
+    value => { value.sourceRecords[1].sha256 = 'f'.repeat(64) },
+    value => { value.sourceRecords[0].capturedText = 'changed task' },
+    value => { value.sessions[1].events.find(event => event.type === 'tool/call' && event.data.name === 'ultra_memory_get').data.arguments = JSON.stringify({ id: 'src_write', quote: '"permissionSentinel":true', maxChars: 4000 }) },
+    value => { const result = value.sessions[1].events.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'get-1'); const quoted = JSON.parse(result.data.message.content[0].text); quoted.citation.sha256 = 'f'.repeat(64); result.data.message.content[0].text = JSON.stringify(quoted) },
+    value => { const result = value.sessions[1].events.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'get-1'); const quoted = JSON.parse(result.data.message.content[0].text); quoted.text = '"permissionSentinel":true'; result.data.message.content[0].text = JSON.stringify(quoted) },
+    value => { for (const record of value.sourceRecords.filter(item => item.kind === 'host/decision-governance')) record.eventId = 'decision-governance:' + (100 - Number(record.eventId.split(':').at(-1))) },
+  ]) {
+    const bad = structuredClone(observation); mutate(bad)
+    assert.equal(companionDriver.auditCompanionGovernance(bad).passed, false)
+  }
 })
 
 test('persisted companion inventory cannot pass from in memory claims without native evidence', () => {

@@ -1,4 +1,7 @@
-/** Acceptance-only global LLM stream gate. Mount once at deployment/profile scope. */
+/** Acceptance-only profile-wide LLM stream gate. Defaults to two streams; explicit
+ * experiments may use up to 32 streams and 1,000 admitted requests per process.
+ * Mount once at deployment/profile scope; separate processes do not share permits.
+ */
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -7,6 +10,8 @@ export const name = 'ultra-acceptance-real-model-global-limit'
 export const inject = ['llm']
 
 const usageFields = ['inputTokens', 'outputTokens', 'totalTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens']
+const MAX_CONCURRENCY = 32
+const MAX_REQUESTS = 1000
 const gateError = (code, message) => Object.assign(new Error(message), { code })
 const label = (value, fallback = null) => typeof value === 'string' && /^[\w.:-]{1,256}$/u.test(value)
   ? value : typeof value === 'string' ? 'sha256:' + createHash('sha256').update(value).digest('hex').slice(0, 24) : fallback
@@ -42,8 +47,8 @@ function configuration(config) {
   }
   Object.freeze(allowedRoutes)
   const concurrency = config.concurrency ?? 2, maxRequests = config.maxRequests ?? 60
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 2) throw new TypeError('Acceptance concurrency must be 1 or 2; the hard maximum is 2')
-  if (!Number.isSafeInteger(maxRequests) || maxRequests < 1) throw new TypeError('Acceptance maxRequests must be a finite positive safe integer')
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > MAX_CONCURRENCY) throw new TypeError('Acceptance concurrency must be an integer from 1 to 32; the hard maximum is 32')
+  if (!Number.isSafeInteger(maxRequests) || maxRequests < 1 || maxRequests > MAX_REQUESTS) throw new TypeError('Acceptance maxRequests must be a finite positive safe integer from 1 to 1000')
   if (config.syntheticUsage !== undefined && typeof config.syntheticUsage !== 'boolean') throw new TypeError('syntheticUsage must be boolean when testing the gate with a local fixture')
   if (typeof config.testRoot !== 'string' || !path.isAbsolute(config.testRoot)) throw new TypeError('testRoot must be an existing absolute isolated test directory')
   const testRoot = fs.realpathSync.native(config.testRoot)
@@ -189,6 +194,9 @@ export function createGlobalLimit(config) {
       outcome = options.signal?.aborted ? 'cancelled' : 'failed'; failureCode = safeCode(error)
       throw error
     } finally {
+      // Native cancellation can close the consumer before forwarding finish.
+      // That skips normal loop exit and catch; it is still a cancellation.
+      if (!finished && options.signal?.aborted) { outcome = 'cancelled'; failureCode = 'ACCEPTANCE_ABORTED' }
       counters.active--
       if (outcome === 'completed') counters.completed++
       else if (outcome === 'cancelled') counters.cancelled++
@@ -199,7 +207,7 @@ export function createGlobalLimit(config) {
     }
   }
   emit('gate-created', { provider: selected.allowedProvider, model: selected.allowedModel, allowedRoutes: selected.allowedRoutes, concurrency: selected.concurrency,
-    hardMaximumConcurrency: 2, maxRequests: selected.maxRequests, privateContentLogged: false })
+    hardMaximumConcurrency: MAX_CONCURRENCY, hardMaximumRequests: MAX_REQUESTS, maxRequests: selected.maxRequests, privateContentLogged: false })
   return Object.freeze({ stream, snapshot, close })
 }
 

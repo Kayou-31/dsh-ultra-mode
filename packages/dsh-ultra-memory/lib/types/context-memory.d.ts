@@ -7,12 +7,16 @@ export declare const CONTEXT_HOST_PROTOCOL: "dsh-0.2.0-rc.2";
 export interface MemoryContextConfig {
     /** Soft total envelope target, including output and future tool-output reserves. */
     targetTokens?: number;
+    /** Hysteresis: start pruning only at this envelope; default retains the old target trigger. */
+    triggerTokens?: number;
     outputReserveTokens?: number;
     toolReserveTokens?: number;
     retainRecentMessages?: number;
     minResultChars?: number;
     maxPrunes?: number;
     previewChars?: number;
+    /** Omit repeated project state/shared-ID lists from each result locator. */
+    compactLocators?: boolean;
     routeEvidenceChars?: number;
     /** Off until one verified authority owns compression for the selected agents. */
     contextCompression?: boolean;
@@ -27,6 +31,8 @@ export interface RequestBudgetInput {
     toolReserveTokens?: number;
     /** An externally measured count for this exact assembled input, when available. */
     inputTokens?: number;
+    /** Official host meter pressure (usage anchor plus estimated surface deltas); never an exact tokenizer count. */
+    nativeInputEstimate?: number;
 }
 export interface RequestBudget {
     targetTokens: number;
@@ -37,7 +43,8 @@ export interface RequestBudget {
     remainingTokens: number;
     withinBudget: boolean;
     estimated: boolean;
-    method: 'utf8-heuristic' | 'supplied-input-count';
+    method: 'utf8-heuristic' | 'supplied-input-count' | 'native-meter-envelope';
+    nativeInputEstimate?: number;
     sections: {
         system: number;
         tools: number;
@@ -85,6 +92,8 @@ export interface CompactSessionContext {
     evidenceForEvent(event: SessionEvent): Promise<ContextEvidenceReceipt | undefined>;
     /** Must be the native tokenMeter.estimateMessage, required by shadow-price replay. */
     estimateMessage?: (message: unknown) => number;
+    /** Remeasured after every surface replacement, not a cached pre-compression usage count. */
+    measureInputTokens?: () => number | undefined;
     authority?: {
         protocol: typeof CONTEXT_HOST_PROTOCOL;
         soleOwner: boolean;
@@ -109,6 +118,7 @@ export interface ContextReplacement {
 }
 export interface SessionCompactionOutcome {
     status: 'disabled' | 'unsupported' | 'unchanged' | 'compacted' | 'limited';
+    triggerTokens: number;
     before: RequestBudget;
     after: RequestBudget;
     replacements: ContextReplacement[];

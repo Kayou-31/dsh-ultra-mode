@@ -1,0 +1,47 @@
+{
+  "schema": "ocg-workflow-context-plot/v1",
+  "status": "partial",
+  "target_cycles": 30,
+  "source_attempt": "archive-recovery-1",
+  "archive_recovery": true,
+  "partial_failed": true,
+  "post_curve_basis": "first-actual",
+  "first_attempt_pass": false,
+  "inherited_gate_requests": 44,
+  "eligible_cycles": 14,
+  "reported_qualified_cycles": 14,
+  "excluded": [
+    {
+      "phase": 15,
+      "reason": "not-completed"
+    }
+  ],
+  "trigger_input_plus_reserves_tokens": 420000,
+  "cap_input_plus_reserves_tokens": 500000,
+  "actual_input_includes_cache_read": true,
+  "actual_model_workload": true,
+  "virtual_project_time": true,
+  "general_lossless_claim": false,
+  "cost_savings_claim": false,
+  "metrics": {
+    "actual_input_reduction_ratio": {
+      "n": 14,
+      "min": 0.8818699991251624,
+      "max": 0.9755868056105335,
+      "median": 0.9326272605001591
+    },
+    "input_plus_reserves_reduction_ratio": {
+      "n": 14,
+      "min": 0.8620682093777479,
+      "max": 0.9535014823019121,
+      "median": 0.9116154312910115
+    },
+    "post_actual_input_tokens": {
+      "n": 14,
+      "min": 10793,
+      "max": 52662,
+      "median": 29935.5
+    }
+  },
+  "public_report_sha256": "1394a18e0d055a47f9d61fe4b001702827d7d703e30a900eef644d0b7200b984"
+}

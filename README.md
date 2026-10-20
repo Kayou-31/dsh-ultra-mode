@@ -1,22 +1,28 @@
 # DSH Ultra Mode
 
-> **v0.6.0-dev.3 三包预发布**：完整 Ultra、独立 Memory、独立 Decision 一起提供，保留现有手动模式和权限边界。普通协作多模型池、可选意图／诊断／验收治理、同 profile 显式授权知识库来自共同核心。原生验收目标为 DSH `0.2.1-rc.2`，旧 `0.2.0-rc.2` 另做 SDK 回归；兼容范围与实测范围分开。[发布说明与验证边界](docs/releases/0.6.0-dev.3.md)。
+> **v0.6.0 三包正式版**：完整 Ultra、独立 Memory、独立 Decision 一起提供。协作调度、多模型子代理、decision 治理、证据检索、上下文管理及显式授权知识库来自共同核心，保留手动模式和权限边界。主验收宿主为官方 DSH **0.2.1-rc.2**；旧 0.2.0-rc.2 的离线回归单列。
 
-完整 Ultra 将普通子代理协作、多路线 Max 研究、decision 协调和长任务证据管理连在一起；Memory 与 Decision 可单独安装或组合，便于按需选择。你选择怎样协作，插件传递进展、定位原文、保留项目状态，并收敛为可核对的交付。
+**14 轮合格压缩，压后约 65K 级（含预留）；测试范围内任务一致性保持，随任务更新持久化项目进度，支持检索与恢复。**
 
-[下载三个预发布包](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0-dev.3) · [独立安装与组合](docs/companion-plugins.md) · [发布验证](docs/releases/0.6.0-dev.3.md) · [安装与回滚](docs/installation.md) · [架构](docs/architecture.md) · [更新记录](CHANGELOG.md)
+完整 Ultra 将普通 Team、多路线 Max 研究和 decision 协调连在一起。你选择协作方式，插件关联原始证据、传递进展、保留项目状态，并在需要时读回旧资料；Memory 与 Decision 也可独立安装或组合，无需另造一套宿主或手动传递每路摘要。
+
+[下载三个正式包](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0) · [独立安装与组合](docs/companion-plugins.md) · [发布验证与限制](docs/releases/0.6.0.md) · [安装与回滚](docs/installation.md) · [架构](docs/architecture.md) · [更新记录](CHANGELOG.md)
+
+本轮 OCG / Flash 实测使用独立 profile：500K 总窗口、420K 含预留触发，**14 个合格周期的首个实际压后包络为 21,033～62,902 token**。第15阶段质量、来源与提交通过，压后为 **65,664**，但压前请求缺缓存分桶，未达到预设测量门槛，不能计为第15个合格周期。整组保持 **failed、14/30**；原定30轮和一天项目跨度未完成，额外归档冷读回未启动。约65K是本案例体积，不是压缩率、固定硬上限或绝对无损保证。
+
+用户已选择按当前结果收尾发布。失败、检索返工、原基线30轮与本次归档组分别保留在[实验说明](docs/OCG-EXPERIMENTS.md)和[上下文曲线口径](docs/experiments/compression-efficiency.zh.md)。本次239个请求已核对原生用量；最终正式包与真实被测开发包的源码／运行时对应关系见发布附件，改号和文档打包不算重新运行真实模型。
 
 ## 按需安装完整包或附属包
 
 | 包 | 源码位置 | 用途 |
 | --- | --- | --- |
-| `@dsh-external/dsh-ultra-mode` `0.6.0-dev.3` | 仓库根目录 | 完整的关闭／辅助／手动 2～5 路、Team、模型池、治理、证据／上下文与全局知识 |
-| `@dsh-external/dsh-ultra-memory` `0.1.0-dev.1` | [packages/dsh-ultra-memory/](packages/dsh-ultra-memory/README.md) | 独立项目证据检索、可选原生压缩及显式授权全局知识；不创建模型 |
-| `@dsh-external/dsh-ultra-decision` `0.1.0-dev.1` | [packages/dsh-ultra-decision/](packages/dsh-ultra-decision/README.md) | 独立普通 Team、协作多模型池、只读决策旁路及意图／诊断／验收；没有 Max 多路线入口 |
+| `@dsh-external/dsh-ultra-mode` `0.6.0` | 仓库根目录 | 完整的关闭／辅助／手动 2～5 路、Team、模型池、治理、证据／上下文与全局知识 |
+| `@dsh-external/dsh-ultra-memory` `0.1.0` | [packages/dsh-ultra-memory/](packages/dsh-ultra-memory/README.md) | 独立项目证据检索、可选原生压缩及显式授权全局知识；不创建模型 |
+| `@dsh-external/dsh-ultra-decision` `0.1.0` | [packages/dsh-ultra-decision/](packages/dsh-ultra-decision/README.md) | 独立普通 Team、协作多模型池、只读决策旁路及意图／诊断／验收；没有 Max 多路线入口 |
 
 可以单装任意一包，也支持 Memory＋Decision、Ultra＋Memory。Ultra 和 Decision 可同时安装，但同一 scope 重复主动启用协调插件会明确拒绝，需选择一个。Decision 的额外旁路默认关闭，显式 `/decision on` 才开启；`/team` 单独控制普通协作。
 
-根 `src/` 是共同核心的权威来源，附属包是自包含派生 bundle，不增加服务、密钥或默认付费调用。组合通过原生 lease 复用唯一证据服务，配置权威为 Memory > Ultra > Decision，项目授权不并集；释放一个 lease 保留其余插件。安装、配置、包内来源清单及回滚见[附属插件说明](docs/companion-plugins.md)。三个包在同一 [Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0-dev.3) 提供；SHA256、实测与未验证项见[本版发布记录](docs/releases/0.6.0-dev.3.md)。
+根 `src/` 是共同核心的权威来源，附属包是自包含派生 bundle，不增加服务、密钥或默认付费调用。组合通过原生 lease 复用唯一证据服务，配置权威为 Memory > Ultra > Decision，项目授权不并集；释放一个 lease 保留其余插件。安装、配置、包内来源清单及回滚见[附属插件说明](docs/companion-plugins.md)。三个包在同一 [Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0) 提供；SHA256、实测与未验证项见[本版发布记录](docs/releases/0.6.0.md)。
 
 ## 可以怎么用
 
@@ -80,7 +86,7 @@ Team 可以独立于 Ultra 开启，提供：
 | **只读按需检索** | `ultra_memory_search` 用关键词及已授权来源 metadata 定位资料；`ultra_memory_get` 分页读原文，`quote` 校验连续引文、范围、来源 ID 和实际工具资源 ID |
 | **主题与项目状态** | 结构化版本记录目标、约束、进度、下一步、阻塞、决策替代与冲突；区分计划、已执行和已验证，主题 MD／目录是可读派生视图 |
 | **路线上下文装配** | 保留宿主指令、用户原话和必要约束，加入当前路线任务、状态、近期资料与精简索引入口，按需取证，不默认复制全部共享历史 |
-| **可选历史替换与恢复** | 先持久化、校验证据及恢复入口，再通过原生历史替换移走较早工具正文；保留原事件、工具配对与恢复审计，失败时保留或补偿恢复 |
+| **可选历史替换与恢复** | 先持久化、校验证据及恢复入口，再原生替换较早工具正文；另提供默认关闭的已完成阶段归档。原始日志保留，普通正文替换与跨角色归档分别记录恢复语义 |
 | **资源与状态可见性** | 提供阶段、路线、覆盖缺口、检索、冲突、压缩前后估算和用量快照；请求／token预算、检索量、协调频率与失败退出可配置，已知、未知和估算分开 |
 
 这些机制已整合在 Ultra 中，不需要另装 [billion-context-dsh](https://github.com/tyan66666/billion-context-dsh)、外部向量库或 embedding 服务。本地索引、检索和确定性正文替换没有默认额外模型调用；模型主动调用检索仍属于其正常工具步骤。语义提炼可能遗漏，因此原文另有独立检索路径。不可访问或已被上游截断的内容会标记覆盖缺口，不伪装成保留了完整原文。
@@ -96,8 +102,8 @@ Team 可以独立于 Ultra 开启，提供：
 
 ## 安装与常用命令
 
-- [完整 Ultra TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/dsh-external-dsh-ultra-mode-0.6.0-dev.3.tgz) · [Memory TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/dsh-external-dsh-ultra-memory-0.1.0-dev.1.tgz) · [Decision TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/dsh-external-dsh-ultra-decision-0.1.0-dev.1.tgz)
-- [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/SHA256SUMS.txt) · [验收冻结源码 ZIP](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/dsh-ultra-mode-0.6.0-dev.3-source.zip) · [验证附件](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0-dev.3/dsh-ultra-mode-0.6.0-dev.3-verification.zip)
+- [完整 Ultra TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/dsh-external-dsh-ultra-mode-0.6.0.tgz) · [Memory TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/dsh-external-dsh-ultra-memory-0.1.0.tgz) · [Decision TGZ](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/dsh-external-dsh-ultra-decision-0.1.0.tgz)
+- [SHA256SUMS](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/SHA256SUMS.txt) · [验收冻结源码 ZIP](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/dsh-ultra-mode-0.6.0-source.zip) · [验证附件](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.0/dsh-ultra-mode-0.6.0-verification.zip)
 - 目标接口范围为 `0.2.0-rc.2 || 0.2.1-rc.2`；全局知识的原生验证仅针对具备 `profileContext.dir` 的 `0.2.1-rc.2`，缺少服务时失败关闭。TGZ 含 lib，通过 DSH 原有本地包入口安装；先核对哈希、备份 profile 与旧包，再退出并重启。建议先用独立 profile。
 - 具体组合与回滚见[附属插件说明](docs/companion-plugins.md)。配置 ID 分别为 `ultra-mode`、`ultra-memory`、`ultra-decision`；Ultra 与 Decision 同 scope 仅启用一个协调入口。
 
@@ -111,17 +117,29 @@ Team 可以独立于 Ultra 开启，提供：
 
 新会话默认 Team 与 Ultra 都关闭。`contextCompression` 默认 false；如需开启，先在测试 profile 核对持久化／token-meter 能力，确保同一上下文只有一个压缩管理者，不能同时启用默认 compactor 或另一压缩插件接管该历史。阶段输出 cap 默认 0 继承，不降低 Max。配置和迁移见 [使用说明](docs/evidence-context.md) 与 [示例](docs/evidence-config.example.yml)。
 
+`contextRetainRecentMessages` 已支持配置 2～128，默认仍为 8，只影响近期保留窗口；用户要求、附件及受保护内容不会为达标而强行移走。启用压缩时以官方 token meter 的 usage 锚与 surface 变化估算作为下限，并与本地 decoded-message 估算取较大值：正文、工具参数和 reasoning 按解码后的原始内容计量，保留 framing、工具定义及 rich／unknown 结构回退，不重复计算 JSON 传输转义和宿主消息 metadata。这些数值始终标为 estimated，不是 provider 精确 tokenizer 或无条件硬上限，也不保证压缩无损。本轮 retain=2、500K／420K 是独立验收设置，产品默认值未改。
+
+`contextArchiveCompletedTurns` 默认 false；仅在显式启用压缩、经核对的官方 `0.2.1-rc.2` 原生接口及唯一压缩权威下试用。它归档完整结束且工具配对平衡的旧阶段：用户／控制文字与公开 assistant 文字逐字保留，旧工具调用参数和结果从工作表面移出，原文仍在宿主追加日志中。系统／开发者指令、当前阶段、近期窗口及不支持的富媒体或全局知识区域受到保护。重复归档展开既有清单，不反复套摘要；不提取、索引或展示私有 reasoning，不增加摘要模型调用。旧工具正文 pruner 及其默认设置保持原样，短结果无须普遍压缩。
+
+归档清单只保存项目／会话／事件定位、长度、公开事件 SHA 和既有来源 ID，使用 `ultra_memory_get` 按 `arc_` ID 分页读回。`contextArchive:true` 和 `verification: returned-events` 表示本页事件已核验；`manifestSha256` 校验清单，不是完整原文 SHA 或事实引用。引用仍用原始 `src_`／`chunk_` ID 再 get／quote。当前项目和会话授权在读取前后复查，归档不会成为新的语义事实或知识发布来源。
+
+提交前失败保留旧表面；跨角色检查点已经提交后若持久化不确定，明确记录 `committed/persistenceUncertain` 并停止后续模型及业务调用，直至持久化和恢复入口校验成功，**不宣称精确回滚**。关闭新开关只停止创建，不绕过未解决的持久化边界，也不删除已存在的恢复入口。归档会话降级前须保留新版读取器、原生日志和 `.dsh-ultra/v1/archives/`，不能直接在不识别它的旧插件上续作。本轮归档实测按14/30收尾，完整30轮及额外归档冷读回未验证；安装配置和恢复限制见发布记录。
+
+30-a 的工具 JSONL 曾被整条消息再次 JSON 编码，导致预算误拒；对同一原生可见输入离线重放，含预留预算由旧估算 518,237 修正为新估算 463,595。被拒的大请求没有发送给 provider，这不是 actual 450K 输入或该组 30 次通过证据；30-a 与 30-b 原始失败保留，基线的 30 轮通过归属显式 recovery-1。
+
+本次恢复只在显式验收 profile 使用官方有界 TRANSPORT 重试，最多 2 次，默认仍为 0；不会改变产品默认行为。对已完成提交、仅收尾连接失败的阶段，显式冷恢复只读补齐 final 核验，不重做旧提交；后续新阶段仍须按原授权执行。错误流包装中的 0 usage 按 unknown 保留，不当作真实零消耗或成功调用计费；新请求依唯一 gate ID 和最后 provider usage 单独计入已知小计。
+
 ## 使用边界与验收
 
-**30K 是单 Agent 工作上下文软目标。** 系统、工具、硬约束、近期大结果和检索返回可能让实际请求明显超额。历史 0.5.0-rc.3 的多数大型请求确实超过目标；该轮约32%仅为同一次装配压缩前后估算输入下降的样本中位数，不是账单或相对原版节省。历史验证的是确定性工具正文替换，并非递归生成摘要，不承诺信息或能力绝对无损。
+默认 Team、Ultra、压缩、阶段归档和全局知识均按原开关管理，不会自动提高路线数或为索引新增模型。研究 worker、辅助 decision、普通子代理的工具、审批、数据和深度限制仍由宿主执行。历史资料与检索返回不构成新授权；语义整理及模型验收不是宿主证明。
 
-内部路线不在主界面逐步展示全部过程，也不公开私有思维链。多路线、Max、协调和普通子代理都会增加模型消耗，有限预算也可能耗尽；本版完整 Electron UI／桌面权限组合尚未验收。
+最终源码在官方0.2.1-rc.2测试 **727项：725通过、2跳过、0失败**；旧0.2.0-rc.2为 **706通过、21跳过、0失败**。两套不相加，跳过不算通过。服务端／客户端类型检查及构建通过。三包安装、组合、取消与恢复的正式TGZ原生矩阵，以及来源／哈希核对结果，以[发布记录](docs/releases/0.6.0.md)和Release验证附件为准；脚本模型测试不能替代真实长期效果。
 
-本版新 SDK 自动测试 **496 通过、2 跳过、0 失败**，旧 SDK **495 通过、3 跳过、0 失败**；同一套498项不能相加。最终三包在独立 profile 完成 **24 个原生 CLI 进程、741 条断言、218 次离线脚本 stream**，峰值双并发、网络调用0。两轮长历史夹具压缩与来源 SHA 读回通过，但它们使用脚本模型且两轮之间进行了原生会话恢复，不能证明真实模型长期无漂移。
+官方Web＋真实Chrome的本轮离线界面检查 **12通过、1不适用**，包括模型池保存／刷新／CLI冷启动、归档估算／完整恢复ID、暂停提示、鼠标与键盘展开及六个手动模式。状态为显式合成投影、0模型调用；官方插件清单没有通用归档配置表单，归档通过profile文件配置。完整Electron、窄屏像素／鼠标回归和Web在线模型任务未验证。
 
-完整 Electron UI、真实模型质量，以及独立 Decision 对意图／诊断／最终验收的专门原生完整闭环仍未验证。日常 profile 检查为三个指纹一致、一个 patch 指纹变化且来源未知，未回写；不宣称日常配置全部未变。具体范围、跳过原因、已修复问题与来源链见[发布验证](docs/releases/0.6.0-dev.3.md)。
+原压缩基线确实完成过30轮一致性验收，但末轮压后实际输入363,182；它不是本次约65K归档组的30轮证明。新旧失败与不同候选分别记账，没有等工作量完整原版A/B，不计算普适费用节省或其他产品的能力分数。虚拟项目时间与实际43.37分钟控制器工作分列；本次合格阶段仅覆盖10小时50分，第15阶段已提交到11小时40分。
 
-以下为 **0.5.0-rc.3 历史成绩**，不归到 dev.2／dev.3：真实宿主、模型及失败记录见 [历史验收与限制](docs/evidence-verification.md) 和 [公开档案](verification/0.5.0-rc.3/README.md)。主套件299通过／1环境跳过；最后模型实测构建Max双路12/12；约23MB长线原26轮9/12，检索修复后同根补1轮12/12、累计23次prune。原失败与返工保留；不完整原版A/B不能证明质量或成本优势。模型实测包与文档更新包分开记录哈希，44个lib文件逐字一致，不把文档重打包当作新的在线模型测试。
+历史0.6.0-dev.3、0.5.0-rc.3的成绩继续只归对应版本，见[历史发布](docs/releases/0.6.0-dev.3.md)和[历史证据验收](docs/evidence-verification.md)。当前桌面内核0.1.2-alpha.1低于支持范围，本轮没有安装或修改日常DSH环境。
 
 ## 开发、历史与支持
 

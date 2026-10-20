@@ -74,6 +74,111 @@ test('request budget includes system, schemas, history, retrieval and both reser
   assert.throws(() => estimateRequestBudget({ targetTokens: Number.NaN }), /token|budget/i)
 })
 
+test('native usage anchored pressure is a conservative estimate and cannot lower the full envelope', ready, () => {
+  const ordinary = estimateRequestBudget({ messages: ['small'], outputReserveTokens: 50, toolReserveTokens: 70 })
+  const metered = estimateRequestBudget({ messages: ['small'], nativeInputEstimate: 420000, outputReserveTokens: 50, toolReserveTokens: 70 })
+  assert.equal(metered.inputTokens, 420000)
+  assert.equal(metered.totalTokens, 420120)
+  assert.equal(metered.estimated, true)
+  assert.equal(metered.method, 'native-meter-envelope')
+  assert.equal(estimateRequestBudget({ messages: ['small'], nativeInputEstimate: 0, outputReserveTokens: 50, toolReserveTokens: 70 }).inputTokens, ordinary.inputTokens)
+  assert.equal(estimateRequestBudget({ inputTokens: 101 }).estimated, false, 'explicit exact input count preserves the public API contract')
+  for (const value of [NaN, -1, 0.5]) assert.throws(() => estimateRequestBudget({ nativeInputEstimate: value }))
+})
+
+test('model-visible JSONL tool text is counted once without JSON transport escaping or internal message metadata', ready, () => {
+  const text = ('{"caseId":"audit","observed":{"value":123456},"passed":true}\n').repeat(12000)
+  const message = { id: 'internal-id', role: 'tool', source: { kind: 'tool', diagnostic: 'private-host-metadata'.repeat(10000) }, toolCallId: 'call-1', isError: false, content: [{ type: 'text', text }] }
+  const budget = estimateRequestBudget({ messages: [message], outputReserveTokens: 8192, toolReserveTokens: 2048, targetTokens: 500000 })
+  const rawText = Math.ceil(Buffer.byteLength(text, 'utf8') / 3)
+  assert.ok(budget.inputTokens >= rawText, 'raw public result text is included')
+  assert.ok(budget.inputTokens <= rawText + 256, 'JSON string escaping and host source metadata are not model input')
+  assert.equal(budget.estimated, true)
+  const noMetadata = { role: 'tool', toolCallId: 'call-1', content: [{ type: 'text', text }] }
+  assert.equal(estimateRequestBudget({ messages: [noMetadata] }).inputTokens, budget.inputTokens)
+})
+
+test('message budget retains tool-call arguments, reasoning, rich and unknown blocks plus fallback messages', ready, () => {
+  for (const block of [{ type: 'tool-call', id: 'call-1', name: 'tool', arguments: '{"payload":"' + 'x'.repeat(3000) + '"}' }, { type: 'reasoning', text: 'y'.repeat(3000) }, { type: 'image', ref: 'attachment-' + 'z'.repeat(3000) }, { type: 'unknown', data: 'w'.repeat(3000) }]) {
+    assert.ok(estimateRequestBudget({ messages: [{ role: 'assistant', content: [block] }] }).inputTokens >= 1000, block.type)
+  }
+  assert.ok(estimateRequestBudget({ messages: [{ custom: 'fallback'.repeat(1000) }] }).inputTokens >= 2000)
+})
+
+test('usage anchored pressure can trigger compression below the byte heuristic threshold and is remeasured after replace', ready, async () => {
+  const f = fixture(), original = JSON.stringify(f.events)
+  const targetTokens = 100000
+  let measurements = 0
+  const outcome = await compactSession({ ...f.options, config: { ...f.options.config, targetTokens }, measureInputTokens: () => {
+    measurements++
+    return f.session.surface.replaceGeneration === 0 ? 420000 : 8000
+  } })
+  assert.equal(outcome.status, 'compacted')
+  assert.equal(outcome.before.inputTokens, 420000)
+  assert.equal(outcome.before.estimated, true)
+  assert.equal(outcome.before.method, 'native-meter-envelope')
+  assert.ok(outcome.after.totalTokens < targetTokens)
+  assert.ok(measurements >= 2)
+  assert.ok(JSON.stringify(f.events).startsWith(original.slice(0, -1)), 'raw event prefix survives')
+})
+
+test('separate compression trigger waits for 420K then prunes toward the 30K soft target', ready, async () => {
+  const f = fixture(), config = { ...f.options.config, targetTokens: 30000, triggerTokens: 420000 }
+  const waiting = await compactSession({ ...f.options, config, measureInputTokens: () => 419000 })
+  assert.equal(waiting.status, 'unchanged')
+  assert.equal(waiting.before.withinBudget, false, '30K remains the declared soft target')
+  assert.equal(f.writes.length, 0)
+  const pruned = await compactSession({ ...f.options, config, measureInputTokens: () => f.session.surface.replaceGeneration === 0 ? 420000 : 8000 })
+  assert.equal(pruned.status, 'compacted')
+  assert.ok(pruned.after.withinBudget)
+  const count = f.writes.length
+  assert.equal((await compactSession({ ...f.options, config, measureInputTokens: () => 8000 })).status, 'unchanged')
+  assert.equal(f.writes.length, count, 'repeating a completed compaction is idempotent')
+})
+
+test('compression trigger lower than its target is rejected before any history changes', ready, async () => {
+  const f = fixture()
+  await assert.rejects(compactSession({ ...f.options, config: { ...f.options.config, targetTokens: 30000, triggerTokens: 29000 } }), /trigger.*target/i)
+  assert.equal(f.writes.length, 0)
+})
+
+test('optional compact locators prune durable short results without repeating state or every shared source', ready, async () => {
+  const f = fixture(), original = 'SHORT_ORIGINAL_RESULT '.repeat(70)
+  f.events[2].data.message.content[0].text = original
+  const outcome = await compactSession({ ...f.options,
+    config: { ...f.options.config, minResultChars: 64, previewChars: 0, compactLocators: true },
+    measureInputTokens: () => f.session.surface.replaceGeneration === 0 ? 420000 : 100,
+  })
+  assert.equal(outcome.status, 'compacted')
+  const compact = f.writes[1].data.message.content[0].text
+  assert.match(compact, /src_2/)
+  assert.match(compact, /ultra_memory_get/)
+  assert.equal(compact.includes('src_retrieval'), false)
+  assert.equal(compact.includes(f.options.stateText), false)
+  assert.equal(compact.includes('SHORT_ORIGINAL_RESULT'), false)
+  assert.equal(f.events[2].data.message.content[0].text, original)
+  assert.equal(f.writes[1].data.message.id, 't2')
+  assert.equal(f.writes[1].data.message.toolCallId, 'call-1')
+})
+
+test('invalid native pressure fails before replacing any history', ready, async () => {
+  const f = fixture()
+  await assert.rejects(compactSession({ ...f.options, measureInputTokens: () => NaN }))
+  assert.equal(f.writes.length, 0)
+})
+
+test('native pressure failure after replacement restores the complete original surface', ready, async () => {
+  const f = fixture(), original = structuredClone(f.events[2].data.message)
+  await assert.rejects(compactSession({ ...f.options, measureInputTokens: () => f.session.surface.replaceGeneration === 0 ? 420000 : NaN }), error => {
+    assert.equal(error.surfaceRestored, true)
+    assert.equal(error.originalHistoryRetained, true)
+    assert.equal(error.recoveryCheckpointDurable, true)
+    return true
+  })
+  assert.deepEqual(f.session.deriveEventMessage(f.events[f.nodes[2]]), original)
+  assert.equal(f.writes.filter(event => event.type === 'compaction/prune').length, 2, 'one attempted replacement and one compensation, not two successful cycles')
+})
+
 test('new routes retain every exact historical human constraint without copying shared logs or private reasoning', ready, () => {
   const { events } = fixture()
   const assembled = assembleRouteContext(events, { sessionId: 's', stateText: 'Unverified working state.', evidenceIds: ['src_retrieval'], eventSourceIds: { 0: ['src_user'] } }, { targetTokens: 3000 })

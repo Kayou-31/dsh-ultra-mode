@@ -10,11 +10,11 @@ import ts from 'typescript'
 
 const require = createRequire(import.meta.url)
 const sourcePath = new URL('../src/knowledge-store.ts', import.meta.url)
-function load(overrides = {}) {
+function load(overrides = {}, runtimeProcess = process) {
   const exports = {}
   if (fs.existsSync(sourcePath)) vm.runInNewContext(ts.transpileModule(fs.readFileSync(sourcePath, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
-  }).outputText, { exports, Buffer, process, structuredClone, require: id => id === 'node:fs' ? { ...fs, ...overrides } : require(id) })
+  }).outputText, { exports, Buffer, process: runtimeProcess, structuredClone, require: id => id === 'node:fs' ? { ...fs, ...overrides } : require(id) })
   return exports.KnowledgeStore
 }
 const KnowledgeStore = load()
@@ -193,6 +193,29 @@ test('writer conflicts preserve the lock and fail closed even when its timestamp
   fs.unlinkSync(lock)
   assert.equal(store.publish(input()).revision, 1)
 })
+test('Windows lock acquisition EPERM remains a visible bounded failure without changing data or retrying implicitly', ready, t => {
+  let fail = false, attempts = 0
+  const denied = Object.assign(new Error('injected Windows sharing or permission restriction'), { code: 'EPERM' })
+  const Store = load({ openSync(file, ...args) {
+    if (fail && path.basename(String(file)) === '.writer.lock') { attempts++; throw denied }
+    return fs.openSync(file, ...args)
+  } }, { ...process, platform: 'win32' })
+  const { store, directory } = fixture(t, {}, Store), original = store.publish(input())
+  const before = jsonFiles(directory).map(file => [file, fs.readFileSync(file, 'utf8')])
+  fail = true
+  assert.throws(() => store.publish(input({ summary: 'after a visible lock failure', supersedes: original.id })), error => {
+    assert.match(error.message, /writer lock.*EPERM.*permission|writer lock.*EPERM.*sharing/i)
+    assert.equal(error.code, 'EPERM')
+    assert.equal(error.cause, denied)
+    return true
+  })
+  assert.equal(attempts, 1, 'The product never retries or steals a lock automatically')
+  assert.equal(fs.existsSync(path.join(directory, '.writer.lock')), false)
+  assert.deepEqual(jsonFiles(directory).map(file => [file, fs.readFileSync(file, 'utf8')]), before)
+  assert.equal(store.get(access, original.id).status, 'current')
+  fail = false
+  assert.equal(store.publish(input({ summary: 'after a visible lock failure', supersedes: original.id })).revision, 2)
+})
 test('failed fsync rolls back the new record, releases the lock and preserves the previous version', ready, t => {
   let fail = false, writes = 0
   const Store = load({ fsyncSync(fd) { if (fail && ++writes === 2) throw new Error('injected fsync failure'); fs.fsyncSync(fd) } })
@@ -276,7 +299,7 @@ async function concurrentPublish(directory, publications) {
 test('concurrent writers deduplicate identical attempts and reject a stale replacement without losing the winner', ready, async t => {
   const { store, directory } = fixture(t)
   const repeated = await concurrentPublish(directory, Array.from({ length: 4 }, () => input()))
-  assert.ok(repeated.every(result => result.record))
+  assert.ok(repeated.every(result => result.record), JSON.stringify(repeated))
   assert.equal(new Set(repeated.map(result => result.record.id)).size, 1)
   assert.equal(store.search(owner, { includeInactive: true }).total, 1)
   const original = repeated[0].record

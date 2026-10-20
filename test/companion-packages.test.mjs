@@ -30,7 +30,7 @@ test('both companion distributions contain only native external imports and matc
     const directory = path.join(root, 'packages', `dsh-ultra-${variant}`)
     const manifest = JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8'))
     assert.equal(manifest.name, `@dsh-external/dsh-ultra-${variant}`)
-    assert.equal(manifest.version, '0.1.0-dev.1')
+    assert.equal(manifest.version, '0.1.0')
     assert.equal(Object.keys(manifest.dependencies ?? {}).length, 0)
     const bundle = await readFile(path.join(directory, 'lib/index.js'), 'utf8')
     const externals = [...bundle.matchAll(/(?:from\s*|import\s*\()(["'])([^"']+)\1/gu)].map(match => match[2])
@@ -43,7 +43,7 @@ test('both companion distributions contain only native external imports and matc
     assert.equal(standalone.name, manifest.name, 'only the bundled entry and native host peers are needed to load')
     const inventory = JSON.parse(await readFile(path.join(directory, 'SOURCE-MANIFEST.json'), 'utf8'))
     assert.equal(inventory.package.name, manifest.name)
-    assert.equal(inventory.root.version, '0.6.0-dev.3')
+    assert.equal(inventory.root.version, '0.6.0')
     assert.equal(inventory.runtime.sha256, sha256(Buffer.from(bundle)))
     assert.ok(inventory.coreSources.length > 25)
     for (const source of inventory.coreSources) {
@@ -52,6 +52,7 @@ test('both companion distributions contain only native external imports and matc
     }
     inventories.push(inventory.coreSources)
     for (const script of ['knowledge-profile-plugin.mjs', 'real-model-global-limit.mjs', 'network-guard.cjs',
+      'run-ocg-profile.mjs', 'ocg-network-guard.cjs', 'ocg-pool-plugin.mjs', 'ocg-knowledge-plugin.mjs', 'ocg-report.mjs',
       ...(variant === 'decision' ? ['companion-decision-plugin.mjs', 'run-companion-decision-profile.mjs', 'model-pool-live-driver.mjs', 'run-decision-loop-profile.mjs'] : [])]) {
       const source = path.join('scripts', 'host-acceptance', script)
       assert.equal(sha256(await readFile(path.join(directory, source))), sha256(await readFile(path.join(root, source))), script)

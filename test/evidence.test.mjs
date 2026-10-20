@@ -64,6 +64,53 @@ test('host capture persists metadata, resolves original text and detects changed
   assert.equal(changed.text, '')
 })
 
+test('local retrieval context receipts reuse host integrity and pagination without indexing or republishing returned text', enabled, async t => {
+  let body = 'RETRIEVAL_WRAPPER_ONLY_CANARY '.repeat(80)
+  let resolvedCallId = 'get-1'
+  const { directory, store } = fixture(t, async () => ({ text: body, callId: resolvedCallId }))
+  const receiptInput = input({ text: body, kind: 'tool/result:ultra_memory_get', eventId: 'tool:get-1', host: { sessionId: 's', seq: 1 }, origin: { tool: 'ultra_memory_get', callId: 'get-1' }, contextReceipt: true })
+  const record = store.capture(receiptInput)
+  assert.equal(record.contextReceipt, true)
+  assert.deepEqual(record.chunks, [])
+  assert.equal(store.capture(receiptInput).id, record.id)
+  assert.equal([...store.recordsFor(access)].length, 0)
+  assert.equal((await store.search(access, { query: 'RETRIEVAL_WRAPPER_ONLY_CANARY' })).total, 0)
+  assert.equal((await store.search(access, { id: record.id })).total, 0)
+  assert.equal(store.exportMarkdown(access).files.some(file => file.content.includes(record.id)), false)
+  assert.throws(() => store.addSemantic({ projectId: 'p', kind: 'fact', text: 'not new original evidence', sourceIds: [record.id] }), /context|source|provenance/i)
+  assert.throws(() => store.updateProjectState(access, { goal: 'do not promote retrieval', sourceIds: [record.id] }), /context|source|provenance/i)
+  const serialized = fs.readdirSync(path.join(directory, 'records')).map(name => fs.readFileSync(path.join(directory, 'records', name), 'utf8')).join('')
+  assert.equal(serialized.includes('RETRIEVAL_WRAPPER_ONLY_CANARY'), false)
+  const reopened = new EvidenceStore(directory, async () => ({ text: body, callId: resolvedCallId }))
+  assert.deepEqual(reopened.idsFor('s', 'tool:get-1'), [record.id])
+  const page = await reopened.get(access, record.id, { maxChars: 700 })
+  assert.ok(JSON.stringify(page).length <= 700)
+  assert.ok(page.nextOffset > 0)
+  assert.equal(page.text, body.slice(0, page.text.length))
+  const next = await reopened.get(access, record.id, { offset: page.nextOffset, maxChars: 700 })
+  assert.equal(next.text, body.slice(page.nextOffset, page.nextOffset + next.text.length))
+  const quote = await reopened.get(access, record.id, { quote: 'RETRIEVAL_WRAPPER_ONLY_CANARY', maxChars: 900 })
+  assert.equal(quote.citation.sha256, record.sha256)
+  await assert.rejects(reopened.get({ projectId: 'p', sessionIds: ['unrelated'] }, record.id), /access|not found/i)
+  await assert.rejects(reopened.get({ projectId: 'elsewhere', sessionIds: ['s'] }, record.id), /access|not found/i)
+  assert.equal(reopened.stats(access).raw.sources, 0)
+  assert.equal(reopened.stats(access).contextReceipts.sources, 1)
+  resolvedCallId = 'different-call-with-the-same-body'
+  assert.equal((await reopened.get(access, record.id)).status, 'identity-mismatch')
+  await assert.rejects(reopened.get(access, record.id, { quote: 'RETRIEVAL_WRAPPER_ONLY_CANARY' }), /integrity|unavailable/i)
+  resolvedCallId = 'get-1'
+  body += ' changed canonical bytes'
+  assert.equal((await reopened.get(access, record.id)).status, 'hash-mismatch')
+})
+
+test('context receipt capture rejects nonlocal retrieval, captured copies and invalid canonical identities', enabled, t => {
+  const { store } = fixture(t)
+  const value = input({ kind: 'tool/result:ultra_memory_get', eventId: 'tool:get-1', host: { sessionId: 's', seq: 1 }, origin: { tool: 'ultra_memory_get', callId: 'get-1' }, contextReceipt: true })
+  for (const patch of [{ contextReceipt: 'yes' }, { coverage: 'captured' }, { host: undefined }, { origin: { tool: 'ultra_knowledge_get', callId: 'get-1' } }, { eventId: 'wrong' }, { seq: 2 }, { attachments: [{ type: 'image', ref: 'attachment://x' }] }]) {
+    assert.throws(() => store.capture({ ...value, ...patch }), /context|receipt|host/i)
+  }
+})
+
 test('missing host data and references expose gaps without inventing attachment text', enabled, async t => {
   const { store } = fixture(t, async () => undefined)
   const host = store.capture(input({ host: { sessionId: 's', seq: 1 }, attachments: [{ type: 'image', ref: 'attachment://picture' }] }))
@@ -368,6 +415,38 @@ test('cold raw search combines public resource and tool identity with late body 
   }
   const filtered = await reopened.search(access, { id: record.id, query: 'FOOTER_ZETA', kind: 'tool/result' })
   assert.equal(filtered.items[0].sourceId, record.id)
+  assert.deepEqual(fs.readdirSync(path.join(directory, 'records')).map(name => fs.readFileSync(path.join(directory, 'records', name), 'utf8')), before)
+})
+
+test('source-only search labels partial metadata matches and guides bounded refinement without changing source bytes', enabled, async t => {
+  const { directory, store } = fixture(t)
+  const text = 'First page.\n' + 'Ordinary archive observation. '.repeat(300) + '\ncaseNumber = verified-middle-record\n' + 'Trailing routine observation. '.repeat(120)
+  const record = store.capture(input({ kind: 'tool/result:read_file', text, origin: { tool: 'read_file', callId: 'source-only-read', resourceId: 'local-ledger' } }))
+  const before = fs.readdirSync(path.join(directory, 'records')).map(name => fs.readFileSync(path.join(directory, 'records', name), 'utf8'))
+  const reopened = new EvidenceStore(directory)
+  const broad = await reopened.search(access, { query: 'local-ledger', kind: 'tool/result', maxChars: 1200 })
+  assert.ok(broad.items.length > 0)
+  assert.ok(!broad.items[0].excerpt.includes('verified-middle-record'), 'source location does not imply every fact is in the first page')
+  assert.equal(broad.items[0].match, 'source-identity')
+  assert.equal(broad.items[0].sourceChars, text.length)
+  assert.equal(broad.items[0].sourceChunks, record.chunks.length)
+  assert.match(broad.retrievalHint, /摘录不是全文/)
+  assert.match(broad.retrievalHint, /sourceId.*id.*关键词/)
+  assert.match(broad.retrievalHint, /nextOffset/)
+  assert.match(broad.retrievalHint, /quote/)
+  assert.ok(JSON.stringify(broad).length <= 1200)
+  const precise = await reopened.search(access, { id: record.id, query: 'caseNumber', kind: 'tool/result' })
+  assert.ok(precise.items[0].excerpt.includes('verified-middle-record'))
+  assert.equal(precise.items[0].match, undefined)
+  assert.equal(precise.retrievalHint, undefined)
+  assert.ok((await reopened.get(access, precise.items[0].id, { maxChars: 4096 })).text.includes('verified-middle-record'))
+  const hidden = await reopened.search({ projectId: 'other', sessionIds: ['s'] }, { query: 'local-ledger' })
+  assert.equal(hidden.items.length, 0)
+  assert.equal(hidden.retrievalHint, undefined)
+  for (const maxChars of [256, 320, 512, 800]) {
+    const bounded = await reopened.search(access, { query: 'local-ledger', maxChars })
+    assert.ok(JSON.stringify(bounded).length <= maxChars)
+  }
   assert.deepEqual(fs.readdirSync(path.join(directory, 'records')).map(name => fs.readFileSync(path.join(directory, 'records', name), 'utf8')), before)
 })
 

@@ -41,14 +41,74 @@ test('partial receipt rejects mismatched manifests, noncontiguous reads, wrong r
   ]){const data=inputs();mutate(data);assert.throws(()=>runner.buildPartialReceipt(data))}
 })
 
-test('continuation CLI is explicit, pacing opt-in, and concurrency only one or two',()=>{
+test('legacy naizhi partial receipt cannot be reused for an OCG route even if both declared routes agree',()=>{
+  const data=inputs()
+  data.launch.provider=data.result.provider='ocg'
+  assert.throws(()=>runner.buildPartialReceipt(data),/confirmed provider\/model/)
+})
+
+test('OCG partial continuation requires an independently selected explicit expected route snapshot',()=>{
+  const data=inputs()
+  data.launch.provider=data.result.provider='ocg'
+  data.launch.model=data.result.model='deepseek-v4.1-flash'
+  data.expectedRoute={provider:'ocg',model:'deepseek-v4.1-flash'}
+  const receipt=runner.buildPartialReceipt(data)
+  assert.equal(receipt.provider,'ocg')
+  assert.equal(receipt.model,'deepseek-v4.1-flash')
+  assert.deepEqual(receipt.expectedRoute,{provider:'ocg',model:'deepseek-v4.1-flash'})
+  assert.ok(Object.isFrozen(receipt.expectedRoute))
+  data.expectedRoute.provider='unapproved-provider'
+  assert.equal(receipt.expectedRoute.provider,'ocg')
+  assert.equal(receipt.completedRounds,14)
+  assert.equal(receipt.nextStressCycle,11)
+  assert.deepEqual(receipt.remainingLoadIds,Array.from({length:9},(_,i)=>'load-'+(i+11)))
+})
+
+test('matching launch and result cannot replace an absent, malformed or different trusted expected route',()=>{
+  for(const expectedRoute of [undefined,null,[],{},
+    {provider:'ocg'},{model:'deepseek-v4.1-flash'},
+    {provider:'',model:'deepseek-v4.1-flash'},
+    {provider:'ocg',model:''},
+    {provider:'ocg\n',model:'deepseek-v4.1-flash'},
+    {provider:'ocg',model:'deepseek-v4.1-flash\u0000'},
+    {provider:'not-ocg',model:'deepseek-v4.1-flash'},
+    {provider:'ocg',model:'different-model'},
+  ]) {
+    const data=inputs()
+    data.launch.provider=data.result.provider='ocg'
+    data.expectedRoute=expectedRoute
+    assert.throws(()=>runner.buildPartialReceipt(data),/confirmed provider\/model|expected route/i)
+  }
+})
+
+test('explicit OCG authorization does not relax fixture, full-read or completed-turn continuation checks',()=>{
+  for(const mutate of [
+    data=>{data.result.provider='other-provider'},
+    data=>{data.result.toolCalls[2].sourceHash='bad'},
+    data=>{data.result.toolCalls=data.result.toolCalls.filter(row=>row.id!=='load-3')},
+    data=>{data.result.toolCalls.push({...data.result.toolCalls[2],id:'load-11'})},
+    data=>{data.projectManifest={...data.projectManifest,manifest:{...data.projectManifest.manifest,brief:{...data.projectManifest.manifest.brief,sha256:'bad'}}}},
+    data=>{data.result.totalExecuteAttempts=1},
+    data=>{data.result.publicAnswers.at(-1).endReason.kind='completed'},
+    data=>{data.result.publicAnswers.at(-1).boundary=undefined},
+  ]) {
+    const data=inputs()
+    data.launch.provider=data.result.provider='ocg'
+    data.expectedRoute=Object.freeze({provider:'ocg',model:'deepseek-v4.1-flash'})
+    mutate(data)
+    assert.throws(()=>runner.buildPartialReceipt(data))
+  }
+})
+
+test('continuation CLI is explicit and pacing remains opt-in with finite configured concurrency',()=>{
   assert.equal(typeof runner.parseAcceptanceOptions,'function')
   assert.deepEqual(runner.parseAcceptanceOptions([], 'long','drift-c'),{streamConcurrency:2,minRequestIntervalMs:0})
   const args=['--from=E:/failed-attempt','--min-request-interval-ms=30000','--stream-concurrency=1']
   assert.deepEqual(runner.parseAcceptanceOptions(args,'continue-long','drift-diverse'),{from:'E:/failed-attempt',streamConcurrency:1,minRequestIntervalMs:30000})
   assert.throws(()=>runner.parseAcceptanceOptions([],'continue-long','drift-diverse'),/from/)
   assert.throws(()=>runner.parseAcceptanceOptions(args,'continue-long','drift-c'),/diverse/)
-  assert.throws(()=>runner.parseAcceptanceOptions(['--stream-concurrency=3'],'resume','drift-diverse'),/concurrency/)
+  assert.equal(runner.parseAcceptanceOptions(['--stream-concurrency=3'],'resume','drift-diverse').streamConcurrency,3)
+  assert.throws(()=>runner.parseAcceptanceOptions(['--stream-concurrency=33'],'resume','drift-diverse'),/concurrency/)
 })
 
 test('native full-read receipts require matching original tool call, complete bytes and canonical SHA',()=>{

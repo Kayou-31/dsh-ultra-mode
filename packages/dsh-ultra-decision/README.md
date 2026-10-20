@@ -1,9 +1,9 @@
 # DSH Ultra Decision
 
-> 本包与完整 Ultra 一起提供于 [v0.6.0-dev.3](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0-dev.3)。以下本地开发说明保留验收冻结时状态，最新安装组合与验证边界见[发布记录](../../docs/releases/0.6.0-dev.3.md)。
+> 本包与完整 Ultra 一起提供于 [v0.6.0 正式版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0)。安装组合、实测范围与限制见[发布记录](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.0.md)。
 
 
-`@dsh-external/dsh-ultra-decision` **0.1.0-dev.1** 是独立的本地开发检查点，尚未发布。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
+`@dsh-external/dsh-ultra-decision` **0.1.0** 是可独立安装的正式包。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
 
 提供普通子代理 Team 六工具、协作多模型池，以及只读 decision 辅助和可选原文意图、运行诊断、最终验收治理。额外 decision 默认关闭；显式 `/decision on` 后才为后续任务开启一条只读旁路。没有 Max 手动 2～5 路的工具、命令或 RPC 入口。
 
@@ -20,7 +20,7 @@
 
 Team 提供 `ultra_spawn_agent`、`ultra_send_message`、`ultra_followup_task`、`ultra_wait_agent`、`ultra_interrupt_agent`、`ultra_list_agents`。消息和模型建议不构成新的人类授权；普通主 Agent 仍执行任务，辅助 decision 不取得写权限。
 
-`decisionGovernance` 默认 false，显式开启后在既有 decision 调用中处理意图、诊断和可选验收；开关自身不新增优化器、路线或额外模型调用，不强制增加一次最终调用。完整用户原文和整体 `task-result` 保留；缺证据保持 `unverified`，模型判断标为 `hostVerified: false`。Team 任务和显式旁路运行仍会按宿主正常消耗模型用量，本轮仅做离线脚本验证。
+`decisionGovernance` 默认 false，显式开启后在既有 decision 调用中处理意图、诊断和可选验收；开关自身不新增优化器、路线或额外模型调用，不强制增加一次最终调用。完整用户原文和整体 `task-result` 保留；缺证据保持 `unverified`，模型判断标为 `hostVerified: false`。Team 任务和显式旁路运行仍会按宿主正常消耗模型用量，本附属包的独立／组合宿主验收与共享核心真实模型实验分开记录。
 
 ## 组合、配置与回滚
 
@@ -38,4 +38,6 @@ Team 提供 `ultra_spawn_agent`、`ultra_send_message`、`ultra_followup_task`�
 
 仓库根 `src/` 是共同核心的权威来源，本目录入口构建为自包含 `lib/index.js`／`lib/client.js`。包内 [SOURCE-MANIFEST.json](SOURCE-MANIFEST.json) 记录来源 SHA256，[core-src/](core-src/) 保留可读共同核心，`src/index.ts` 是附属入口；运行时不依赖仓库路径或另一个未发布附属包。
 
-最终哈希、测试数及原生独立／组合验收以本轮交付报告为准，此处不预先宣告通过。离线原生 CLI 脚本不代表真实模型质量、业务改善或完整 Electron UI 验收。本轮不调用在线模型、不安装日常环境、不 push 或发布。
+三个正式包的SHA、源码／运行时对应关系及独立／组合原生验收见Release验证附件。真实OCG实验主要使用完整Ultra的冻结开发候选，附属包通过共同源码、运行字节和原生矩阵核对，不能声称各自又跑过真实30轮。
+
+归档实测按14/30收尾，约65K级为本案例压后含预留体积；30轮、一天跨度和额外归档冷读回未完成。压缩与阶段归档默认关闭；已有arc_检查点须保留兼容读取器、证据服务、原始日志与项目归档清单，不能直接交给不理解它的旧版续作。详细配置与迁移见[安装说明](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/installation.md)。未安装日常环境；离线脚本不证明所有模型、业务或完整Electron UI效果。

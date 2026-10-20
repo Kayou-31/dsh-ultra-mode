@@ -1,0 +1,664 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1180" viewBox="0 0 1440 1180" role="img" aria-labelledby="title desc">
+<title id="title">Compression context efficiency: baseline recovery, efficient and optional archive candidate</title>
+<desc id="desc">Only strictly verified observed cycles. Adaptive report volumes differ. Timing includes every native pre-step compression group. Not a billing comparison or a general lossless claim.</desc>
+<rect width="1440" height="1180" fill="#f5f7fb"/>
+<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#19263d}.muted{fill:#607086}.grid{stroke:#e2e8f0}.panel{fill:white;stroke:#d8e1ec}.axis{stroke:#9ca9b8}</style>
+<text x="36" y="44" font-size="27" font-weight="700">Compression efficiency · verified request context</text>
+<text x="36" y="76" font-size="17" font-weight="600">PARTIAL/FAILED · Baseline recovery 30/30 · Efficient candidate 27/30 · Archive candidate 14/30</text>
+<text x="36" y="103" font-size="13" class="muted">Same business seed: yes · Same fixture/phase rules: no · Dynamic report rows differ</text>
+<text x="36" y="126" font-size="13" class="muted">C-b failed (2 cycles); explicit recovery inherits 44 calls. Not a first-attempt pass or equal-workload billing A/B.</text>
+<text x="36" y="149" font-size="13" font-weight="600">No unverified, missing, estimated-input or future cycles are filled in.</text>
+<line x1="700" y1="174" x2="725" y2="174" stroke="#3569ba" stroke-width="3"/>
+<text x="734" y="179" font-size="13" >Baseline recovery</text>
+<line x1="940" y1="174" x2="965" y2="174" stroke="#159b8d" stroke-width="3"/>
+<text x="974" y="179" font-size="13" >Efficient candidate</text>
+<line x1="1180" y1="174" x2="1205" y2="174" stroke="#8a51b0" stroke-width="3"/>
+<text x="1214" y="179" font-size="13" >Archive candidate</text>
+<rect x="30" y="196" width="675" height="410" rx="10" class="panel"/>
+<text x="49" y="225" font-size="15" font-weight="600">A   Actual post input + reserves</text>
+<line x1="104" y1="544" x2="680" y2="544" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="548" font-size="10" text-anchor="end" class="muted">0K</text>
+<line x1="104" y1="472.5" x2="680" y2="472.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="476.5" font-size="10" text-anchor="end" class="muted">125K</text>
+<line x1="104" y1="401" x2="680" y2="401" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="405" font-size="10" text-anchor="end" class="muted">250K</text>
+<line x1="104" y1="329.5" x2="680" y2="329.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="333.5" font-size="10" text-anchor="end" class="muted">375K</text>
+<line x1="104" y1="258" x2="680" y2="258" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="262" font-size="10" text-anchor="end" class="muted">500K</text>
+<line x1="104" y1="469.64" x2="680" y2="469.64" stroke="#8a51b0" stroke-width="1.4"/>
+<text x="109" y="462.64" font-size="10" class="muted">130K input + reserves (C requirement)</text>
+<text x="104" y="566" font-size="10" text-anchor="middle" class="muted">1</text>
+<text x="183.448" y="566" font-size="10" text-anchor="middle" class="muted">5</text>
+<text x="282.759" y="566" font-size="10" text-anchor="middle" class="muted">10</text>
+<text x="382.069" y="566" font-size="10" text-anchor="middle" class="muted">15</text>
+<text x="481.379" y="566" font-size="10" text-anchor="middle" class="muted">20</text>
+<text x="580.69" y="566" font-size="10" text-anchor="middle" class="muted">25</text>
+<text x="680" y="566" font-size="10" text-anchor="middle" class="muted">30</text>
+<line x1="104" y1="544" x2="680" y2="544" stroke="#9ca9b8" stroke-width="1"/>
+<text x="392" y="587" font-size="11" text-anchor="middle" class="muted">Qualified phase number; gaps stay gaps</text>
+<circle cx="104" cy="529.566" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 1: 25234</title></circle>
+<line x1="104" y1="529.566" x2="123.862" y2="520.07" stroke="#3569ba" stroke-width="2"/>
+<circle cx="123.862" cy="520.07" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 2: 41836</title></circle>
+<line x1="123.862" y1="520.07" x2="143.724" y2="513.872" stroke="#3569ba" stroke-width="2"/>
+<circle cx="143.724" cy="513.872" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 3: 52672</title></circle>
+<line x1="143.724" y1="513.872" x2="163.586" y2="507.489" stroke="#3569ba" stroke-width="2"/>
+<circle cx="163.586" cy="507.489" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 4: 63831</title></circle>
+<line x1="163.586" y1="507.489" x2="183.448" y2="500.307" stroke="#3569ba" stroke-width="2"/>
+<circle cx="183.448" cy="500.307" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 5: 76386</title></circle>
+<line x1="183.448" y1="500.307" x2="203.31" y2="494.001" stroke="#3569ba" stroke-width="2"/>
+<circle cx="203.31" cy="494.001" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 6: 87410</title></circle>
+<line x1="203.31" y1="494.001" x2="223.172" y2="488.38" stroke="#3569ba" stroke-width="2"/>
+<circle cx="223.172" cy="488.38" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 7: 97238</title></circle>
+<line x1="223.172" y1="488.38" x2="243.034" y2="480.13" stroke="#3569ba" stroke-width="2"/>
+<circle cx="243.034" cy="480.13" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 8: 111660</title></circle>
+<line x1="243.034" y1="480.13" x2="262.897" y2="473.782" stroke="#3569ba" stroke-width="2"/>
+<circle cx="262.897" cy="473.782" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 9: 122758</title></circle>
+<line x1="262.897" y1="473.782" x2="282.759" y2="468.13" stroke="#3569ba" stroke-width="2"/>
+<circle cx="282.759" cy="468.13" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 10: 132640</title></circle>
+<line x1="282.759" y1="468.13" x2="302.621" y2="462.996" stroke="#3569ba" stroke-width="2"/>
+<circle cx="302.621" cy="462.996" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 11: 141615</title></circle>
+<line x1="302.621" y1="462.996" x2="322.483" y2="455.349" stroke="#3569ba" stroke-width="2"/>
+<circle cx="322.483" cy="455.349" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 12: 154985</title></circle>
+<line x1="322.483" y1="455.349" x2="342.345" y2="446.453" stroke="#3569ba" stroke-width="2"/>
+<circle cx="342.345" cy="446.453" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 13: 170537</title></circle>
+<line x1="342.345" y1="446.453" x2="362.207" y2="439.327" stroke="#3569ba" stroke-width="2"/>
+<circle cx="362.207" cy="439.327" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 14: 182995</title></circle>
+<line x1="362.207" y1="439.327" x2="382.069" y2="432.518" stroke="#3569ba" stroke-width="2"/>
+<circle cx="382.069" cy="432.518" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 15: 194898</title></circle>
+<line x1="382.069" y1="432.518" x2="401.931" y2="425.138" stroke="#3569ba" stroke-width="2"/>
+<circle cx="401.931" cy="425.138" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 16: 207800</title></circle>
+<line x1="401.931" y1="425.138" x2="421.793" y2="417" stroke="#3569ba" stroke-width="2"/>
+<circle cx="421.793" cy="417" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 17: 222028</title></circle>
+<line x1="421.793" y1="417" x2="441.655" y2="411.075" stroke="#3569ba" stroke-width="2"/>
+<circle cx="441.655" cy="411.075" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 18: 232387</title></circle>
+<line x1="441.655" y1="411.075" x2="461.517" y2="404.934" stroke="#3569ba" stroke-width="2"/>
+<circle cx="461.517" cy="404.934" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 19: 243123</title></circle>
+<line x1="461.517" y1="404.934" x2="481.379" y2="398.439" stroke="#3569ba" stroke-width="2"/>
+<circle cx="481.379" cy="398.439" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 20: 254478</title></circle>
+<line x1="481.379" y1="398.439" x2="501.241" y2="390.476" stroke="#3569ba" stroke-width="2"/>
+<circle cx="501.241" cy="390.476" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 21: 268399</title></circle>
+<line x1="501.241" y1="390.476" x2="521.103" y2="385.082" stroke="#3569ba" stroke-width="2"/>
+<circle cx="521.103" cy="385.082" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 22: 277828</title></circle>
+<line x1="521.103" y1="385.082" x2="540.966" y2="379.319" stroke="#3569ba" stroke-width="2"/>
+<circle cx="540.966" cy="379.319" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 23: 287903</title></circle>
+<line x1="540.966" y1="379.319" x2="560.828" y2="373.072" stroke="#3569ba" stroke-width="2"/>
+<circle cx="560.828" cy="373.072" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 24: 298826</title></circle>
+<line x1="560.828" y1="373.072" x2="580.69" y2="366.397" stroke="#3569ba" stroke-width="2"/>
+<circle cx="580.69" cy="366.397" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 25: 310495</title></circle>
+<line x1="580.69" y1="366.397" x2="600.552" y2="359.066" stroke="#3569ba" stroke-width="2"/>
+<circle cx="600.552" cy="359.066" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 26: 323312</title></circle>
+<line x1="600.552" y1="359.066" x2="620.414" y2="349.308" stroke="#3569ba" stroke-width="2"/>
+<circle cx="620.414" cy="349.308" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 27: 340371</title></circle>
+<line x1="620.414" y1="349.308" x2="640.276" y2="343.236" stroke="#3569ba" stroke-width="2"/>
+<circle cx="640.276" cy="343.236" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 28: 350986</title></circle>
+<line x1="640.276" y1="343.236" x2="660.138" y2="336.644" stroke="#3569ba" stroke-width="2"/>
+<circle cx="660.138" cy="336.644" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 29: 362510</title></circle>
+<line x1="660.138" y1="336.644" x2="680" y2="330.403" stroke="#3569ba" stroke-width="2"/>
+<circle cx="680" cy="330.403" r="3.6" fill="#3569ba" class="post-point"><title>baseline-recovery; phase 30: 373422</title></circle>
+<circle cx="104" cy="531.792" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 1: 21343</title></circle>
+<line x1="104" y1="531.792" x2="123.862" y2="521.435" stroke="#159b8d" stroke-width="2"/>
+<circle cx="123.862" cy="521.435" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 2: 39449</title></circle>
+<line x1="123.862" y1="521.435" x2="143.724" y2="515.894" stroke="#159b8d" stroke-width="2"/>
+<circle cx="143.724" cy="515.894" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 3: 49137</title></circle>
+<line x1="143.724" y1="515.894" x2="163.586" y2="509.536" stroke="#159b8d" stroke-width="2"/>
+<circle cx="163.586" cy="509.536" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 4: 60251</title></circle>
+<line x1="163.586" y1="509.536" x2="183.448" y2="505.026" stroke="#159b8d" stroke-width="2"/>
+<circle cx="183.448" cy="505.026" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 5: 68136</title></circle>
+<line x1="183.448" y1="505.026" x2="203.31" y2="497.171" stroke="#159b8d" stroke-width="2"/>
+<circle cx="203.31" cy="497.171" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 6: 81869</title></circle>
+<line x1="203.31" y1="497.171" x2="223.172" y2="491.729" stroke="#159b8d" stroke-width="2"/>
+<circle cx="223.172" cy="491.729" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 7: 91383</title></circle>
+<line x1="223.172" y1="491.729" x2="243.034" y2="483.597" stroke="#159b8d" stroke-width="2"/>
+<circle cx="243.034" cy="483.597" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 8: 105600</title></circle>
+<line x1="243.034" y1="483.597" x2="262.897" y2="478.222" stroke="#159b8d" stroke-width="2"/>
+<circle cx="262.897" cy="478.222" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 9: 114996</title></circle>
+<line x1="262.897" y1="478.222" x2="282.759" y2="471.453" stroke="#159b8d" stroke-width="2"/>
+<circle cx="282.759" cy="471.453" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 10: 126831</title></circle>
+<line x1="282.759" y1="471.453" x2="302.621" y2="464.608" stroke="#159b8d" stroke-width="2"/>
+<circle cx="302.621" cy="464.608" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 11: 138797</title></circle>
+<line x1="302.621" y1="464.608" x2="322.483" y2="460.534" stroke="#159b8d" stroke-width="2"/>
+<circle cx="322.483" cy="460.534" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 12: 145920</title></circle>
+<line x1="322.483" y1="460.534" x2="342.345" y2="453.845" stroke="#159b8d" stroke-width="2"/>
+<circle cx="342.345" cy="453.845" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 13: 157614</title></circle>
+<line x1="342.345" y1="453.845" x2="362.207" y2="450.125" stroke="#159b8d" stroke-width="2"/>
+<circle cx="362.207" cy="450.125" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 14: 164118</title></circle>
+<line x1="362.207" y1="450.125" x2="382.069" y2="445.075" stroke="#159b8d" stroke-width="2"/>
+<circle cx="382.069" cy="445.075" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 15: 172945</title></circle>
+<line x1="382.069" y1="445.075" x2="401.931" y2="438.56" stroke="#159b8d" stroke-width="2"/>
+<circle cx="401.931" cy="438.56" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 16: 184336</title></circle>
+<line x1="401.931" y1="438.56" x2="421.793" y2="432.793" stroke="#159b8d" stroke-width="2"/>
+<circle cx="421.793" cy="432.793" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 17: 194418</title></circle>
+<line x1="421.793" y1="432.793" x2="441.655" y2="427.747" stroke="#159b8d" stroke-width="2"/>
+<circle cx="441.655" cy="427.747" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 18: 203240</title></circle>
+<line x1="441.655" y1="427.747" x2="461.517" y2="422.538" stroke="#159b8d" stroke-width="2"/>
+<circle cx="461.517" cy="422.538" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 19: 212347</title></circle>
+<line x1="461.517" y1="422.538" x2="481.379" y2="417.855" stroke="#159b8d" stroke-width="2"/>
+<circle cx="481.379" cy="417.855" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 20: 220533</title></circle>
+<line x1="481.379" y1="417.855" x2="501.241" y2="412.855" stroke="#159b8d" stroke-width="2"/>
+<circle cx="501.241" cy="412.855" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 21: 229275</title></circle>
+<line x1="501.241" y1="412.855" x2="521.103" y2="407.397" stroke="#159b8d" stroke-width="2"/>
+<circle cx="521.103" cy="407.397" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 22: 238816</title></circle>
+<line x1="521.103" y1="407.397" x2="540.966" y2="402.152" stroke="#159b8d" stroke-width="2"/>
+<circle cx="540.966" cy="402.152" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 23: 247986</title></circle>
+<line x1="540.966" y1="402.152" x2="560.828" y2="397.247" stroke="#159b8d" stroke-width="2"/>
+<circle cx="560.828" cy="397.247" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 24: 256561</title></circle>
+<line x1="560.828" y1="397.247" x2="580.69" y2="391.105" stroke="#159b8d" stroke-width="2"/>
+<circle cx="580.69" cy="391.105" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 25: 267299</title></circle>
+<line x1="580.69" y1="391.105" x2="600.552" y2="385.581" stroke="#159b8d" stroke-width="2"/>
+<circle cx="600.552" cy="385.581" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 26: 276956</title></circle>
+<line x1="600.552" y1="385.581" x2="620.414" y2="378.958" stroke="#159b8d" stroke-width="2"/>
+<circle cx="620.414" cy="378.958" r="3.6" fill="#159b8d" class="post-point"><title>efficient; phase 27: 288535</title></circle>
+<circle cx="104" cy="531.073" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 1: 22600</title></circle>
+<line x1="104" y1="531.073" x2="123.862" y2="531.969" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="123.862" cy="531.969" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 2: 21033</title></circle>
+<line x1="123.862" y1="531.969" x2="143.724" y2="529.155" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="143.724" cy="529.155" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 3: 25953</title></circle>
+<line x1="143.724" y1="529.155" x2="163.586" y2="526.083" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="163.586" cy="526.083" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 4: 31324</title></circle>
+<line x1="163.586" y1="526.083" x2="183.448" y2="524.963" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="183.448" cy="524.963" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 5: 33282</title></circle>
+<line x1="183.448" y1="524.963" x2="203.31" y2="522.083" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="203.31" cy="522.083" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 6: 38316</title></circle>
+<line x1="203.31" y1="522.083" x2="223.172" y2="522.19" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="223.172" cy="522.19" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 7: 38129</title></circle>
+<line x1="223.172" y1="522.19" x2="243.034" y2="519.956" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="243.034" cy="519.956" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 8: 42035</title></circle>
+<line x1="243.034" y1="519.956" x2="262.897" y2="517.774" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="262.897" cy="517.774" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 9: 45849</title></circle>
+<line x1="262.897" y1="517.774" x2="282.759" y2="514.875" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="282.759" cy="514.875" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 10: 50918</title></circle>
+<line x1="282.759" y1="514.875" x2="302.621" y2="513.662" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="302.621" cy="513.662" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 11: 53039</title></circle>
+<line x1="302.621" y1="513.662" x2="322.483" y2="511.574" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="322.483" cy="511.574" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 12: 56689</title></circle>
+<line x1="322.483" y1="511.574" x2="342.345" y2="510.562" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="342.345" cy="510.562" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 13: 58458</title></circle>
+<line x1="342.345" y1="510.562" x2="362.207" y2="508.02" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="362.207" cy="508.02" r="3.6" fill="#8a51b0" class="post-point"><title>archive-130k; phase 14: 62902</title></circle>
+<rect x="735" y="196" width="675" height="410" rx="10" class="panel"/>
+<text x="754" y="225" font-size="15" font-weight="600">B   Reduction versus this cycle&#x27;s own before input</text>
+<line x1="809" y1="544" x2="1385" y2="544" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="548" font-size="10" text-anchor="end" class="muted">0%</text>
+<line x1="809" y1="472.5" x2="1385" y2="472.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="476.5" font-size="10" text-anchor="end" class="muted">25%</text>
+<line x1="809" y1="401" x2="1385" y2="401" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="405" font-size="10" text-anchor="end" class="muted">50%</text>
+<line x1="809" y1="329.5" x2="1385" y2="329.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="333.5" font-size="10" text-anchor="end" class="muted">75%</text>
+<line x1="809" y1="258" x2="1385" y2="258" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="262" font-size="10" text-anchor="end" class="muted">100%</text>
+<text x="809" y="566" font-size="10" text-anchor="middle" class="muted">1</text>
+<text x="888.448" y="566" font-size="10" text-anchor="middle" class="muted">5</text>
+<text x="987.759" y="566" font-size="10" text-anchor="middle" class="muted">10</text>
+<text x="1087.07" y="566" font-size="10" text-anchor="middle" class="muted">15</text>
+<text x="1186.38" y="566" font-size="10" text-anchor="middle" class="muted">20</text>
+<text x="1285.69" y="566" font-size="10" text-anchor="middle" class="muted">25</text>
+<text x="1385" y="566" font-size="10" text-anchor="middle" class="muted">30</text>
+<line x1="809" y1="544" x2="1385" y2="544" stroke="#9ca9b8" stroke-width="1"/>
+<text x="1097" y="587" font-size="11" text-anchor="middle" class="muted">Qualified phase number; gaps stay gaps</text>
+<circle cx="809" cy="267.939" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 1: 96.525%</title></circle>
+<line x1="809" y1="267.939" x2="828.862" y2="279.106" stroke="#3569ba" stroke-width="2"/>
+<circle cx="828.862" cy="279.106" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 2: 92.620%</title></circle>
+<line x1="828.862" y1="279.106" x2="848.724" y2="286.149" stroke="#3569ba" stroke-width="2"/>
+<circle cx="848.724" cy="286.149" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 3: 90.158%</title></circle>
+<line x1="848.724" y1="286.149" x2="868.586" y2="293.715" stroke="#3569ba" stroke-width="2"/>
+<circle cx="868.586" cy="293.715" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 4: 87.512%</title></circle>
+<line x1="868.586" y1="293.715" x2="888.448" y2="301.906" stroke="#3569ba" stroke-width="2"/>
+<circle cx="888.448" cy="301.906" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 5: 84.648%</title></circle>
+<line x1="888.448" y1="301.906" x2="908.31" y2="309.484" stroke="#3569ba" stroke-width="2"/>
+<circle cx="908.31" cy="309.484" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 6: 81.998%</title></circle>
+<line x1="908.31" y1="309.484" x2="928.172" y2="315.779" stroke="#3569ba" stroke-width="2"/>
+<circle cx="928.172" cy="315.779" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 7: 79.798%</title></circle>
+<line x1="928.172" y1="315.779" x2="948.034" y2="325.587" stroke="#3569ba" stroke-width="2"/>
+<circle cx="948.034" cy="325.587" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 8: 76.368%</title></circle>
+<line x1="948.034" y1="325.587" x2="967.897" y2="333.046" stroke="#3569ba" stroke-width="2"/>
+<circle cx="967.897" cy="333.046" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 9: 73.760%</title></circle>
+<line x1="967.897" y1="333.046" x2="987.759" y2="339.345" stroke="#3569ba" stroke-width="2"/>
+<circle cx="987.759" cy="339.345" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 10: 71.558%</title></circle>
+<line x1="987.759" y1="339.345" x2="1007.62" y2="345.531" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1007.62" cy="345.531" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 11: 69.395%</title></circle>
+<line x1="1007.62" y1="345.531" x2="1027.48" y2="354.131" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1027.48" cy="354.131" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 12: 66.388%</title></circle>
+<line x1="1027.48" y1="354.131" x2="1047.34" y2="364.806" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1047.34" cy="364.806" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 13: 62.655%</title></circle>
+<line x1="1047.34" y1="364.806" x2="1067.21" y2="372.885" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1067.21" cy="372.885" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 14: 59.830%</title></circle>
+<line x1="1067.21" y1="372.885" x2="1087.07" y2="381.172" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1087.07" cy="381.172" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 15: 56.933%</title></circle>
+<line x1="1087.07" y1="381.172" x2="1106.93" y2="389.486" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1106.93" cy="389.486" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 16: 54.026%</title></circle>
+<line x1="1106.93" y1="389.486" x2="1126.79" y2="399.124" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1126.79" cy="399.124" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 17: 50.656%</title></circle>
+<line x1="1126.79" y1="399.124" x2="1146.66" y2="405.725" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1146.66" cy="405.725" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 18: 48.348%</title></circle>
+<line x1="1146.66" y1="405.725" x2="1166.52" y2="412.98" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1166.52" cy="412.98" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 19: 45.811%</title></circle>
+<line x1="1166.52" y1="412.98" x2="1186.38" y2="420.523" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1186.38" cy="420.523" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 20: 43.174%</title></circle>
+<line x1="1186.38" y1="420.523" x2="1206.24" y2="429.969" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1206.24" cy="429.969" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 21: 39.871%</title></circle>
+<line x1="1206.24" y1="429.969" x2="1226.1" y2="435.929" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1226.1" cy="435.929" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 22: 37.787%</title></circle>
+<line x1="1226.1" y1="435.929" x2="1245.97" y2="442.547" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1245.97" cy="442.547" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 23: 35.473%</title></circle>
+<line x1="1245.97" y1="442.547" x2="1265.83" y2="450.124" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1265.83" cy="450.124" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 24: 32.824%</title></circle>
+<line x1="1265.83" y1="450.124" x2="1285.69" y2="457.854" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1285.69" cy="457.854" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 25: 30.121%</title></circle>
+<line x1="1285.69" y1="457.854" x2="1305.55" y2="466.425" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1305.55" cy="466.425" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 26: 27.124%</title></circle>
+<line x1="1305.55" y1="466.425" x2="1325.41" y2="477.972" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1325.41" cy="477.972" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 27: 23.087%</title></circle>
+<line x1="1325.41" y1="477.972" x2="1345.28" y2="484.753" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1345.28" cy="484.753" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 28: 20.716%</title></circle>
+<line x1="1345.28" y1="484.753" x2="1365.14" y2="492.467" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1365.14" cy="492.467" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 29: 18.019%</title></circle>
+<line x1="1365.14" y1="492.467" x2="1385" y2="499.567" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1385" cy="499.567" r="3.6" fill="#3569ba" class="reduction-point"><title>baseline-recovery; phase 30: 15.536%</title></circle>
+<circle cx="809" cy="265.108" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 1: 97.515%</title></circle>
+<line x1="809" y1="265.108" x2="828.862" y2="277.288" stroke="#159b8d" stroke-width="2"/>
+<circle cx="828.862" cy="277.288" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 2: 93.256%</title></circle>
+<line x1="828.862" y1="277.288" x2="848.724" y2="282.601" stroke="#159b8d" stroke-width="2"/>
+<circle cx="848.724" cy="282.601" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 3: 91.398%</title></circle>
+<line x1="848.724" y1="282.601" x2="868.586" y2="290.371" stroke="#159b8d" stroke-width="2"/>
+<circle cx="868.586" cy="290.371" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 4: 88.681%</title></circle>
+<line x1="868.586" y1="290.371" x2="888.448" y2="294.876" stroke="#159b8d" stroke-width="2"/>
+<circle cx="888.448" cy="294.876" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 5: 87.106%</title></circle>
+<line x1="888.448" y1="294.876" x2="908.31" y2="304.566" stroke="#159b8d" stroke-width="2"/>
+<circle cx="908.31" cy="304.566" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 6: 83.718%</title></circle>
+<line x1="908.31" y1="304.566" x2="928.172" y2="309.711" stroke="#159b8d" stroke-width="2"/>
+<circle cx="928.172" cy="309.711" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 7: 81.919%</title></circle>
+<line x1="928.172" y1="309.711" x2="948.034" y2="319.529" stroke="#159b8d" stroke-width="2"/>
+<circle cx="948.034" cy="319.529" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 8: 78.486%</title></circle>
+<line x1="948.034" y1="319.529" x2="967.897" y2="325.511" stroke="#159b8d" stroke-width="2"/>
+<circle cx="967.897" cy="325.511" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 9: 76.395%</title></circle>
+<line x1="967.897" y1="325.511" x2="987.759" y2="332.924" stroke="#159b8d" stroke-width="2"/>
+<circle cx="987.759" cy="332.924" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 10: 73.803%</title></circle>
+<line x1="987.759" y1="332.924" x2="1007.62" y2="340.896" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1007.62" cy="340.896" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 11: 71.015%</title></circle>
+<line x1="1007.62" y1="340.896" x2="1027.48" y2="344.978" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1027.48" cy="344.978" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 12: 69.588%</title></circle>
+<line x1="1027.48" y1="344.978" x2="1047.34" y2="352.862" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1047.34" cy="352.862" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 13: 66.831%</title></circle>
+<line x1="1047.34" y1="352.862" x2="1067.21" y2="356.89" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1067.21" cy="356.89" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 14: 65.423%</title></circle>
+<line x1="1067.21" y1="356.89" x2="1087.07" y2="362.854" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1087.07" cy="362.854" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 15: 63.338%</title></circle>
+<line x1="1087.07" y1="362.854" x2="1106.93" y2="369.878" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1106.93" cy="369.878" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 16: 60.882%</title></circle>
+<line x1="1106.93" y1="369.878" x2="1126.79" y2="376.415" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1126.79" cy="376.415" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 17: 58.596%</title></circle>
+<line x1="1126.79" y1="376.415" x2="1146.66" y2="382.392" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1146.66" cy="382.392" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 18: 56.506%</title></circle>
+<line x1="1146.66" y1="382.392" x2="1166.52" y2="388.324" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1166.52" cy="388.324" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 19: 54.432%</title></circle>
+<line x1="1166.52" y1="388.324" x2="1186.38" y2="393.265" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1186.38" cy="393.265" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 20: 52.704%</title></circle>
+<line x1="1186.38" y1="393.265" x2="1206.24" y2="399.038" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1206.24" cy="399.038" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 21: 50.686%</title></circle>
+<line x1="1206.24" y1="399.038" x2="1226.1" y2="404.38" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1226.1" cy="404.38" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 22: 48.818%</title></circle>
+<line x1="1226.1" y1="404.38" x2="1245.97" y2="411.059" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1245.97" cy="411.059" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 23: 46.483%</title></circle>
+<line x1="1245.97" y1="411.059" x2="1265.83" y2="416.09" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1265.83" cy="416.09" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 24: 44.724%</title></circle>
+<line x1="1265.83" y1="416.09" x2="1285.69" y2="423.397" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1285.69" cy="423.397" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 25: 42.169%</title></circle>
+<line x1="1285.69" y1="423.397" x2="1305.55" y2="429.443" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1305.55" cy="429.443" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 26: 40.055%</title></circle>
+<line x1="1305.55" y1="429.443" x2="1325.41" y2="438.287" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1325.41" cy="438.287" r="3.6" fill="#159b8d" class="reduction-point"><title>efficient; phase 27: 36.962%</title></circle>
+<circle cx="809" cy="265.911" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 1: 97.234%</title></circle>
+<line x1="809" y1="265.911" x2="828.862" y2="264.982" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="828.862" cy="264.982" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 2: 97.559%</title></circle>
+<line x1="828.862" y1="264.982" x2="848.724" y2="268.051" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="848.724" cy="268.051" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 3: 96.486%</title></circle>
+<line x1="848.724" y1="268.051" x2="868.586" y2="271.866" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="868.586" cy="271.866" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 4: 95.152%</title></circle>
+<line x1="868.586" y1="271.866" x2="888.448" y2="272.462" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="888.448" cy="272.462" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 5: 94.943%</title></circle>
+<line x1="888.448" y1="272.462" x2="908.31" y2="276.108" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="908.31" cy="276.108" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 6: 93.669%</title></circle>
+<line x1="908.31" y1="276.108" x2="928.172" y2="275.968" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="928.172" cy="275.968" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 7: 93.717%</title></circle>
+<line x1="928.172" y1="275.968" x2="948.034" y2="278.429" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="948.034" cy="278.429" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 8: 92.857%</title></circle>
+<line x1="948.034" y1="278.429" x2="967.897" y2="280.995" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="967.897" cy="280.995" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 9: 91.960%</title></circle>
+<line x1="967.897" y1="280.995" x2="987.759" y2="284.017" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="987.759" cy="284.017" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 10: 90.903%</title></circle>
+<line x1="987.759" y1="284.017" x2="1007.62" y2="285.603" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1007.62" cy="285.603" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 11: 90.349%</title></circle>
+<line x1="1007.62" y1="285.603" x2="1027.48" y2="287.769" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1027.48" cy="287.769" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 12: 89.591%</title></circle>
+<line x1="1027.48" y1="287.769" x2="1047.34" y2="289.068" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1047.34" cy="289.068" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 13: 89.137%</title></circle>
+<line x1="1047.34" y1="289.068" x2="1067.21" y2="291.785" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1067.21" cy="291.785" r="3.6" fill="#8a51b0" class="reduction-point"><title>archive-130k; phase 14: 88.187%</title></circle>
+<rect x="30" y="633" width="675" height="410" rx="10" class="panel"/>
+<text x="49" y="662" font-size="15" font-weight="600">C   Sum of all native compression steps per phase</text>
+<line x1="104" y1="981" x2="680" y2="981" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="985" font-size="10" text-anchor="end" class="muted">0</text>
+<line x1="104" y1="909.5" x2="680" y2="909.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="913.5" font-size="10" text-anchor="end" class="muted">50</text>
+<line x1="104" y1="838" x2="680" y2="838" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="842" font-size="10" text-anchor="end" class="muted">100</text>
+<line x1="104" y1="766.5" x2="680" y2="766.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="770.5" font-size="10" text-anchor="end" class="muted">150</text>
+<line x1="104" y1="695" x2="680" y2="695" stroke="#e2e8f0" stroke-width="1"/>
+<text x="94" y="699" font-size="10" text-anchor="end" class="muted">200</text>
+<text x="104" y="1003" font-size="10" text-anchor="middle" class="muted">1</text>
+<text x="183.448" y="1003" font-size="10" text-anchor="middle" class="muted">5</text>
+<text x="282.759" y="1003" font-size="10" text-anchor="middle" class="muted">10</text>
+<text x="382.069" y="1003" font-size="10" text-anchor="middle" class="muted">15</text>
+<text x="481.379" y="1003" font-size="10" text-anchor="middle" class="muted">20</text>
+<text x="580.69" y="1003" font-size="10" text-anchor="middle" class="muted">25</text>
+<text x="680" y="1003" font-size="10" text-anchor="middle" class="muted">30</text>
+<line x1="104" y1="981" x2="680" y2="981" stroke="#9ca9b8" stroke-width="1"/>
+<text x="392" y="1024" font-size="11" text-anchor="middle" class="muted">Qualified phase number; gaps stay gaps</text>
+<text x="50" y="683" font-size="10" class="muted">Seconds; all groups, including earlier short-result pruning</text>
+<circle cx="104" cy="980.698" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 1: 0.211</title></circle>
+<line x1="104" y1="980.698" x2="123.862" y2="980.468" stroke="#3569ba" stroke-width="2"/>
+<circle cx="123.862" cy="980.468" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 2: 0.372</title></circle>
+<line x1="123.862" y1="980.468" x2="143.724" y2="980.296" stroke="#3569ba" stroke-width="2"/>
+<circle cx="143.724" cy="980.296" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 3: 0.492</title></circle>
+<line x1="143.724" y1="980.296" x2="163.586" y2="980.136" stroke="#3569ba" stroke-width="2"/>
+<circle cx="163.586" cy="980.136" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 4: 0.604</title></circle>
+<line x1="163.586" y1="980.136" x2="183.448" y2="979.96" stroke="#3569ba" stroke-width="2"/>
+<circle cx="183.448" cy="979.96" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 5: 0.727</title></circle>
+<line x1="183.448" y1="979.96" x2="203.31" y2="979.71" stroke="#3569ba" stroke-width="2"/>
+<circle cx="203.31" cy="979.71" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 6: 0.902</title></circle>
+<line x1="203.31" y1="979.71" x2="223.172" y2="979.561" stroke="#3569ba" stroke-width="2"/>
+<circle cx="223.172" cy="979.561" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 7: 1.006</title></circle>
+<line x1="223.172" y1="979.561" x2="243.034" y2="979.157" stroke="#3569ba" stroke-width="2"/>
+<circle cx="243.034" cy="979.157" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 8: 1.289</title></circle>
+<line x1="243.034" y1="979.157" x2="262.897" y2="978.743" stroke="#3569ba" stroke-width="2"/>
+<circle cx="262.897" cy="978.743" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 9: 1.578</title></circle>
+<line x1="262.897" y1="978.743" x2="282.759" y2="978.668" stroke="#3569ba" stroke-width="2"/>
+<circle cx="282.759" cy="978.668" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 10: 1.631</title></circle>
+<line x1="282.759" y1="978.668" x2="302.621" y2="978.363" stroke="#3569ba" stroke-width="2"/>
+<circle cx="302.621" cy="978.363" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 11: 1.844</title></circle>
+<line x1="302.621" y1="978.363" x2="322.483" y2="977.908" stroke="#3569ba" stroke-width="2"/>
+<circle cx="322.483" cy="977.908" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 12: 2.162</title></circle>
+<line x1="322.483" y1="977.908" x2="342.345" y2="977.579" stroke="#3569ba" stroke-width="2"/>
+<circle cx="342.345" cy="977.579" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 13: 2.392</title></circle>
+<line x1="342.345" y1="977.579" x2="362.207" y2="977.102" stroke="#3569ba" stroke-width="2"/>
+<circle cx="362.207" cy="977.102" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 14: 2.726</title></circle>
+<line x1="362.207" y1="977.102" x2="382.069" y2="976.757" stroke="#3569ba" stroke-width="2"/>
+<circle cx="382.069" cy="976.757" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 15: 2.967</title></circle>
+<line x1="382.069" y1="976.757" x2="401.931" y2="976.056" stroke="#3569ba" stroke-width="2"/>
+<circle cx="401.931" cy="976.056" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 16: 3.457</title></circle>
+<line x1="401.931" y1="976.056" x2="421.793" y2="975.698" stroke="#3569ba" stroke-width="2"/>
+<circle cx="421.793" cy="975.698" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 17: 3.708</title></circle>
+<line x1="421.793" y1="975.698" x2="441.655" y2="975.153" stroke="#3569ba" stroke-width="2"/>
+<circle cx="441.655" cy="975.153" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 18: 4.089</title></circle>
+<line x1="441.655" y1="975.153" x2="461.517" y2="974.822" stroke="#3569ba" stroke-width="2"/>
+<circle cx="461.517" cy="974.822" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 19: 4.32</title></circle>
+<line x1="461.517" y1="974.822" x2="481.379" y2="967.948" stroke="#3569ba" stroke-width="2"/>
+<circle cx="481.379" cy="967.948" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 20: 9.127</title></circle>
+<line x1="481.379" y1="967.948" x2="501.241" y2="972.164" stroke="#3569ba" stroke-width="2"/>
+<circle cx="501.241" cy="972.164" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 21: 6.179</title></circle>
+<line x1="501.241" y1="972.164" x2="521.103" y2="973.412" stroke="#3569ba" stroke-width="2"/>
+<circle cx="521.103" cy="973.412" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 22: 5.306</title></circle>
+<line x1="521.103" y1="973.412" x2="540.966" y2="972.863" stroke="#3569ba" stroke-width="2"/>
+<circle cx="540.966" cy="972.863" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 23: 5.69</title></circle>
+<line x1="540.966" y1="972.863" x2="560.828" y2="972.411" stroke="#3569ba" stroke-width="2"/>
+<circle cx="560.828" cy="972.411" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 24: 6.006</title></circle>
+<line x1="560.828" y1="972.411" x2="580.69" y2="971.828" stroke="#3569ba" stroke-width="2"/>
+<circle cx="580.69" cy="971.828" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 25: 6.414</title></circle>
+<line x1="580.69" y1="971.828" x2="600.552" y2="970.425" stroke="#3569ba" stroke-width="2"/>
+<circle cx="600.552" cy="970.425" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 26: 7.395</title></circle>
+<line x1="600.552" y1="970.425" x2="620.414" y2="968.216" stroke="#3569ba" stroke-width="2"/>
+<circle cx="620.414" cy="968.216" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 27: 8.94</title></circle>
+<line x1="620.414" y1="968.216" x2="640.276" y2="967.742" stroke="#3569ba" stroke-width="2"/>
+<circle cx="640.276" cy="967.742" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 28: 9.271</title></circle>
+<line x1="640.276" y1="967.742" x2="660.138" y2="965.779" stroke="#3569ba" stroke-width="2"/>
+<circle cx="660.138" cy="965.779" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 29: 10.644</title></circle>
+<line x1="660.138" y1="965.779" x2="680" y2="967.11" stroke="#3569ba" stroke-width="2"/>
+<circle cx="680" cy="967.11" r="3.6" fill="#3569ba" class="elapsed-point"><title>baseline-recovery; phase 30: 9.713</title></circle>
+<circle cx="104" cy="979.684" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 1: 0.92</title></circle>
+<line x1="104" y1="979.684" x2="123.862" y2="972.476" stroke="#159b8d" stroke-width="2"/>
+<circle cx="123.862" cy="972.476" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 2: 5.961</title></circle>
+<line x1="123.862" y1="972.476" x2="143.724" y2="974.056" stroke="#159b8d" stroke-width="2"/>
+<circle cx="143.724" cy="974.056" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 3: 4.856</title></circle>
+<line x1="143.724" y1="974.056" x2="163.586" y2="970.7" stroke="#159b8d" stroke-width="2"/>
+<circle cx="163.586" cy="970.7" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 4: 7.203</title></circle>
+<line x1="163.586" y1="970.7" x2="183.448" y2="970.522" stroke="#159b8d" stroke-width="2"/>
+<circle cx="183.448" cy="970.522" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 5: 7.327</title></circle>
+<line x1="183.448" y1="970.522" x2="203.31" y2="962.6" stroke="#159b8d" stroke-width="2"/>
+<circle cx="203.31" cy="962.6" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 6: 12.867</title></circle>
+<line x1="203.31" y1="962.6" x2="223.172" y2="964.983" stroke="#159b8d" stroke-width="2"/>
+<circle cx="223.172" cy="964.983" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 7: 11.201</title></circle>
+<line x1="223.172" y1="964.983" x2="243.034" y2="961.167" stroke="#159b8d" stroke-width="2"/>
+<circle cx="243.034" cy="961.167" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 8: 13.869</title></circle>
+<line x1="243.034" y1="961.167" x2="262.897" y2="932.113" stroke="#159b8d" stroke-width="2"/>
+<circle cx="262.897" cy="932.113" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 9: 34.187</title></circle>
+<line x1="262.897" y1="932.113" x2="282.759" y2="944.606" stroke="#159b8d" stroke-width="2"/>
+<circle cx="282.759" cy="944.606" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 10: 25.45</title></circle>
+<line x1="282.759" y1="944.606" x2="302.621" y2="954.07" stroke="#159b8d" stroke-width="2"/>
+<circle cx="302.621" cy="954.07" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 11: 18.832</title></circle>
+<line x1="302.621" y1="954.07" x2="322.483" y2="946.294" stroke="#159b8d" stroke-width="2"/>
+<circle cx="322.483" cy="946.294" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 12: 24.27</title></circle>
+<line x1="322.483" y1="946.294" x2="342.345" y2="943.528" stroke="#159b8d" stroke-width="2"/>
+<circle cx="342.345" cy="943.528" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 13: 26.204</title></circle>
+<line x1="342.345" y1="943.528" x2="362.207" y2="946.508" stroke="#159b8d" stroke-width="2"/>
+<circle cx="362.207" cy="946.508" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 14: 24.12</title></circle>
+<line x1="362.207" y1="946.508" x2="382.069" y2="937.239" stroke="#159b8d" stroke-width="2"/>
+<circle cx="382.069" cy="937.239" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 15: 30.602</title></circle>
+<line x1="382.069" y1="937.239" x2="401.931" y2="915.699" stroke="#159b8d" stroke-width="2"/>
+<circle cx="401.931" cy="915.699" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 16: 45.665</title></circle>
+<line x1="401.931" y1="915.699" x2="421.793" y2="930.308" stroke="#159b8d" stroke-width="2"/>
+<circle cx="421.793" cy="930.308" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 17: 35.449</title></circle>
+<line x1="421.793" y1="930.308" x2="441.655" y2="928.776" stroke="#159b8d" stroke-width="2"/>
+<circle cx="441.655" cy="928.776" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 18: 36.52</title></circle>
+<line x1="441.655" y1="928.776" x2="461.517" y2="908.585" stroke="#159b8d" stroke-width="2"/>
+<circle cx="461.517" cy="908.585" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 19: 50.64</title></circle>
+<line x1="461.517" y1="908.585" x2="481.379" y2="917.887" stroke="#159b8d" stroke-width="2"/>
+<circle cx="481.379" cy="917.887" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 20: 44.135</title></circle>
+<line x1="481.379" y1="917.887" x2="501.241" y2="908.189" stroke="#159b8d" stroke-width="2"/>
+<circle cx="501.241" cy="908.189" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 21: 50.917</title></circle>
+<line x1="501.241" y1="908.189" x2="521.103" y2="902.277" stroke="#159b8d" stroke-width="2"/>
+<circle cx="521.103" cy="902.277" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 22: 55.051</title></circle>
+<line x1="521.103" y1="902.277" x2="540.966" y2="867.936" stroke="#159b8d" stroke-width="2"/>
+<circle cx="540.966" cy="867.936" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 23: 79.066</title></circle>
+<line x1="540.966" y1="867.936" x2="560.828" y2="903.049" stroke="#159b8d" stroke-width="2"/>
+<circle cx="560.828" cy="903.049" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 24: 54.511</title></circle>
+<line x1="560.828" y1="903.049" x2="580.69" y2="852.057" stroke="#159b8d" stroke-width="2"/>
+<circle cx="580.69" cy="852.057" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 25: 90.17</title></circle>
+<line x1="580.69" y1="852.057" x2="600.552" y2="897.886" stroke="#159b8d" stroke-width="2"/>
+<circle cx="600.552" cy="897.886" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 26: 58.122</title></circle>
+<line x1="600.552" y1="897.886" x2="620.414" y2="816.621" stroke="#159b8d" stroke-width="2"/>
+<circle cx="620.414" cy="816.621" r="3.6" fill="#159b8d" class="elapsed-point"><title>efficient; phase 27: 114.95</title></circle>
+<circle cx="104" cy="980.173" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 1: 0.578</title></circle>
+<line x1="104" y1="980.173" x2="123.862" y2="978.889" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="123.862" cy="978.889" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 2: 1.476</title></circle>
+<line x1="123.862" y1="978.889" x2="143.724" y2="977.695" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="143.724" cy="977.695" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 3: 2.311</title></circle>
+<line x1="143.724" y1="977.695" x2="163.586" y2="977.767" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="163.586" cy="977.767" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 4: 2.261</title></circle>
+<line x1="163.586" y1="977.767" x2="183.448" y2="977.318" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="183.448" cy="977.318" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 5: 2.575</title></circle>
+<line x1="183.448" y1="977.318" x2="203.31" y2="976.21" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="203.31" cy="976.21" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 6: 3.35</title></circle>
+<line x1="203.31" y1="976.21" x2="223.172" y2="973.371" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="223.172" cy="973.371" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 7: 5.335</title></circle>
+<line x1="223.172" y1="973.371" x2="243.034" y2="973.208" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="243.034" cy="973.208" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 8: 5.449</title></circle>
+<line x1="243.034" y1="973.208" x2="262.897" y2="970.864" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="262.897" cy="970.864" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 9: 7.088</title></circle>
+<line x1="262.897" y1="970.864" x2="282.759" y2="971.701" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="282.759" cy="971.701" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 10: 6.503</title></circle>
+<line x1="282.759" y1="971.701" x2="302.621" y2="970.479" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="302.621" cy="970.479" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 11: 7.357</title></circle>
+<line x1="302.621" y1="970.479" x2="322.483" y2="968.569" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="322.483" cy="968.569" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 12: 8.693</title></circle>
+<line x1="322.483" y1="968.569" x2="342.345" y2="966.749" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="342.345" cy="966.749" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 13: 9.966</title></circle>
+<line x1="342.345" y1="966.749" x2="362.207" y2="965.526" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="362.207" cy="965.526" r="3.6" fill="#8a51b0" class="elapsed-point"><title>archive-130k; phase 14: 10.821</title></circle>
+<rect x="735" y="633" width="675" height="410" rx="10" class="panel"/>
+<text x="754" y="662" font-size="15" font-weight="600">D   Actual generated report rows</text>
+<line x1="809" y1="981" x2="1385" y2="981" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="985" font-size="10" text-anchor="end" class="muted">0</text>
+<line x1="809" y1="909.5" x2="1385" y2="909.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="913.5" font-size="10" text-anchor="end" class="muted">500</text>
+<line x1="809" y1="838" x2="1385" y2="838" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="842" font-size="10" text-anchor="end" class="muted">1000</text>
+<line x1="809" y1="766.5" x2="1385" y2="766.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="770.5" font-size="10" text-anchor="end" class="muted">1500</text>
+<line x1="809" y1="695" x2="1385" y2="695" stroke="#e2e8f0" stroke-width="1"/>
+<text x="799" y="699" font-size="10" text-anchor="end" class="muted">2000</text>
+<text x="809" y="1003" font-size="10" text-anchor="middle" class="muted">1</text>
+<text x="888.448" y="1003" font-size="10" text-anchor="middle" class="muted">5</text>
+<text x="987.759" y="1003" font-size="10" text-anchor="middle" class="muted">10</text>
+<text x="1087.07" y="1003" font-size="10" text-anchor="middle" class="muted">15</text>
+<text x="1186.38" y="1003" font-size="10" text-anchor="middle" class="muted">20</text>
+<text x="1285.69" y="1003" font-size="10" text-anchor="middle" class="muted">25</text>
+<text x="1385" y="1003" font-size="10" text-anchor="middle" class="muted">30</text>
+<line x1="809" y1="981" x2="1385" y2="981" stroke="#9ca9b8" stroke-width="1"/>
+<text x="1097" y="1024" font-size="11" text-anchor="middle" class="muted">Qualified phase number; gaps stay gaps</text>
+<circle cx="809" cy="849.011" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 1: 923</title></circle>
+<line x1="809" y1="849.011" x2="828.862" y2="855.16" stroke="#3569ba" stroke-width="2"/>
+<circle cx="828.862" cy="855.16" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 2: 880</title></circle>
+<line x1="828.862" y1="855.16" x2="848.724" y2="858.02" stroke="#3569ba" stroke-width="2"/>
+<circle cx="848.724" cy="858.02" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 3: 860</title></circle>
+<line x1="848.724" y1="858.02" x2="868.586" y2="862.167" stroke="#3569ba" stroke-width="2"/>
+<circle cx="868.586" cy="862.167" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 4: 831</title></circle>
+<line x1="868.586" y1="862.167" x2="888.448" y2="865.599" stroke="#3569ba" stroke-width="2"/>
+<circle cx="888.448" cy="865.599" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 5: 807</title></circle>
+<line x1="888.448" y1="865.599" x2="908.31" y2="869.746" stroke="#3569ba" stroke-width="2"/>
+<circle cx="908.31" cy="869.746" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 6: 778</title></circle>
+<line x1="908.31" y1="869.746" x2="928.172" y2="872.463" stroke="#3569ba" stroke-width="2"/>
+<circle cx="928.172" cy="872.463" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 7: 759</title></circle>
+<line x1="928.172" y1="872.463" x2="948.034" y2="877.182" stroke="#3569ba" stroke-width="2"/>
+<circle cx="948.034" cy="877.182" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 8: 726</title></circle>
+<line x1="948.034" y1="877.182" x2="967.897" y2="880.471" stroke="#3569ba" stroke-width="2"/>
+<circle cx="967.897" cy="880.471" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 9: 703</title></circle>
+<line x1="967.897" y1="880.471" x2="987.759" y2="883.331" stroke="#3569ba" stroke-width="2"/>
+<circle cx="987.759" cy="883.331" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 10: 683</title></circle>
+<line x1="987.759" y1="883.331" x2="1007.62" y2="886.763" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1007.62" cy="886.763" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 11: 659</title></circle>
+<line x1="1007.62" y1="886.763" x2="1027.48" y2="890.481" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1027.48" cy="890.481" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 12: 633</title></circle>
+<line x1="1027.48" y1="890.481" x2="1047.34" y2="895.343" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1047.34" cy="895.343" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 13: 599</title></circle>
+<line x1="1047.34" y1="895.343" x2="1067.21" y2="899.776" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1067.21" cy="899.776" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 14: 568</title></circle>
+<line x1="1067.21" y1="899.776" x2="1087.07" y2="903.637" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1087.07" cy="903.637" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 15: 541</title></circle>
+<line x1="1087.07" y1="903.637" x2="1106.93" y2="907.355" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1106.93" cy="907.355" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 16: 515</title></circle>
+<line x1="1106.93" y1="907.355" x2="1126.79" y2="911.645" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1126.79" cy="911.645" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 17: 485</title></circle>
+<line x1="1126.79" y1="911.645" x2="1146.66" y2="914.648" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1146.66" cy="914.648" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 18: 464</title></circle>
+<line x1="1146.66" y1="914.648" x2="1166.52" y2="917.937" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1166.52" cy="917.937" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 19: 441</title></circle>
+<line x1="1166.52" y1="917.937" x2="1186.38" y2="921.369" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1186.38" cy="921.369" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 20: 417</title></circle>
+<line x1="1186.38" y1="921.369" x2="1206.24" y2="925.659" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1206.24" cy="925.659" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 21: 387</title></circle>
+<line x1="1206.24" y1="925.659" x2="1226.1" y2="928.948" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1226.1" cy="928.948" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 22: 364</title></circle>
+<line x1="1226.1" y1="928.948" x2="1245.97" y2="932.237" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1245.97" cy="932.237" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 23: 341</title></circle>
+<line x1="1245.97" y1="932.237" x2="1265.83" y2="935.669" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1265.83" cy="935.669" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 24: 317</title></circle>
+<line x1="1265.83" y1="935.669" x2="1285.69" y2="939.387" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1285.69" cy="939.387" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 25: 291</title></circle>
+<line x1="1285.69" y1="939.387" x2="1305.55" y2="943.248" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1305.55" cy="943.248" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 26: 264</title></circle>
+<line x1="1305.55" y1="943.248" x2="1325.41" y2="948.539" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1325.41" cy="948.539" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 27: 227</title></circle>
+<line x1="1325.41" y1="948.539" x2="1345.28" y2="951.971" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1345.28" cy="951.971" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 28: 203</title></circle>
+<line x1="1345.28" y1="951.971" x2="1365.14" y2="955.403" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1365.14" cy="955.403" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 29: 179</title></circle>
+<line x1="1365.14" y1="955.403" x2="1385" y2="958.978" stroke="#3569ba" stroke-width="2"/>
+<circle cx="1385" cy="958.978" r="3.6" fill="#3569ba" class="rows-point"><title>baseline-recovery; phase 30: 154</title></circle>
+<circle cx="809" cy="844.435" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 1: 955</title></circle>
+<line x1="809" y1="844.435" x2="828.862" y2="853.873" stroke="#159b8d" stroke-width="2"/>
+<circle cx="828.862" cy="853.873" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 2: 889</title></circle>
+<line x1="828.862" y1="853.873" x2="848.724" y2="850.87" stroke="#159b8d" stroke-width="2"/>
+<circle cx="848.724" cy="850.87" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 3: 910</title></circle>
+<line x1="848.724" y1="850.87" x2="868.586" y2="857.448" stroke="#159b8d" stroke-width="2"/>
+<circle cx="868.586" cy="857.448" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 4: 864</title></circle>
+<line x1="868.586" y1="857.448" x2="888.448" y2="858.592" stroke="#159b8d" stroke-width="2"/>
+<circle cx="888.448" cy="858.592" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 5: 856</title></circle>
+<line x1="888.448" y1="858.592" x2="908.31" y2="865.027" stroke="#159b8d" stroke-width="2"/>
+<circle cx="908.31" cy="865.027" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 6: 811</title></circle>
+<line x1="908.31" y1="865.027" x2="928.172" y2="865.313" stroke="#159b8d" stroke-width="2"/>
+<circle cx="928.172" cy="865.313" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 7: 809</title></circle>
+<line x1="928.172" y1="865.313" x2="948.034" y2="871.605" stroke="#159b8d" stroke-width="2"/>
+<circle cx="948.034" cy="871.605" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 8: 765</title></circle>
+<line x1="948.034" y1="871.605" x2="967.897" y2="874.036" stroke="#159b8d" stroke-width="2"/>
+<circle cx="967.897" cy="874.036" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 9: 748</title></circle>
+<line x1="967.897" y1="874.036" x2="987.759" y2="877.039" stroke="#159b8d" stroke-width="2"/>
+<circle cx="987.759" cy="877.039" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 10: 727</title></circle>
+<line x1="987.759" y1="877.039" x2="1007.62" y2="881.186" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1007.62" cy="881.186" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 11: 698</title></circle>
+<line x1="1007.62" y1="881.186" x2="1027.48" y2="883.617" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1027.48" cy="883.617" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 12: 681</title></circle>
+<line x1="1027.48" y1="883.617" x2="1047.34" y2="886.763" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1047.34" cy="886.763" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 13: 659</title></circle>
+<line x1="1047.34" y1="886.763" x2="1067.21" y2="889.766" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1067.21" cy="889.766" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 14: 638</title></circle>
+<line x1="1067.21" y1="889.766" x2="1087.07" y2="892.34" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1087.07" cy="892.34" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 15: 620</title></circle>
+<line x1="1087.07" y1="892.34" x2="1106.93" y2="895.2" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1106.93" cy="895.2" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 16: 600</title></circle>
+<line x1="1106.93" y1="895.2" x2="1126.79" y2="897.917" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1126.79" cy="897.917" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 17: 581</title></circle>
+<line x1="1126.79" y1="897.917" x2="1146.66" y2="901.492" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1146.66" cy="901.492" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 18: 556</title></circle>
+<line x1="1146.66" y1="901.492" x2="1166.52" y2="904.781" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1166.52" cy="904.781" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 19: 533</title></circle>
+<line x1="1166.52" y1="904.781" x2="1186.38" y2="907.069" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1186.38" cy="907.069" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 20: 517</title></circle>
+<line x1="1186.38" y1="907.069" x2="1206.24" y2="909.929" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1206.24" cy="909.929" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 21: 497</title></circle>
+<line x1="1206.24" y1="909.929" x2="1226.1" y2="912.074" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1226.1" cy="912.074" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 22: 482</title></circle>
+<line x1="1226.1" y1="912.074" x2="1245.97" y2="916.221" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1245.97" cy="916.221" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 23: 453</title></circle>
+<line x1="1245.97" y1="916.221" x2="1265.83" y2="918.509" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1265.83" cy="918.509" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 24: 437</title></circle>
+<line x1="1265.83" y1="918.509" x2="1285.69" y2="922.227" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1285.69" cy="922.227" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 25: 411</title></circle>
+<line x1="1285.69" y1="922.227" x2="1305.55" y2="924.801" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1305.55" cy="924.801" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 26: 393</title></circle>
+<line x1="1305.55" y1="924.801" x2="1325.41" y2="929.234" stroke="#159b8d" stroke-width="2"/>
+<circle cx="1325.41" cy="929.234" r="3.6" fill="#159b8d" class="rows-point"><title>efficient; phase 27: 362</title></circle>
+<circle cx="809" cy="843.863" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 1: 959</title></circle>
+<line x1="809" y1="843.863" x2="828.862" y2="850.441" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="828.862" cy="850.441" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 2: 913</title></circle>
+<line x1="828.862" y1="850.441" x2="848.724" y2="847.581" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="848.724" cy="847.581" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 3: 933</title></circle>
+<line x1="848.724" y1="847.581" x2="868.586" y2="850.441" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="868.586" cy="850.441" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 4: 913</title></circle>
+<line x1="868.586" y1="850.441" x2="888.448" y2="847.581" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="888.448" cy="847.581" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 5: 933</title></circle>
+<line x1="888.448" y1="847.581" x2="908.31" y2="856.161" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="908.31" cy="856.161" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 6: 873</title></circle>
+<line x1="908.31" y1="856.161" x2="928.172" y2="854.874" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="928.172" cy="854.874" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 7: 882</title></circle>
+<line x1="928.172" y1="854.874" x2="948.034" y2="855.303" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="948.034" cy="855.303" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 8: 879</title></circle>
+<line x1="948.034" y1="855.303" x2="967.897" y2="857.019" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="967.897" cy="857.019" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 9: 867</title></circle>
+<line x1="967.897" y1="857.019" x2="987.759" y2="855.017" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="987.759" cy="855.017" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 10: 881</title></circle>
+<line x1="987.759" y1="855.017" x2="1007.62" y2="858.735" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1007.62" cy="858.735" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 11: 855</title></circle>
+<line x1="1007.62" y1="858.735" x2="1027.48" y2="865.17" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1027.48" cy="865.17" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 12: 810</title></circle>
+<line x1="1027.48" y1="865.17" x2="1047.34" y2="860.022" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1047.34" cy="860.022" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 13: 846</title></circle>
+<line x1="1047.34" y1="860.022" x2="1067.21" y2="859.879" stroke="#8a51b0" stroke-width="2"/>
+<circle cx="1067.21" cy="859.879" r="3.6" fill="#8a51b0" class="rows-point"><title>archive-130k; phase 14: 847</title></circle>
+<text x="36" y="1071" font-size="12" class="muted">C curve uses first actual post; CSV also keeps selected consistent post. Omitted cache buckets remain unknown.</text>
+<text x="36" y="1094" font-size="12" class="muted">CSV retains qualified-group time, whole-phase time, group/prune counts, report volume, and known/unknown call accounting.</text>
+<text x="36" y="1117" font-size="12" class="muted">A phase remains one cycle even when it prunes many results. Actual 24-hour durability and general losslessness remain unverified.</text>
+<text x="36" y="1150" font-size="10" class="muted">Public report SHA256: 1394a18e0d055a47f9d61fe4b001702827d7d703e30a900eef644d0b7200b984</text>
+</svg>

@@ -48,6 +48,14 @@ export const ConfigFields = {
   memorySearchChars: z.number().step(1).min(256).max(32000).default(6000),
   memoryGetChars: z.number().step(1).min(256).max(64000).default(12000),
   contextTargetTokens: z.number().step(1).min(4096).max(1000000).default(30000),
+  contextTriggerTokens: z.number().step(1).min(4096).max(1000000).required(false).description('启动压缩的含预留空间预算；省略时沿用压后目标，配置时须大于或等于 contextTargetTokens'),
+  contextRetainRecentMessages: z.number().step(1).min(2).max(128).default(8).description('保留近期历史窗口；仅压缩窗口外已配对纯文本工具结果，用户要求与附件保持原样'),
+  contextMinResultChars: z.number().step(1).min(64).max(1000000).default(4096).description('可压缩纯文本工具结果的最小字符数；须有已校验的持久来源'),
+  contextMaxPrunes: z.number().step(1).min(1).max(256).default(16),
+  contextPreviewChars: z.number().step(1).min(0).max(4096).default(320),
+  contextCompactLocators: z.boolean().default(false).description('用精简恢复定位替代每条结果中重复的状态、来源列表与预览'),
+  contextRetrievalReceipts: z.boolean().default(false).description('允许压缩本地 memory 检索返回；仅保存宿主来源与校验元数据，不重复索引正文，不压全局知识返回'),
+  contextArchiveCompletedTurns: z.boolean().default(false).description('实验性：归档已完成旧阶段，逐字保留用户要求与公开进展，原文按 arc_ID 分页恢复；提交后持久化失败会停止执行，不伪称已回滚'),
   contextOutputReserveTokens: z.number().step(1).min(256).max(100000).default(4096),
   contextToolReserveTokens: z.number().step(1).min(256).max(100000).default(2048),
   contextCompression: z.boolean().default(false),
@@ -61,7 +69,7 @@ export const ConfigFields = {
   jevTimeoutMs: z.number().step(1).min(100).max(120000).default(15000),
 }
 export const Config = z.object(ConfigFields)
-export interface Config extends RunConfig { concurrency: number; sectionOrder: number; maxSessions: number; evidenceEnabled?: boolean; globalKnowledge?: unknown; memorySearchChars?: number; memoryGetChars?: number; contextTargetTokens?: number; contextOutputReserveTokens?: number; contextToolReserveTokens?: number; contextCompression?: boolean; memoryMaxRequests?: number; memoryMaxTokens?: number }
+export interface Config extends RunConfig { concurrency: number; sectionOrder: number; maxSessions: number; evidenceEnabled?: boolean; globalKnowledge?: unknown; memorySearchChars?: number; memoryGetChars?: number; contextTargetTokens?: number; contextTriggerTokens?: number; contextRetainRecentMessages?: number; contextMinResultChars?: number; contextMaxPrunes?: number; contextPreviewChars?: number; contextCompactLocators?: boolean; contextRetrievalReceipts?: boolean; contextArchiveCompletedTurns?: boolean; contextOutputReserveTokens?: number; contextToolReserveTokens?: number; contextCompression?: boolean; memoryMaxRequests?: number; memoryMaxTokens?: number }
 interface PreStep {
   agent: Agent
   step: number

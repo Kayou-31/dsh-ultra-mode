@@ -6,7 +6,25 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
 export const name = 'ultra-real-host-acceptance'
-export const inject = ['agents', 'agentLoop', 'tools', 'llm', 'sessions', 'sessionPersistence', 'systemPrompt', 'agentPresets', 'commands']
+export const inject = ['agents', 'agentLoop', 'tools', 'llm', 'sessions', 'sessionPersistence', 'systemPrompt', 'agentPresets', 'commands', 'loader']
+
+/** Test-only, temporary budget probe against the actual native Loader owner. */
+export async function withNativeRequestBudget(ctx, memory, limit, action) {
+  assert.ok(Number.isSafeInteger(limit) && limit > 0, 'Native request limit must be a positive safe integer')
+  const entries = [...(ctx.get('loader')?.entries() ?? [])]
+    .filter(entry => entry.options.name === '@dsh-external/dsh-ultra-mode' && entry.fiber?.config)
+  assert.equal(entries.length, 1, 'Budget probe requires one active native Ultra Loader owner')
+  const config = entries[0].fiber.config
+  const previous = config.memoryMaxRequests
+  try {
+    config.memoryMaxRequests = limit
+    assert.equal(memory.host.config.memoryMaxRequests, limit, 'Native Loader update must reach the effective request budget before dispatch')
+    return await action()
+  } finally {
+    config.memoryMaxRequests = previous
+    assert.equal(memory.host.config.memoryMaxRequests, previous, 'Native Loader must restore the effective request budget')
+  }
+}
 
 export function apply(ctx, config) {
   const ready = ctx.get('appReady'), exit = ctx.get('appExit')
@@ -281,11 +299,10 @@ async function run(ctx, config) {
       check('checkpoint audits native child and repairs its missing evidence', retrySources.length === 1 && retryScan?.availableEvents === retryScan?.indexedThrough, { retrySources, retryScan })
       await memory.checkpoint()
       check('repeated native checkpoint does not duplicate recovered evidence', memory.store.idsFor(retryId, failedInput.eventId).length === 1, { sourceId: retrySources[0] })
-      const previousRequestLimit = memory.host.config.memoryMaxRequests
       const attemptsBeforeBudget = memory.status().resources.attemptedCalls
       const requestsBeforeBudget = result.requests.length
-      try {
-        memory.host.config.memoryMaxRequests = attemptsBeforeBudget + 1
+      await withNativeRequestBudget(ctx, memory, attemptsBeforeBudget + 1, async () => {
+        check('native Loader request budget is effective before dispatch', memory.host.config.memoryMaxRequests === attemptsBeforeBudget + 1, { requestLimit: memory.host.config.memoryMaxRequests })
         await turn(retryChild.agent, 'Use the final allowed local request in this bounded native budget probe.')
         check('actual request budget admits the last allowed native request', memory.status().resources.attemptedCalls === attemptsBeforeBudget + 1 && result.requests.length === requestsBeforeBudget + 1, { attemptedCalls: memory.status().resources.attemptedCalls, requestLimit: memory.host.config.memoryMaxRequests })
         const budgetBoundary = retryChild.agent.session.seq
@@ -295,7 +312,7 @@ async function run(ctx, config) {
         })
         const budgetEnd = retryChild.agent.session.snapshotEvents().slice(budgetBoundary).findLast(x => x.type === 'turn/end')
         check('actual request budget rejects the next step before adapter dispatch', budgetEnd?.data.reason.kind === 'error' && JSON.stringify(budgetEnd.data.reason).includes('budget exhausted') && result.requests.length === requestsBeforeBudget + 1, { end: budgetEnd?.data.reason, adapterRequests: result.requests.length - requestsBeforeBudget })
-      } finally { memory.host.config.memoryMaxRequests = previousRequestLimit }
+      })
       const steerRoute = await createRoute(root.agent, { ...common, id: 'ultra-route-' + config.sessionId + '-steering', label: 'steering admission', signal: new AbortController().signal }, routeConfig); routes.push(steerRoute)
       const steeringTurn = steerRoute.run([{ type: 'text', text: 'HARNESS_STEER_ROUTE: run a local fixture tool, then inspect any native later-step feedback.' }])
       const steeringDeadline = Date.now() + 3000

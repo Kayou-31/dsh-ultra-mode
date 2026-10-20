@@ -6,10 +6,24 @@
     memorySearchChars: 6000
     memoryGetChars: 12000
     contextTargetTokens: 30000
+    # 不填时触发门槛等于 target；仅高效实验示例另填 420000，须 >= target。
+    # contextTriggerTokens: 420000
+    contextRetainRecentMessages: 8
+    contextMinResultChars: 4096
+    contextMaxPrunes: 16
+    contextPreviewChars: 320
+    contextCompactLocators: false
+    # 仅本地 memory 返回；host-only 恢复收据不成为新事实/发布来源，不压 knowledge 返回。
+    contextRetrievalReceipts: false
+    # 实验性完整旧阶段归档，默认关闭；启用时须保留当前授权的 ultra_memory_get，memoryGetChars >= 1024。
+    # 官方 0.2.1-rc.2 为实机目标。130K / 30 轮结果见独立实验记录，不是无损保证。
+    contextArchiveCompletedTurns: false
     contextOutputReserveTokens: 4096
     contextToolReserveTokens: 2048
     # 先核对原生 compaction / 其他 ACP 引擎已停用，以及 native tokenMeter 可用。
     contextCompression: false
+    # 以上均保留原默认。高效 420K/30K 独立实验的完整参数、预算及降级限制：
+    # docs/experiments/compression-efficiency.zh.md
     coordinationIntervalMs: 1000
     coordinationMaxRounds: -1
     coordinationFailureLimit: 3

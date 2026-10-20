@@ -1,5 +1,7 @@
 /** Offline helpers for ordinary-collaboration model-pool acceptance. No execution
  * entrypoint, provider adapter, credential access, network or filesystem access.
+ * Defaults remain two concurrent agents and 24 requests; explicit experiments
+ * allow at most 32 concurrent agents and 1,000 requests.
  */
 import { randomBytes, randomInt, randomUUID } from 'node:crypto'
 
@@ -19,8 +21,8 @@ export function normalizeLiveConfig(config) {
   if (!object(config)) throw new TypeError('Live configuration must be an object')
   const normalized = {}
   for (const name of ['runtimeRoot', 'ultraRoot', 'projectDir', 'resultFile', 'provider', 'model']) normalized[name] = requiredText(config[name], name)
-  const maxRequests = positiveInteger(config.maxRequests ?? 24, 40, 'request')
-  const maxConcurrent = positiveInteger(config.maxConcurrent ?? 2, 2, 'concurrency')
+  const maxRequests = positiveInteger(config.maxRequests ?? 24, 1000, 'request')
+  const maxConcurrent = positiveInteger(config.maxConcurrent ?? 2, 32, 'concurrency')
   if (config.distinctModels !== undefined && typeof config.distinctModels !== 'boolean') throw new TypeError('distinctModels must be boolean')
   if (!Array.isArray(config.routes) || config.routes.length !== 2) throw new TypeError('Two unique code/review route kinds are required')
   const ids = new Set(), kinds = new Set()

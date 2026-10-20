@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
 import { build } from 'esbuild'
 
 // Run every native class AND each independently bundled core against the same
@@ -20,7 +21,7 @@ const output = fs.mkdtempSync(path.resolve('node_modules/.evidence-support-test-
 async function bundle(name) {
   if (!fs.existsSync('src/evidence-support.ts')) return {}
   const outfile = path.join(output, name + '.mjs')
-  await build({ stdin: { contents: 'export * from "./src/evidence-support.ts"; export {beginMemoryRun,memoryFor} from "./src/memory-host.ts"; export * as memoryPlugin from "./src/memory-plugin.ts"', resolveDir: process.cwd() }, outfile, bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent',
+  await build({ stdin: { contents: 'export * from "./src/evidence-support.ts"; export {beginMemoryRun,memoryFor} from "./src/memory-host.ts"; export * as memoryPlugin from "./src/memory-plugin.ts"; export {Config as UltraConfig} from "./src/index.ts"; export {Config as DecisionConfig} from "./src/decision-plugin.ts"', resolveDir: process.cwd() }, outfile, bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent',
     plugins: [{ name: 'pinned-native-sdk', setup(build) { build.onResolve({ filter: /^@deepseek-ai\// }, args => ({ path: pathToFileURL(selectedRequire.resolve(args.path)).href, external: true })) } }],
   })
   return import(pathToFileURL(outfile).href)
@@ -81,6 +82,77 @@ test('configuration authority is memory then ultra then decision in either mount
   await m.fork.dispose(); assert.equal(d.lease.memory.config.memoryGetChars, 2000)
   await u.fork.dispose(); assert.equal(d.lease.memory.config.memoryGetChars, 1000)
   await d.fork.dispose()
+})
+
+test('all public memory schemas retain eight recent messages by default and validate the configurable 2..128 range', () => {
+  for (const schema of [first.UltraConfig, first.DecisionConfig, first.memoryPlugin.Config]) {
+    assert.equal(schema({}).contextRetainRecentMessages, 8)
+    assert.equal(schema({ contextRetainRecentMessages: 2 }).contextRetainRecentMessages, 2)
+    assert.equal(schema({ contextRetainRecentMessages: 128 }).contextRetainRecentMessages, 128)
+    for (const value of [1, 129, 2.5, Number.NaN, Infinity, '2']) assert.throws(() => schema({ contextRetainRecentMessages: value }))
+  }
+})
+
+test('completed-turn archive is an explicit boolean in every public memory schema and stays disabled by default', () => {
+  for (const schema of [first.UltraConfig, first.DecisionConfig, first.memoryPlugin.Config]) {
+    assert.equal(schema({}).contextArchiveCompletedTurns, false)
+    assert.equal(schema({ contextArchiveCompletedTurns: true }).contextArchiveCompletedTurns, true)
+    for (const value of ['true', 1]) assert.throws(() => schema({ contextArchiveCompletedTurns: value }))
+    assert.equal(schema({ contextArchiveCompletedTurns: null }).contextArchiveCompletedTurns, false, 'native null/default handling cannot enable the feature')
+  }
+})
+
+test('native Memory pre-step honors the public recent window while preserving paired tools, rich results, human constraints and raw SHA', async t => {
+  const { createUserMessage, createAssistantMessage, createToolResultMessage, ToolCallId } = await sdkImport('dsh-llm')
+  for (const retain of [undefined, 2]) {
+    const f = await fixture(t)
+    f.ctx.provide('tokenMeter', { estimateMessage: message => Math.ceil(JSON.stringify(message).length / 4) })
+    const config = { contextCompression: true, contextTargetTokens: 4096, contextOutputReserveTokens: 256, contextToolReserveTokens: 256,
+      ...(retain === undefined ? {} : { contextRetainRecentMessages: retain }) }
+    const mounted = f.ctx.plugin(first.memoryPlugin, config); await mounted.await()
+    const session = f.parent.session, old = 'OLD_NATIVE_TEXT '.repeat(6000) + ' RETAIN_RAW_SHA_TAIL_842', recent = 'LATEST_NATIVE_RESULT_731'
+    const human = text => session.append('user/message', createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } }), { surfaceOp: 'append' })
+    const pair = (id, content) => {
+      const callId = ToolCallId(id)
+      session.append('assistant/message', { turn: 1, step: 1, stream: [], message: createAssistantMessage({ content: [{ type: 'tool-call', id: callId, name: 'read', arguments: '{}' }], source: { provider: 'offline', model: 'fixture' } }) }, { surfaceOp: 'append' })
+      return session.append('tool/result', { turn: 1, step: 1, message: createToolResultMessage({ callId, content, isError: false }) }, { surfaceOp: 'append' })
+    }
+    human('EARLY_ONCE: stay offline, never publish, never repeat completed operations.')
+    const oldEvent = pair('old-native-call', [{ type: 'text', text: old }])
+    const rich = [{ type: 'text', text: 'Rich original remains.' }, { type: 'image', attachment: { attachmentId: 'native-image-731' } }]
+    pair('rich-native-call', rich)
+    human('Keep the literal label 协作 and all original permission boundaries.')
+    pair('latest-native-call', [{ type: 'text', text: recent }])
+    await f.ctx.get('systemPrompt').assemble({ agent: f.parent, signal: new AbortController().signal })
+    const run = first.memoryFor(f.parent)
+    assert.ok(run)
+    assert.equal(run.host.config.contextRetainRecentMessages, retain ?? 8)
+    const decision = await f.ctx.waterfall('agent/pre-step', { agent: f.parent, messages: [], signal: new AbortController().signal }, async () => ({ kind: 'enter', messages: [] }))
+    assert.equal(decision.kind, 'enter')
+    const projected = session.deriveMessages(), tools = projected.filter(message => message.role === 'tool')
+    assert.equal(tools.length, 3)
+    assert.equal(projected.filter(message => message.role === 'user').length, 2)
+    assert.ok(projected.some(message => message.role === 'user' && message.content[0].text.startsWith('EARLY_ONCE:')))
+    assert.ok(projected.some(message => message.role === 'user' && message.content[0].text.includes('literal label 协作')))
+    assert.deepEqual(tools.find(message => message.toolCallId === 'rich-native-call').content, rich)
+    assert.equal(tools.find(message => message.toolCallId === 'latest-native-call').content[0].text, recent)
+    const prunes = session.snapshotEvents().filter(event => event.type === 'compaction/prune')
+    assert.equal(prunes.length, retain === 2 ? 1 : 0)
+    const oldProjected = tools.find(message => message.toolCallId === 'old-native-call')
+    if (retain === 2) {
+      assert.match(oldProjected.content[0].text, /^\[Ultra stored tool evidence/u)
+      const compression = run.status().compression
+      assert.equal(compression.status, 'compacted')
+      assert.ok(compression.after.totalTokens < compression.before.totalTokens)
+      const found = await run.host.search(f.parent, { query: 'RETAIN_RAW_SHA_TAIL_842', kind: 'tool/result' })
+      const original = await run.host.get(f.parent, found.items[0].sourceId, { quote: 'RETAIN_RAW_SHA_TAIL_842', maxChars: 4000 })
+      assert.equal(original.citation.sha256, createHash('sha256').update(old).digest('hex'))
+      assert.equal(original.text, 'RETAIN_RAW_SHA_TAIL_842')
+      assert.equal(session.snapshotEvents()[oldEvent.seq].data.message.content[0].text, old)
+    } else assert.equal(oldProjected.content[0].text, old)
+    assert.equal(projected.filter(message => message.role === 'assistant').flatMap(message => message.content).filter(block => block.type === 'tool-call').length, 3)
+    await mounted.dispose()
+  }
 })
 
 test('cross-bundle lookup rejects forged callers and incompatible service versions', async t => {

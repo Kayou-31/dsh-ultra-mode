@@ -137,3 +137,104 @@ test('native steering exposes only real queue admission and actual next-request 
   assert.equal(typeof observed[0].sourceId, 'string')
   assert.equal(f.requests.length, 2)
 })
+
+const workerReport = id => ({ type: 'tool-call', id: sdk['dsh-llm'].ToolCallId(id), name: 'ultra_submit_report', arguments: JSON.stringify({ report: 'Settled public worker evidence; verification remains pending.' }) })
+
+test('native accepted report withdraws pending owned legacy and governed steering before another step', { skip: unavailable }, async t => {
+  const deliveries = [], late = []
+  let f
+  f = await fixture(t, { maxCalls: 1, script: ({ count }) => {
+    assert.equal(count, 1, 'An accepted report must not trigger another native request')
+    assert.equal(f.route.steer('Legacy follow-up queued during the report request'), true)
+    assert.equal(f.route.steer('Governed follow-up queued during the report request', { directiveId: 'pending-after-report', isCurrent: () => true, onDelivery: status => deliveries.push(status) }), true)
+    return workerReport('native-racing-report')
+  } })
+  f.ctx.on('session/event', (session, event) => {
+    if (session.id === f.agent.id && event.type === 'tool/result' && event.data.message.toolCallId === 'native-racing-report') late.push(f.route.steer('Late feedback after the accepted durable report'))
+  })
+  const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Finish the public report while coordination is in flight.' }], { reportSubmission: true }))
+  assert.equal(outcome.ok, true, outcome.error)
+  assert.equal(outcome.text, 'Settled public worker evidence; verification remains pending.')
+  assert.equal(f.requests.length, 1)
+  assert.deepEqual(deliveries, ['queued'], 'Withdrawn feedback is never called admitted or used')
+  assert.deepEqual(late, [false])
+  const events = f.agent.session.snapshotEvents()
+  assert.equal(events.filter(event => event.type === 'user/message' && event.data.source.kind === 'ultra-steering').length, 0)
+  assert.equal(events.filter(event => event.type === 'tool/call' && event.data.name === 'ultra_submit_report').length, 1)
+  assert.equal(events.findLast(event => event.type === 'turn/end').data.reason.kind, 'completed')
+  assert.equal(f.agent.inbox.nextStep.length, 0)
+})
+
+test('native report closure retains admitted history and withdraws only its not-yet-admitted feedback', { skip: unavailable }, async t => {
+  const delivered = [], pending = []
+  let f, admittedPrefix
+  f = await fixture(t, { maxCalls: 2, script: ({ count }) => {
+    if (count === 1) {
+      assert.equal(f.route.steer('Earlier valid feedback', { directiveId: 'already-visible', isCurrent: () => true, onDelivery: status => delivered.push(status) }), true)
+      return { type: 'text', text: 'Initial research observation.' }
+    }
+    assert.equal(count, 2)
+    admittedPrefix = f.agent.session.snapshotEvents()
+    assert.ok(admittedPrefix.some(event => event.type === 'user/message' && event.data.source.kind === 'ultra-steering'))
+    assert.equal(f.route.steer('Not-yet-admitted feedback', { directiveId: 'withdrawn-at-report', isCurrent: () => true, onDelivery: status => pending.push(status) }), true)
+    return workerReport('native-report-after-admission')
+  } })
+  const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Use the earlier direction, then finish.' }], { reportSubmission: true }))
+  assert.equal(outcome.ok, true, outcome.error)
+  assert.equal(f.requests.length, 2)
+  assert.deepEqual(delivered, ['queued', 'admitted', 'request-visible'])
+  assert.deepEqual(pending, ['queued'])
+  const events = f.agent.session.snapshotEvents()
+  assert.deepEqual(events.slice(0, admittedPrefix.length), admittedPrefix, 'The complete already-admitted native prefix stays byte-for-byte equivalent')
+  assert.equal(events.filter(event => event.type === 'user/message' && event.data.source.kind === 'ultra-steering').length, 1)
+})
+
+test('native report withdrawal leaves independently queued human input intact', { skip: unavailable }, async t => {
+  let f, current = true
+  f = await fixture(t, { maxCalls: 2, script: ({ count }) => {
+    if (count === 1) {
+      assert.equal(f.route.steer('Withdraw only this owned feedback', { directiveId: 'owned-not-human', isCurrent: () => current }), true)
+      f.agent.steer(sdk['dsh-llm'].createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'HUMAN_INPUT_MUST_SURVIVE' }] }))
+      return workerReport('native-report-with-human')
+    }
+    return { type: 'text', text: 'The independent human input remains visible.' }
+  } })
+  f.ctx.on('session/event', (session, event) => { if (session.id === f.agent.id && event.type === 'tool/result' && event.data.message.toolCallId === 'native-report-with-human') current = false })
+  const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Conclude only the worker-owned research.' }], { reportSubmission: true }))
+  assert.equal(outcome.ok, true, outcome.error)
+  assert.equal(f.requests.length, 2, 'Independent human work, unlike owned feedback, may enter its supported next step')
+  const users = f.agent.session.snapshotEvents().filter(event => event.type === 'user/message')
+  assert.ok(users.some(event => event.data.source.kind === 'user' && event.data.content.some(block => block.type === 'text' && block.text === 'HUMAN_INPUT_MUST_SURVIVE')))
+  assert.equal(users.filter(event => event.data.source.kind === 'ultra-steering').length, 0)
+})
+
+test('native host rejection of a report preserves its pending research steering', { skip: unavailable }, async t => {
+  let f
+  f = await fixture(t, { rejectReport: true, maxCalls: 2, script: ({ count }) => {
+    if (count === 1) { assert.equal(f.route.steer('Still needed because the report may be rejected'), true); return workerReport('native-rejected-report') }
+    return { type: 'text', text: 'Continuing after host rejection.' }
+  } })
+  const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Policy will reject this report.' }], { reportSubmission: true }))
+  assert.equal(outcome.ok, true, outcome.error)
+  assert.equal(outcome.text, 'Continuing after host rejection.')
+  assert.equal(f.requests.length, 2)
+  assert.ok(f.toolResults.every(result => result.isError && !result.concludesTurn))
+  assert.equal(f.agent.session.snapshotEvents().filter(event => event.type === 'user/message' && event.data.source.kind === 'ultra-steering').length, 1)
+})
+
+test('native owned-steering withdrawal failure is surfaced rather than swallowed by the result observer', { skip: unavailable }, async t => {
+  let f
+  f = await fixture(t, { maxCalls: 1, script: ({ count }) => {
+    assert.equal(count, 1)
+    f.route.steer('Pending feedback whose durable withdrawal fails')
+    return workerReport('native-withdrawal-fails')
+  } })
+  const original = f.agent.inbox.remove
+  f.agent.inbox.remove = () => { throw new Error('Owned steering withdrawal failure') }
+  try {
+    const outcome = await f.ctx.agents.withInitiator(f.agent, () => f.route.run([{ type: 'text', text: 'Surface a real inbox persistence failure.' }], { reportSubmission: true }))
+    assert.equal(outcome.ok, false)
+    assert.match(outcome.error, /Owned steering withdrawal failure/)
+    assert.equal(f.requests.length, 1, 'No invalid post-report request enters the adapter')
+  } finally { f.agent.inbox.remove = original }
+})

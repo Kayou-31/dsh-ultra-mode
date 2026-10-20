@@ -1,12 +1,12 @@
-# Ultra 持久证据与上下文管理（0.5.0-rc.3）
+# Ultra 持久证据与上下文管理
 
-本页说明 **0.5.0-rc.3预发布版** 的统一证据、状态、检索与上下文机制。[Release](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.5.0-rc.3) 提供安装TGZ、源码ZIP与哈希清单，操作见 [安装与回滚](installation.md)。本轮验收未安装到日常DSH。目标宿主为 DSH Desktop / Host **0.2.0-rc.2**；公开标签提交 `639ed015397290b3745d163aafe02ffee4aa3f84` 与本机 Desktop 提取构建 `04f392c9ddd144fa426da2045178797da6db6c11` 分别记录。实际验收使用后者的独立 CLI profile，并按用户授权在 naizhi 日卡通道运行真实合成任务；已知失败、未知用量和多次压缩的限制见验收报告。当前远端 master 的 alpha 接口不作为兼容承诺。
+本页说明当前完整 Ultra、独立 Memory 和 Decision 共用的证据底座；包路径及组合见[附属插件](companion-plugins.md)，安装见[安装与回滚](installation.md)。本轮主验收宿主为官方 DSH **0.2.1-rc.2**，旧 **0.2.0-rc.2** 的 SDK／原生回归单列，不将声明兼容范围当作全部能力实测。OCG 结果、原生／模拟／真实模型分层及失败记录见[本轮实验](OCG-EXPERIMENTS.md)，本轮没有安装到日常环境。历史 0.5.0-rc.3／naizhi 成绩保留在[原验收报告](evidence-verification.md)，不作为当前构建成绩。
 
 ## 使用
 
 仍使用原来的 Ultra 按钮和命令：关闭、Agent＋决策辅助、手动选择 2～5 路。不会根据任务自动提高并发，不会为建索引启动模型、embedding 或外部数据库。持久证据、状态、检索、路线入口与压缩机制已整合在本插件，运行不依赖另装 billion-context-dsh 等记忆插件；也不能让两个压缩管理者接管相同历史。Jev 默认仍关闭。辅助模式主 Agent 的模型、权限与执行职责保留；研究 worker 与辅助 decision 保持只读。
 
-选择 Ultra 并提交任务后，宿主在有绝对项目 cwd、持久日志读取和 checkpoint 能力时自动建立证据运行。没有这些能力会显示不可用并保留原有执行路径。关闭模式不会自动创建证据运行。证据工具在插件注册，但无项目／会话绑定的调用在执行器内被拒绝；工具名本身不赋予访问权限。
+已启用的证据权威在有绝对项目 cwd、持久日志读取和 checkpoint 能力时建立证据运行；独立 Memory 可用于普通主 Agent，不必开启 Ultra 多路线。缺少能力时显示不可用；已有活动归档则停止后续请求，不能绕过恢复要求。证据工具在插件注册，但无项目／会话绑定的调用在执行器内被拒绝；工具名本身不赋予访问权限。
 
 模型可使用：
 
@@ -29,6 +29,7 @@ worker 的宿主进展和最终报告附带证据 ID。decision 能自行检索�
 .dsh-ultra/v1/
   records/                 # 校验封装的来源、语义和项目状态版本
   owners/                  # 根会话与路线归属、增量扫描游标
+  archives/arc_<hash>.json  # 可选旧阶段归档清单；公开原文仍在宿主日志
   ledger/<run-hash>/       # 每次请求观察与结算用量，独立原子记录
   exports/<root-hash>/
     index.md               # 目录、状态、来源、语义索引
@@ -56,6 +57,8 @@ worker 的宿主进展和最终报告附带证据 ID。decision 能自行检索�
 
 `ultra_memory_get({id:"src_…",quote:"连续原文",maxChars:12000})` 在 ACL 与原文校验后返回 `citation`，包含 sourceId、quote、字符 start/end、SHA256 和可选 origin。sourceId 是证据定位，origin.resourceId 是实际工具调用参数请求的资源 ID；它不证明第三方重定向后的规范名称。正文内部 A-/B-标签不能据此当作 vendor-a/vendor-b 等实际工具参数中的公共资源 ID。quote 必须属于所选范围，预算不足明确拒绝，不剪短已验证引文。语义条目／状态不是原文引文。校验说明出处与字节一致，不证明内容事实正确或增加授权。
 
+长 JSONL 的整行核验要区分分块和原文范围：search 的 `start/end` 是来源中的分块范围，`chunk_` 的 get 只在所选分块／相邻范围内读；全来源偏移应配返回的真实 `src_` ID 使用。跨分块的整行先按 `src_` 分页读完整，再提交逐字 quote。`maxChars` 限制整个返回 JSON，含 text、citation 和重复引文，不是可返回引文的净长度；预算不足应提高到配置允许值或拆分读取，不能删掉验收必需字段后冒充整行。`nextOffset` 是续页入口，不代表目标事实已经找到。第11阶段实际误用和守卫拒绝见[实验记录](OCG-EXPERIMENTS.md)，不将工具拒绝掩盖为零返工。
+
 原文检索在完整 ACL 之后，将该来源的 origin.resourceId／工具 metadata 与正文词项联合匹配，使真实公共资源 ID 可定位后部分块；多关键词摘录定位实际正文命中，不因关键词分散而退回块首。它不跨来源拼授权，也不从正文别名推断资源身份。该修复有4项红→绿回归，旧索引无需迁移。
 
 origin 为 v1 的可选兼容字段。新 tool/call 的关联持久化后，即使 call 与 result 间重启也按已授权同会话 callId 恢复；旧记录缺少 origin 时不猜别名，仍可按 sourceId 读回原文。
@@ -64,7 +67,7 @@ origin 为 v1 的可选兼容字段。新 tool/call 的关联持久化后，即�
 
 常规文本 seed 为空，避免把全部共享历史复制到每路；富媒体／来源分类不明的历史采用可重放的保守历史回退。当前任务附件仍随各路 task content 交付。精确约束本身超过目标时保留约束并报告超额，不静默丢弃。
 
-`contextTargetTokens: 30000` 是单 Agent 工作请求的**软目标**，不是总任务成本承诺。实际观察请求将 system、完整 tools、messages（包括检索工具返回）计入，另留输出和工具交互空间。估算使用 UTF-8 启发式并标明 estimated；provider usage 为另一套实测值。真实模型 tokenizer、隐藏协议开销及多模态费用可能不同。本轮全部273条已知用量请求中，174条仅按已回报的输入与缓存分项相加，下界就已超过30K（含原版对照请求，不能全部归因于候选压缩）。152条有装配估算的请求中148条超预算。它们是不同口径，均说明不能把30K当作实际封顶。
+`contextTargetTokens: 30000` 是单 Agent 工作请求的**软目标**，不是总任务成本承诺。完整 system、tools、messages（包括检索返回）和输出／工具预留均计入。实际请求预算结合本地估算与原生 usage 锚定后的保守压力，并将估算与 provider 实测分开；缓存必须计入上下文，reasoning 作为输出子集不重复加总。真实 tokenizer、隐藏协议及多模态费用可能不同。历史 rc.3 的273条已知用量中174条仅输入／缓存下界就超30K，152条装配估算中148条超软目标；这些历史口径不作为当前组成绩，均不能被解释为30K硬封顶。
 
 `contextCompression` 默认 false，以免与用户当前原生压缩器争夺同一历史。启用前在**测试 profile** 中核对 native `compaction` 服务已停用，且 native `tokenMeter.estimateMessage` 可用；否则明确拒绝本插件压缩。不能同时开启 billion-context-dsh 或其他同上下文压缩引擎。此安全前置不会新增模型调用。
 
@@ -72,15 +75,40 @@ origin 为 v1 的可选兼容字段。新 tool/call 的关联持久化后，即�
 
 前置校验／checkpoint 失败不替换。提交后的读取或持久化失败会通过相邻的原生补偿事件恢复完整工具原文，不删除宿主审计日志；恢复后的 checkpoint 是否成功单独报告。若当前节点已被其他所有者改动而无法安全恢复，则停止后续请求，不宣称原上下文未变。取消和并发变更同样停止。私有流、分支 seed 及工具重放语义不通过改系统提示词来模拟。大量助手文本或用户硬约束仍可能使上下文超过 30K；本版不宣称绝对无损或压缩所有内容。
 
+### 已完成阶段归档
+
+`contextArchiveCompletedTurns:false` 保留原行为。显式启用后先运行既有工具正文替换，再尝试归档完整结束且调用／结果配对平衡的旧阶段；当前／近期阶段、宿主指令、富媒体及全局知识等保护区域不归档。必要用户原文、控制文字和公开 assistant 文字逐字保留；旧工具参数及正文通过原生日志定位按需读回。短结果不会因此普遍进入普通正文 pruner。
+
+```mermaid
+flowchart LR
+  A[宿主原始事件] --> B[增量证据与 SHA 核验]
+  B --> C[原生 checkpoint 与 sealed 清单]
+  C --> D[本地 start → summary → user replace → end]
+  D --> E[精简公开胶囊与 arc_ 入口]
+  E --> F[按当前 ACL 分页读回原始公开事件]
+  F --> A
+```
+
+该 summary 使用固定本地 `dsh-ultra-local / completed-turn-archive-v1` 模板，不发起摘要模型请求，不附虚构 usage，也不对同一跨度额外写 prune 双重计价。模型与工具定义仍由 DSH 提供。重复归档展开既有清单，不递归套摘要；私有 reasoning 不进入胶囊、索引、读回或 UI。
+
+`archives/` 是元数据恢复清单，原文唯一权威仍是宿主持久日志。清单记录项目／会话／事件、公开投影 SHA、长度、调用身份及已有来源 ID；不进入语义事实、MD 或知识发布。`ultra_memory_get({id:"arc_…",offset:0,maxChars:12000})` 校验当前项目与会话权限，并在读取后复查，返回预算包含 JSON 元数据。`verification: returned-events` 只证明本页原始公开事件匹配，`manifestSha256` 是清单校验，不能冒充全档原文 SHA。事实引用继续使用原始 `src_`／`chunk_` 的 get／quote。
+
+提交前失败不替换；跨角色替换已提交后的持久化失败记录为 `committed/persistenceUncertain`，停止后续模型／业务调用，先修复或核验恢复入口，不能声称已经精确回滚。关闭创建开关后，已有活动 `arc_` 仍需当前证据权威、授权的 `ultra_memory_get` 和至少1,024字符预算。冷开或请求边界遇到缺失／损坏清单、无权限读取器或服务初始化失败时同样停止。正常重启与部分写入故障的离线结果不能证明突然断电的目录持久性。
+
+500K总窗口、420K含预留触发、压后含10,240预留≤130K属于本轮独立验收，不改变产品默认值，也不是所有项目的保证。配置、唯一 compactor 与迁移见[完整示例](installation.md#完整旧阶段归档与-130k-验收配置)；实际30轮、额外深读回、失败及压缩耗时按[实验记录](OCG-EXPERIMENTS.md)分别报告。
+
 ## 配置
 
 完整示例见 [evidence-config.example.yml](evidence-config.example.yml)。现有 profile 中保持 bundle id，合并配置，不覆盖其他 bundle。新增项目为：
 
 | 字段 | 默认 | 含义 |
 | --- | --- | --- |
-| evidenceEnabled | true | Ultra 运行时本地证据；false 关闭整个新子系统 |
+| evidenceEnabled | true | 活动权威的本地证据；已有归档仍须保留读取服务，关闭会阻止续作 |
 | memorySearchChars / memoryGetChars | 6000 / 12000 | 完整序列化检索结果预算，另有分页 |
 | contextTargetTokens | 30000 | 每 Agent 软目标 |
+| contextTriggerTokens | 省略 | 触发包络，省略时等于 target；须 ≥ target |
+| contextRetainRecentMessages | 8 | 近期保留窗口，可配置 2～128 |
+| contextArchiveCompletedTurns | false | 完整旧阶段归档，官方0.2.1-rc.2为本轮实机目标 |
 | contextOutputReserveTokens / contextToolReserveTokens | 4096 / 2048 | 输出和后续工具空间 |
 | contextCompression | false | 只在核对唯一压缩管理者后开启 |
 | memoryMaxRequests / memoryMaxTokens | 0 / 0 | 0 不设新增上限；token 限制按实测＋在途保守估算准入，非精确计费承诺 |
@@ -93,13 +121,15 @@ origin 为 v1 的可选兼容字段。新 tool/call 的关联持久化后，即�
 
 ## 迁移与回滚
 
-1. 保留旧包、profile和宿主原始日志，核对本版Release的TGZ与同批SHA256SUMS，先在单独测试profile安装；本轮验收没有安装到日常环境。旧0.4.0-rc.3包可用于完整回滚。
+1. 保留旧包、profile、宿主原始日志与项目证据／归档清单，核对Release TGZ与同批SHA256SUMS，先在单独测试profile安装；本轮验收没有安装到日常环境。
 2. 无破坏性日志迁移：初次只读扫描当前被授权根会话，建立 v1 索引。跨根会话即使 cwd 相同也不自动共享，需要宿主显式建立 lineage／另行授权能力，本版没有开放任意 grant 工具。
-3. 临时回滚设置 `evidenceEnabled:false`、`contextCompression:false`，重启测试 profile；原始关闭／辅助／2～5 路执行继续工作。完全回滚用旧包和旧 profile。已生成的 Markdown／索引不删除。
+3. 没有活动归档的会话可设置 `evidenceEnabled:false`、`contextCompression:false` 并重启测试 profile。已有 `arc_` 必须保留兼容读取器、完整宿主日志、归档清单与业务状态；不理解它的旧版不能直接续作，需另开兼容会话迁移。关闭创建不会撤销已提交历史，禁止删除清单或重放已完成业务来“回滚”。
 4. 已存在的原生 prune 事件继续由 rc.2 核心识别，卸载插件不需要其自定义 projection 才能重放。原工具全文仍在 append-only 原始日志。重建新索引可以取回它。
 5. 若要移走索引，先关闭／退出相关宿主并备份整个 `.dsh-ultra`，再由用户选择移走该明确目录。不要在运行中删除权威 records，也不要编辑 MD 来“修复”权威数据。宿主源日志缺失时，host 引用会诚实不可用。
 
 ## 验证范围和后续
+
+当前分层验证、30轮要求与失败恢复以[OCG实验](OCG-EXPERIMENTS.md)为准。以下全部数值是 **0.5.0-rc.3 历史成绩**，不归到当前三包。
 
 当前结果见 [证据验收](evidence-verification.md) 与 [公开档案](../verification/0.5.0-rc.3/README.md)。单元／模拟／真实rc.2 SDK主套件300项中299通过、0失败、1项Windows目录链接环境跳过；独立profile的真实CLI Loader、AgentLoop、工具执行、JSONL、原生prune、取消与冷恢复有机械证据，脚本模型不能替代真实质量验收。
 

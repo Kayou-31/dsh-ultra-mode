@@ -11,6 +11,53 @@ import { fixtureId, fixtures, manifest, expected, prompts, outputInstructions, j
 
 export const name = 'ultra-real-model-driver'
 export const inject = ['agents', 'agentLoop', 'tools', 'llm', 'sessions', 'sessionPersistence', 'systemPrompt', 'agentPresets', 'commands', 'tokenMeter']
+const phaseRequestDefaults = { s0: 2, s1: 18, 's1-recover': 12, 'compare-common': 18, baseline: 18, s2: 40, 's2-resume': 24, 'baseline-long': 40, 'baseline-long-resume': 24, 'long-repair': 8, 'baseline-long-repair': 8 }
+const boundedInteger = (value, min, max, name) => {
+  assert.ok(Number.isSafeInteger(value) && value >= min && value <= max, `${name} must be an integer from ${min} to ${max}`)
+  return value
+}
+
+/** Immutable deployment/phase limits. The actual gate remains the dispatch authority. */
+export function freezeAcceptanceConfig(config, gate, mode) {
+  const streamConcurrency = boundedInteger(gate?.concurrency, 1, 32, 'Global gate concurrency')
+  if (config.streamConcurrency !== undefined) {
+    boundedInteger(config.streamConcurrency, 1, 32, 'Explicit stream concurrency')
+    assert.equal(config.streamConcurrency, streamConcurrency, 'Explicit stream concurrency differs from the actual global gate')
+  }
+  const globalMaxRequests = boundedInteger(gate.maxRequests, 1, 1000, 'Global gate request budget')
+  const phaseMaxRequests = boundedInteger(config.maxRequests ?? phaseRequestDefaults[mode] ?? 2, 1, 1000, 'Phase request budget')
+  assert.ok(phaseMaxRequests <= globalMaxRequests, 'Phase request budget cannot exceed the global gate request budget')
+  return Object.freeze({ streamConcurrency, phaseMaxRequests, globalMaxRequests,
+    workerCount: boundedInteger(config.workerCount ?? 2, 2, 5, 'Manual worker count') })
+}
+
+export function assertFinalAcceptanceGate(snapshot, gate) {
+  assert.equal(gate.concurrency, snapshot.streamConcurrency, 'Global gate concurrency changed during the frozen attempt')
+  assert.equal(gate.maxRequests, snapshot.globalMaxRequests, 'Global gate request budget changed during the frozen attempt')
+  boundedInteger(gate.activePeak, 0, snapshot.streamConcurrency, 'Global gate concurrency peak')
+  assert.equal(gate.active, 0, 'Global gate still has active streams after native cleanup')
+}
+
+/** Native request-visible host notices identify roles; request arrival order does not. */
+export function inspectManualTopology({ rootId, workerCount, notices, requests, reportSubmissions, requireReportSubmission }) {
+  boundedInteger(workerCount, 2, 5, 'Manual worker count')
+  const distinct = [...new Map(notices.map(notice => [JSON.stringify([notice.runId, notice.decisionId, notice.routeIds]), notice])).values()]
+  assert.equal(distinct.length, 1, 'Exactly one native Ultra run notice is required')
+  const { runId, decisionId, routeIds } = distinct[0]
+  assert.ok(typeof runId === 'string' && runId && typeof decisionId === 'string' && decisionId && decisionId !== rootId, 'Native run notice requires a distinct decision identity')
+  assert.ok(Array.isArray(routeIds) && routeIds.length === workerCount && new Set(routeIds).size === workerCount
+    && routeIds.every(id => typeof id === 'string' && id && id !== rootId && id !== decisionId), 'Native notice must identify every distinct manual worker')
+  const internalSessions = [...new Set(requests.filter(request => request.sessionId !== rootId).map(request => request.sessionId))]
+  const expected = new Set([...routeIds, decisionId])
+  assert.ok(internalSessions.length === workerCount + 1 && internalSessions.every(id => expected.has(id)), 'Native internal sessions differ from the workers and decision in the run notice')
+  const acceptedReports = reportSubmissions.filter(report => !report.isError && report.concludesTurn)
+  const accepted = new Set(acceptedReports.map(report => report.sessionId))
+  assert.equal(accepted.size, acceptedReports.length, 'Each native worker can submit only one accepted concluding report')
+  assert.ok([...accepted].every(id => routeIds.includes(id)), 'Accepted report belongs to a non-worker session')
+  if (requireReportSubmission) assert.ok(accepted.size === workerCount, 'Every native worker must submit an accepted concluding report')
+  return { runId, decisionId, workerIds: [...routeIds], internalSessions, acceptedWorkerReports: accepted.size }
+}
+
 export function stressLoadIds(config = {}) {
   const count = config.variant === 'drift-diverse' ? config.stressLoadCount ?? 8 : 8
   assert.ok(Number.isSafeInteger(count) && count >= 1 && count <= 20, 'stressLoadCount must be an integer from 1 to 20')
@@ -86,8 +133,9 @@ export function validateReadbackRecovery({result,sessionId,completedTurns,lastEn
 
 /** Preserve the existing prompts byte-for-byte unless final recovery is explicitly enabled. */
 export function prepareTurnPrompt(prompt, config, mode) {
-  const isInitial=prompt===prompts.longInitial, isFinal=prompt===prompts.longFinal || config.driftFinalRecovery===true || config.driftReadbackRecovery===true
+  const isInitial=prompt===prompts.longInitial, isFinal=prompt===prompts.longFinal || prompt===longRepairPrompt || config.driftFinalRecovery===true || config.driftReadbackRecovery===true
   if(config.requireVerifiedCitations && (mode==='s1' || isFinal)) prompt+='\n最终交付前，用 ultra_memory_search 的 kind="tool/result" 找到双方冲突原文，再用 ultra_memory_get(id=真实sourceId, quote=已读连续原文)分别取得已验证citation。公共资料id要复制citation.origin.resourceId，sourceId要复制citation.sourceId；正文内部的A/B编号不是外层资料id。没有origin时可定点fixture_read重新核对，不猜ID。所有quote直接逐字复制，最终只输出JSON对象。'
+  if(config.requireVerifiedCitations && (mode==='s1' || isFinal)) prompt+='\n附加验收：即使payload-alpha和payload-beta已能证明冲突，也必须分别以kind="tool/result"检索vendor-a、vendor-b，并对这两份已读原文各调用get的quote取得resourceId回执。此要求核验指定来源的独立读取，不能以其他真实来源替代；缺少任一回执就保留该验收缺口。'
   if(config.driftStress){
     if(isInitial)prompt+='\n这是多次压缩偏移测试，后续会增加压力轮次：当前初始决定ID='+driftExpected.v1+'，以后只按新的用户更新替代。早期batch/checksum的具体值不得在公开进展、摘要或后续短报告中复述；只报告读取状态与来源ID，最后从归档取回。'
     else if(isFinal)prompt+='\n原始alpha/beta只允许通过 ultra_memory_search/get 读取归档；新的负载文件不是目标来源。额外输出 activeDecisionId 和 decisionHistory[{id,status}]，从此前一次性用户更新恢复最新与已替代版本，不在本提示重复答案。另有独立验收：即使alpha/beta已能证明冲突，也必须分别以kind=tool/result检索vendor-a、vendor-b，并对这两份已读原文各调用get的quote取得resourceId回执。缺哪份回执就说明该附加验收未完成，不以其他源替代。'
@@ -150,7 +198,8 @@ async function run(ctx, config) {
   const requestedMode = String(config.mode ?? 's0').toLowerCase()
   const mode = ({ smoke: 's0', ultra: 's1', long: 's2', resume: 's2-resume' })[requestedMode] ?? requestedMode
   const longRepair = ['long-repair', 'baseline-long-repair'].includes(mode)
-  const longContinue = mode==='continue-long'
+  const readCompletedContinue = mode === 'continue-read-completed-long'
+  const longContinue = mode==='continue-long' || readCompletedContinue
   const baselineLong = ['baseline-long', 'baseline-long-resume', 'baseline-long-repair'].includes(mode)
   const longRun = ['s2', 's2-resume', 'baseline-long', 'baseline-long-resume', 'cancel-mid'].includes(mode) || longRepair || longContinue
   const longResume = ['s2-resume', 'baseline-long-resume'].includes(mode) || longRepair
@@ -163,18 +212,19 @@ async function run(ctx, config) {
   const [{ createUserMessage }, { defineTool }] = await Promise.all([sdk('dsh-llm'), sdk('dsh-tools')])
   const started = Date.now(), handles = [], disposers = []
   const result = { status: 'running', mode, fixtureId, startedAt: new Date(started).toISOString(), provider: config.provider, model: config.model,
-    host: 'actual rc.2 Loader, native AgentLoop, native JSONL; real model provider', requests: [], toolCalls: [], memoryCalls: [], reportSubmissions: [], executeAttempts: [], checks: [], usage: [], publicAnswers: [], privateReasoningExported: false }
+    host: 'actual rc.2 Loader, native AgentLoop, native JSONL; real model provider', requests: [], routeNotices: [], toolCalls: [], memoryCalls: [], reportSubmissions: [], executeAttempts: [], checks: [], usage: [], publicAnswers: [], privateReasoningExported: false }
   const gate = ctx.get('ultraAcceptanceModelGate')
   assert.ok(typeof gate?.snapshot === 'function', 'Required deployment-wide model concurrency gate is unavailable')
   const initialGate = gate.snapshot()
-  assert.ok(initialGate.concurrency >= 1 && initialGate.concurrency <= 2 && Number.isSafeInteger(initialGate.maxRequests) && initialGate.maxRequests <= 60, 'Global model gate must enforce concurrency<=2 and requests<=60')
+  const acceptanceConfig = freezeAcceptanceConfig(config, initialGate, mode)
+  result.acceptanceConfig = acceptanceConfig
   assert.equal(initialGate.allowedProvider, config.provider, 'Global gate provider differs from confirmed route')
   assert.equal(initialGate.allowedModel, config.model, 'Global gate model differs from confirmed route')
   result.globalGate = { initial: initialGate }
   const check = (name, passed, details = {}) => { result.checks.push({ name, passed: !!passed, details }); assert.ok(passed, name) }
   const writeResult = async () => { await fs.mkdir(path.dirname(config.resultFile), { recursive: true }); await fs.writeFile(config.resultFile, JSON.stringify(result, null, 2)) }
   const publicText = events => events.filter(event => event.type === 'assistant/message').flatMap(event => event.data.message.content.filter(block => block.type === 'text').map(block => block.text)).join('\n')
-  const phaseRequests = config.maxRequests ?? ({ s0: 2, s1: 18, 's1-recover': 12, 'compare-common': 18, baseline: 18, s2: 40, 's2-resume': 24, 'baseline-long': 40, 'baseline-long-resume': 24, 'long-repair': 8, 'baseline-long-repair': 8 }[mode] ?? 2)
+  const phaseRequests = acceptanceConfig.phaseMaxRequests
   if(config.driftFinalRecovery) assert.ok(mode==='long-repair'&&config.driftStress&&Number.isSafeInteger(phaseRequests)&&phaseRequests>=1&&phaseRequests<=8, 'Drift final recovery requires its exact repair mode and a maximum of eight model calls')
   if(config.driftReadbackRecovery)assert.ok(mode==='long-repair'&&config.variant==='drift-diverse'&&config.driftStress&&!config.driftFinalRecovery&&phaseRequests<=8&&config.priorFinalFailureFile&&config.priorFinalFailureSha256,'Readback repair requires its explicit bounded failure receipt')
   const stopAfterMs = config.timeoutMs ?? ({ s0: 90_000, s1: 360_000, s2: 720_000, 's2-resume': 480_000, 'long-repair': 300_000, 'baseline-long-repair': 300_000 }[mode] ?? 90_000)
@@ -183,7 +233,7 @@ async function run(ctx, config) {
   const minRequestIntervalMs=config.minRequestIntervalMs??0, pacer=createRequestPacer(minRequestIntervalMs)
   if(minRequestIntervalMs)result.requestPacing={minRequestIntervalMs,meaning:'Conservative local stream-dispatch start spacing; not a provider RPM claim. Local cancelled streams can leave unknown upstream occupancy.',unknownUpstreamOccupancyAfterCancellation:true}
   const sessionId = config.sessionId ?? 'real-model-' + mode + '-' + Date.now()
-  let receiptCalls = 0, previousExecuteAttempts = 0, sentinelBodyCalls = 0, manualMemory, observedRootId
+  let receiptCalls = 0, previousExecuteAttempts = 0, sentinelBodyCalls = 0, manualMemory, observedRootId, recoveringReadRound = false, recoveryRequests = 0
   if(config.driftStress) disposers.push(ctx.on('agent/pre-step',async(payload,next)=>{
     if(payload.agent.id!==observedRootId)return next()
     const start=Date.now(),before=payload.agent.session.surface.replaceGeneration
@@ -194,6 +244,7 @@ async function run(ctx, config) {
   disposers.push(ctx.on('llm/stream', async function * (options, next) {
     assert.equal(options.provider, config.provider, 'Unexpected model provider route')
     assert.equal(options.model, config.model, 'Unexpected model route')
+    if (recoveringReadRound) { assert.ok(recoveryRequests < 8, 'Already-read recovery is limited to eight model requests'); recoveryRequests++ }
     assert.ok(result.requests.length < phaseRequests, 'Real model phase request budget exhausted')
     assert.ok(Date.now() - started < stopAfterMs, 'Real model phase wall-clock budget exhausted')
     const row = { sequence: result.requests.length + 1, sessionId: options.sessionId ?? null, provider: options.provider, model: options.model,
@@ -202,6 +253,15 @@ async function run(ctx, config) {
     if(config.driftStress){const{estimateRequestBudget}=await import(pathToFileURL(path.join(config.ultraRoot,'lib/context-memory.js')).href);row.estimatedRequestBudget=estimateRequestBudget({system:options.system,messages:options.messages,tools:options.tools,targetTokens:30000,outputReserveTokens:Math.max(16384,options.maxTokens??0),toolReserveTokens:2048})}
     const toolText = (options.messages ?? []).filter(message => message.role === 'tool').flatMap(message => (message.content ?? []).filter(block => block.type === 'text').map(block => block.text)).join('\n')
     row.requestVisibleFacts = { batch: toolText.includes(expected.batch), checksum: toolText.includes(expected.checksum), left: toolText.includes(expected.left), right: toolText.includes(expected.right) }
+    for (const message of options.messages ?? []) {
+      const source = message.source
+      if (source?.kind === 'ultra-mode' && source.form === 'notice' && source.runId && source.decisionId && source.routeIds?.length) {
+        const notice = { runId: source.runId, decisionId: source.decisionId, routeIds: [...source.routeIds] }
+        if (!result.routeNotices.some(previous => previous.sessionId === options.sessionId && JSON.stringify(previous.notice) === JSON.stringify(notice))) {
+          result.routeNotices.push({ sessionId: options.sessionId, requestSequence: row.sequence, notice })
+        }
+      }
+    }
     if(minRequestIntervalMs) {
       const waitingSince=Date.now()
       row.startedAt=await pacer.wait(options.signal)
@@ -240,6 +300,8 @@ async function run(ctx, config) {
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       if (!availableIds.includes(args.id)) throw new Error('Unknown or out-of-phase public fixture ID')
+      if (readCompletedContinue && (recoveringReadRound || /^load-[0-5]$/u.test(args.id)
+        || /^load-\d+$/u.test(args.id) && result.toolCalls.some(call => call.name === 'fixture_read' && call.id === args.id))) throw new Error('This synthetic read was already completed; recovery may not read it again')
       if(config.requireArchivedReadback&&['payload-alpha','payload-beta'].includes(args.id)&&(longResume||longContinue||result.toolCalls.some(call=>call.id===args.id)))throw new Error('Early original is now archive-only; use ultra_memory_search/get, not a fresh fixture read')
       const offset = args.offset ?? 0, maxChars = args.maxChars ?? fixtures[args.id].length
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(maxChars) || maxChars < 1 || maxChars > Math.max(200_000, fixtures[args.id].length)) throw new Error('Invalid fixture slice')
@@ -385,12 +447,14 @@ async function run(ctx, config) {
       result.native=nativeSummary(root.agent)
     } else if (['s1', 'baseline', 'compare-common'].includes(mode)) {
       const root = await createRoot()
-      await command(root.agent, '/ultra 2')
+      await command(root.agent, '/ultra ' + acceptanceConfig.workerCount)
       const answer = await turn(root.agent, mode === 's1' ? prompts.s1 : prompts.common)
       result.grade = judgeFinal(answer.text)
       for (const row of result.grade.checks) result.checks.push(row)
-      const childSessions = [...new Set(result.requests.filter(request => request.sessionId !== root.agent.id).map(request => request.sessionId))]
-      check('manual Ultra two-route mode created native internal agents', childSessions.length === 3, { internalSessions: childSessions })
+      result.manualTopology = inspectManualTopology({ rootId: root.agent.id, workerCount: acceptanceConfig.workerCount,
+        notices: result.routeNotices.filter(row => row.sessionId === root.agent.id).map(row => row.notice), requests: result.requests,
+        reportSubmissions: result.reportSubmissions, requireReportSubmission: config.requireReportSubmission })
+      check('manual Ultra selected worker count created the exact native worker and decision identities', true, result.manualTopology)
       check('no completed-operation execution attempted', result.executeAttempts.length === 0 && sentinelBodyCalls === 0, { attempts: result.executeAttempts.length, sentinelBodyCalls, receiptReads: receiptCalls })
       check('tail facts were actually request-visible from tool material', result.requests.some(request => request.requestVisibleFacts.batch && request.requestVisibleFacts.checksum), {})
       check('both conflicting sources were actually request-visible', result.requests.some(request => request.requestVisibleFacts.left) && result.requests.some(request => request.requestVisibleFacts.right), {})
@@ -401,11 +465,11 @@ async function run(ctx, config) {
       }
       check('deterministic real model quality checks passed', result.grade.passed, { checks: result.grade.checks })
       if(config.requireVerifiedCitations) {
-        const decisionId=result.requests.find(request=>request.sessionId!==root.agent.id)?.sessionId
+        const decisionId=result.manualTopology.decisionId
         check('decision independently retrieves raw evidence',result.memoryCalls.some(call=>call.sessionId===decisionId&&call.name==='ultra_memory_search'&&!call.isError)&&result.memoryCalls.some(call=>call.sessionId===decisionId&&call.name==='ultra_memory_get'&&!call.isError&&call.facts.batch&&call.facts.checksum),{decisionId})
         check('both conflict references verified by decision through host quote service', ['vendor-a','vendor-b'].every(id=>result.memoryCalls.some(call=>call.sessionId===decisionId&&call.citation?.origin?.resourceId===id && call.citation?.sourceId===call.sourceIds?.[0])), { citations: result.memoryCalls.filter(call=>call.sessionId===decisionId&&call.citation).map(call=>call.citation) })
       }
-      if(config.requireReportSubmission) check('both native workers conclude with accepted report tools',new Set(result.reportSubmissions.filter(r=>!r.isError&&r.concludesTurn).map(r=>r.sessionId)).size===2,{submissions:result.reportSubmissions})
+      if(config.requireReportSubmission) check('all selected native workers conclude with accepted report tools',result.manualTopology.acceptedWorkerReports===acceptanceConfig.workerCount,{submissions:result.reportSubmissions,workerCount:acceptanceConfig.workerCount})
       const receipt = { fixtureId, sessionId: root.agent.id, projectDir: config.projectDir, provider: config.provider, model: config.model, presetId, completedAt: new Date().toISOString(), grade: result.grade }
       await fs.writeFile(config.stateFile ?? path.join(config.projectDir, 'model-state.json'), JSON.stringify(receipt, null, 2))
     } else if (longRepair) {
@@ -473,7 +537,22 @@ async function run(ctx, config) {
       } finally { if (memory) await memory.dispose() }
     } else if (longRun) {
       let root, prior
-      if(longContinue) {
+      if (readCompletedContinue) {
+        assert.ok(config.variant === 'drift-diverse' && config.driftStress && config.manualMemory && config.partialStateFile && config.stressCycles === 20, 'Read-completed continuation is restricted to the exact synthetic diverse read fixture')
+        await checkManifest()
+        const recovery = await import('./read-completed-recovery.mjs')
+        prior = JSON.parse(await fs.readFile(config.partialStateFile, 'utf8'))
+        await recovery.verifyReadCompletedRecoveryFiles(prior)
+        assert.deepEqual(prior.manifest, manifest)
+        assert.deepEqual(prior.remainingLoadIds, stressLoadIds(config).slice(6))
+        previousExecuteAttempts = prior.executeAttempts
+        assert.equal(previousExecuteAttempts, 0)
+        root = await resumeRoot(prior)
+        recovery.assertResumedReadCompletedBoundary(prior, root.agent.session.snapshotEvents(), { manifest, trustedRoute: { provider: config.provider, model: config.model } })
+        result.partialContinuation = { sourceFiles: prior.sourceFiles, sameSession: true, priorCompletedRounds: 8, nextStressCycle: 6, remainingLoadIds: prior.remainingLoadIds,
+          priorFailedTurn: { seq: prior.priorFailure.seq, kind: 'error', code: prior.priorFailure.code }, alreadyReadFailedRound: prior.failedRead, readCompletedRecovery: true,
+          earlierRoundsRepeated: false, decisionUpdatesRepeated: false, originalResultOverwritten: false, reworkCount: 1 }
+      } else if(longContinue) {
         assert.ok(config.variant==='drift-diverse'&&config.partialStateFile&&config.stressCycles===20&&minRequestIntervalMs>=30000,'continue-long requires the exact diverse partial receipt and paced twenty-load setup')
         await checkManifest()
         prior=JSON.parse(await fs.readFile(config.partialStateFile,'utf8'))
@@ -501,6 +580,19 @@ async function run(ctx, config) {
       } else root = await createRoot()
       await command(root.agent, config.manualMemory?'/ultra off':'/ultra assist')
       if(config.manualMemory){const{beginMemoryRun}=await import(pathToFileURL(path.join(config.ultraRoot,'lib/memory-host.js')).href);manualMemory=await beginMemoryRun(root.agent,'real-compression-drift-'+Date.now());assert.ok(manualMemory)}
+      if (readCompletedContinue) {
+        const { readCompletedRecoveryPrompt } = await import('./read-completed-recovery.mjs'), before = root.agent.session.seq
+        recoveringReadRound = true
+        try { await turn(root.agent, readCompletedRecoveryPrompt(prior)) } finally { recoveringReadRound = false }
+        const events = root.agent.session.snapshotEvents(), added = events.filter(event => event.seq > before)
+        check('already-read recovery appends only missing progress without repeating any fixture read', !added.some(event => event.type === 'tool/call' && event.data.name === 'fixture_read')
+          && added.filter(event => event.type === 'user/message' && (event.data.message ?? event.data).source?.kind === 'user').length === 1
+          && added.filter(event => event.type === 'turn/end' && event.data.reason.kind === 'completed').length === 1
+          && events.some(event => event.seq === prior.priorFailure.seq && event.type === 'turn/end' && event.data.reason.kind === 'error'), { recoveryRequests, nativeCompletedAdded: 1, originalErrorPreserved: true })
+        result.partialContinuation.recovery = { nativeTurn: added.findLast(event => event.type === 'turn/end').data.turn, modelRequests: recoveryRequests, nativeCompletedAdded: 1, fixtureReadsAdded: 0,
+          logicalRound: 9, meaning: 'One new native followup completes the missing progress of the already-read failed logical round; the original transport failure remains a failure.' }
+        result.native = nativeSummary(root.agent); await writeResult()
+      }
       const selected = longContinue ? [] : !longResume ? [prompts.longInitial, prompts.longSecond, prompts.longThird] : [prompts.longFourth, prompts.longFifth, prompts.longFinal]
       result.armConditions = { baseline: baselineLong, sameFrozenInputsAndPrompts: !config.driftStress, localCompressionExpected: !baselineLong,
         ...(config.driftStress?{scenario:config.variant==='drift-diverse'?'New 26-turn diverse drift stress plus one cancelled turn; not an original-versus-candidate A/B':'New 14-turn drift stress; not an original-versus-candidate A/B',manualMemory:true,auxiliaryModelEnabled:false}:{}),
@@ -533,7 +625,7 @@ async function run(ctx, config) {
           result.partialContinuation.priorFailurePreserved=failedTurnMetadata(root.agent.session.snapshotEvents()).some(event=>event.seq===result.partialContinuation.priorFailedTurn.seq&&event.code===result.partialContinuation.priorFailedTurn.code)
           result.partialContinuation.addedCompletedRounds=completedRounds-prior.completedRounds
           result.partialContinuation.nativeFullReadReceipts=cumulativeReads
-          check('partial continuation adds only unfinished load rounds and retains the rate failure',result.partialContinuation.priorFailurePreserved&&result.publicAnswers.length===20-prior.nextStressCycle&&result.partialContinuation.addedCompletedRounds===result.publicAnswers.length&&result.toolCalls.filter(call=>call.name==='fixture_read'&&call.id.startsWith('load-')).every(call=>prior.remainingLoadIds.includes(call.id)),{addedCompletedRounds:result.partialContinuation.addedCompletedRounds,priorFailedTurn:result.partialContinuation.priorFailedTurn})
+          check('partial continuation adds only unfinished load rounds and retains the rate failure',result.partialContinuation.priorFailurePreserved&&result.publicAnswers.length===20-prior.nextStressCycle+(readCompletedContinue?1:0)&&result.partialContinuation.addedCompletedRounds===result.publicAnswers.length&&result.toolCalls.filter(call=>call.name==='fixture_read'&&call.id.startsWith('load-')).every(call=>prior.remainingLoadIds.includes(call.id)),{addedCompletedRounds:result.partialContinuation.addedCompletedRounds,priorFailedTurn:result.partialContinuation.priorFailedTurn})
         }
         check('main received both genuine large tool results', ['payload-alpha', 'payload-beta'].every(id => cumulativeReads.some(call => call.id === id && call.sessionId === root.agent.id && call.chars >= 160_000)), { largeReads: cumulativeReads.filter(call => call.chars >= 160_000) })
         result.stage = `${completedRounds} real rounds completed; cold native resume pending`
@@ -599,6 +691,6 @@ async function run(ctx, config) {
     await writeResult()
     if(minRequestIntervalMs&&!result.requestPacing.allDispatchStartsSpaced)throw new Error('Test-only minimum request start interval violated')
     if (cleanupErrors.length) throw new Error('Native real-model cleanup failed')
-    if (result.globalGate.final.activePeak > 2) throw new Error('Global model concurrency requirement violated')
+    assertFinalAcceptanceGate(acceptanceConfig, result.globalGate.final)
   }
 }

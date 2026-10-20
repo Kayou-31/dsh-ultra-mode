@@ -21,6 +21,24 @@ const options = (sessionId, signal) => Object.freeze({ provider: 'offline-unit-r
 const consume = async iterator => { const chunks = []; for await (const chunk of iterator) chunks.push(chunk); return chunks }
 const finish = { type: 'finish', reason: { kind: 'stop' } }
 
+test('consumer closure after native signal cancellation is counted as cancellation with unknown zero usage', async t => {
+  const f = fixture(t), controller = new AbortController()
+  const iterator = f.gate.stream(options('active-cancel', controller.signal), async function * () {
+    yield { type: 'usage', usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 } }
+    yield finish
+  })
+  await iterator.next()
+  controller.abort(new Error('PRIVATE_CANCELLATION_NEVER_LOG'))
+  await iterator.return()
+  assert.equal(f.gate.snapshot().cancelled, 1)
+  assert.equal(f.gate.snapshot().failed, 0)
+  assert.equal(f.gate.snapshot().active, 0)
+  const terminal = f.log().trim().split('\n').map(JSON.parse).at(-1)
+  assert.equal(terminal.event, 'cancelled')
+  assert.equal(terminal.consumerFinished, false)
+  assert.ok(!f.log().includes('PRIVATE_CANCELLATION_NEVER_LOG'))
+})
+
 test('global FIFO gate limits all sessions and auxiliary streams to two without mutating frozen options', async t => {
   const f = fixture(t), admittedOrder = []
   let release, current = 0, peak = 0
@@ -95,13 +113,61 @@ test('downstream failure, terminal error and consumer return release all permits
   assert.ok(!f.log().includes('PRIVATE_OUTPUT_NEVER_LOG'))
 })
 
-test('configuration rejects expanded concurrency, unbounded budgets and logs outside the test root', t => {
+test('configuration rejects unbounded concurrency, request budgets and logs outside the test root', t => {
   const f = fixture(t)
-  assert.throws(() => createGlobalLimit({ ...f.config, concurrency: 3 }), /hard maximum/u)
-  assert.throws(() => createGlobalLimit({ ...f.config, maxRequests: Infinity }), /finite positive/u)
-  assert.throws(() => createGlobalLimit({ ...f.config, maxRequests: 0 }), /finite positive/u)
+  for (const concurrency of [0, -1, 1.5, 33, Infinity, NaN, '4']) assert.throws(() => createGlobalLimit({ ...f.config, concurrency }), /hard maximum/u)
+  for (const maxRequests of [0, -1, 1.5, 1001, Infinity, NaN, '180']) assert.throws(() => createGlobalLimit({ ...f.config, maxRequests }), /finite positive/u)
   assert.throws(() => createGlobalLimit({ ...f.config, allowedProvider: '' }), /nonempty/u)
   assert.throws(() => createGlobalLimit({ ...f.config, logFile: path.join(f.config.testRoot, '..', 'escape.jsonl') }), /below testRoot/u)
+})
+
+test('explicit concurrency admits more than two streams while retaining the configured FIFO ceiling', async t => {
+  for (const concurrency of [4, 32]) {
+    const f = fixture(t, { concurrency, maxRequests: 180 }), identifiers = Array.from({ length: concurrency + 3 }, (_, index) => 'expanded-' + index)
+    const dispatched = []
+    let release
+    const barrier = new Promise(resolve => { release = resolve })
+    const requests = identifiers.map(id => consume(f.gate.stream(options(id), async function * () { dispatched.push(id); await barrier; yield finish })))
+    await tick()
+    assert.equal(f.gate.snapshot().active, concurrency)
+    assert.equal(f.gate.snapshot().queueDepth, 3)
+    release(); await Promise.all(requests)
+    assert.deepEqual(dispatched, identifiers)
+    assert.equal(f.gate.snapshot().activePeak, concurrency)
+    assert.equal(f.gate.snapshot().completed, concurrency + 3)
+    assert.equal(f.gate.snapshot().active, 0)
+    assert.equal(f.gate.snapshot().queueDepth, 0)
+    const created = f.log().trim().split('\n').map(JSON.parse).find(row => row.event === 'gate-created')
+    assert.equal(created.concurrency, concurrency)
+    assert.equal(created.hardMaximumConcurrency, 32)
+  }
+})
+
+test('long-test request budgets admit the requested finite total and stop the next dispatch', async t => {
+  for (const maxRequests of [180, 1000]) {
+    const f = fixture(t, { concurrency: 4, maxRequests })
+    let dispatched = 0
+    const downstream = async function * () { dispatched++; yield finish }
+    for (let index = 0; index < maxRequests; index++) await consume(f.gate.stream(options('long-' + index), downstream))
+    await assert.rejects(consume(f.gate.stream(options('over-long-budget'), downstream)), { code: 'ACCEPTANCE_REQUEST_LIMIT' })
+    assert.equal(dispatched, maxRequests)
+    assert.equal(f.gate.snapshot().admitted, maxRequests)
+    assert.equal(f.gate.snapshot().active, 0)
+  }
+})
+
+test('an unavailable audit closes an expanded gate before any later downstream dispatch', async t => {
+  const f = fixture(t, { concurrency: 4, maxRequests: 180 })
+  fs.rmSync(f.config.logFile)
+  fs.mkdirSync(f.config.logFile)
+  let dispatched = 0
+  const downstream = async function * () { dispatched++; yield finish }
+  await assert.rejects(consume(f.gate.stream(options('audit-fails'), downstream)), error => ['ACCEPTANCE_AUDIT_UNAVAILABLE', 'ACCEPTANCE_GATE_CLOSED'].includes(error.code))
+  await assert.rejects(consume(f.gate.stream(options('audit-closed'), downstream)), { code: 'ACCEPTANCE_GATE_CLOSED' })
+  assert.equal(dispatched, 0)
+  assert.equal(f.gate.snapshot().auditFailed, true)
+  assert.equal(f.gate.snapshot().active, 0)
+  assert.equal(f.gate.snapshot().queueDepth, 0)
 })
 
 test('closing the gate rejects pending requests and never admits more work', async t => {

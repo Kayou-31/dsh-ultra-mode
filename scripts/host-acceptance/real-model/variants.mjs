@@ -59,9 +59,14 @@ export function finalRecoveryConfig(variant, mode) {
 
 export function parseAcceptanceOptions(args, mode, variant) {
   const options={streamConcurrency:2,minRequestIntervalMs:0}
+  const seen=new Set()
   for(const argument of args) {
+    const option=argument.split('=',1)[0]
+    assert.ok(!seen.has(option),'Duplicate '+option);seen.add(option)
     if(argument.startsWith('--from=')) { assert.ok(!options.from,'Duplicate --from');options.from=argument.slice(7);assert.ok(options.from,'Empty --from') }
-    else if(argument.startsWith('--stream-concurrency=')) { options.streamConcurrency=Number(argument.slice(21));assert.ok([1,2].includes(options.streamConcurrency),'stream concurrency must be one or two') }
+    else if(argument.startsWith('--stream-concurrency=')) { options.streamConcurrency=Number(argument.slice(21));assert.ok(Number.isSafeInteger(options.streamConcurrency)&&options.streamConcurrency>=1&&options.streamConcurrency<=32,'stream concurrency must be an integer from 1 to 32') }
+    else if(argument.startsWith('--max-requests=')) { options.maxRequests=Number(argument.slice(15));assert.ok(Number.isSafeInteger(options.maxRequests)&&options.maxRequests>=1&&options.maxRequests<=1000,'request budget must be an integer from 1 to 1000') }
+    else if(argument.startsWith('--worker-count=')) { options.workerCount=Number(argument.slice(15));assert.ok(Number.isSafeInteger(options.workerCount)&&options.workerCount>=2&&options.workerCount<=5,'worker count must be an integer from 2 to 5') }
     else if(argument.startsWith('--min-request-interval-ms=')) { options.minRequestIntervalMs=Number(argument.slice(26));assert.ok(Number.isSafeInteger(options.minRequestIntervalMs)&&options.minRequestIntervalMs>=0&&options.minRequestIntervalMs<=300000,'Invalid minimum request interval') }
     else throw new Error('Unknown acceptance option: '+argument)
   }
@@ -70,12 +75,22 @@ export function parseAcceptanceOptions(args, mode, variant) {
   return options
 }
 
-/** Public metadata only; the resumed native session must independently confirm it. */
-export function buildPartialReceipt({ launch, result, preflight, projectManifest, generated }) {
+const legacyPartialRoute=Object.freeze({provider:'naizhi',model:'deepseek-v4.1-flash'})
+
+/** Public metadata only; the resumed native session must independently confirm it.
+ * expectedRoute must come from the caller's trusted, independently selected route,
+ * never from the launch/result being checked. Omission retains the historical route.
+ */
+export function buildPartialReceipt({ launch, result, preflight, projectManifest, generated, expectedRoute=legacyPartialRoute }) {
+  assert.ok(expectedRoute&&typeof expectedRoute==='object'&&!Array.isArray(expectedRoute)
+    &&['provider','model'].every(key=>typeof expectedRoute[key]==='string'&&expectedRoute[key].length>0
+      &&expectedRoute[key].length<=256&&expectedRoute[key].trim()===expectedRoute[key]&&!/[\x00-\x1f\x7f]/u.test(expectedRoute[key])),
+  'A complete trusted expected route with provider and model is required')
+  const confirmedRoute=Object.freeze({provider:expectedRoute.provider,model:expectedRoute.model})
   assert.ok(launch.mode==='long'&&launch.variant==='drift-diverse','Partial continuation requires the original diverse long attempt')
   assert.ok(result.status==='failed'&&result.mode==='s2','Original long attempt must have failed')
   assert.ok(launch.provider===result.provider&&launch.model===result.model,'Partial provider/model differs')
-  assert.ok(result.provider==='naizhi'&&result.model==='deepseek-v4.1-flash','Partial route is not the confirmed provider/model')
+  assert.ok(result.provider===confirmedRoute.provider&&result.model===confirmedRoute.model,'Partial route is not the confirmed provider/model')
   assert.equal(result.fixtureId,generated.fixtureId,'Partial fixture ID differs')
   assert.equal(projectManifest.fixtureId,generated.fixtureId,'Project fixture ID differs')
   assert.deepEqual(projectManifest.manifest,generated.manifest,'All public manifest hashes and sizes must match')
@@ -92,7 +107,7 @@ export function buildPartialReceipt({ launch, result, preflight, projectManifest
   }
   assert.ok(calls.filter(call=>call.id.startsWith('load-')).every(call=>wanted.includes(call.id)),'Failed or later load already has side effects')
   assert.ok(Number.isSafeInteger(failed.boundary),'Missing failed-turn boundary')
-  return {fixtureId:result.fixtureId,sessionId,projectDir:launch.projectDir,provider:result.provider,model:result.model,presetId:'test',baseline:false,
+  return {fixtureId:result.fixtureId,sessionId,projectDir:launch.projectDir,provider:result.provider,model:result.model,expectedRoute:confirmedRoute,presetId:'test',baseline:false,
     partial:true,sourceAttemptId:launch.attemptId,completedRounds,nextStressCycle,remainingLoadIds:Array.from({length:20-nextStressCycle},(_,i)=>'load-'+(i+nextStressCycle)),
     manifest:generated.manifest,priorReadReceipts:result.toolCalls.filter(call=>call.name==='fixture_read'&&call.offset===0&&call.chars===generated.manifest[call.id]?.chars&&call.sourceHash===generated.manifest[call.id]?.sha256),priorFailure:{boundary:failed.boundary,code:failed.endReason.error?.code??'UNKNOWN'},native:result.native,executeAttempts:0,
     earlyValueExposureInPublicMessages:answers.flatMap(answer=>[answer.publicText??'',...(answer.publicProgress??[]).map(message=>message.text)]).filter(text=>text.includes(generated.expected.batch)||text.includes(generated.expected.checksum)).length,

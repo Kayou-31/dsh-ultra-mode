@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-ultra-mode",
-  "version": "0.6.0-dev.3",
+  "version": "0.6.0",
   "description": "DSH Ultra：协作与decision调度、证据检索、上下文管理及显式授权的profile全局知识库",
   "keywords": [
     "deepseek",

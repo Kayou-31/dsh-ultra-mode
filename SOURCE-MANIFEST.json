@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "root": {
     "name": "@dsh-external/dsh-ultra-mode",
-    "version": "0.6.0-dev.3"
+    "version": "0.6.0"
   },
   "coreSources": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "src/client/index.ts",
-      "sha256": "634b08a85854accd7d2cc37b43dae7a32bb496c1b3b5e88d3678008e1b18ed9c"
+      "sha256": "72cc20fee1420839a231975ebb7cd22da1e188350fc4fb5fe97e17c922900f2e"
     },
     {
       "path": "src/client/model-pool.ts",
@@ -30,8 +30,16 @@
       "sha256": "0a7b78f1b27ebf3e00ba365a083b906b82b0ff50836ffaee7e23b2248a28e306"
     },
     {
+      "path": "src/context-archive-store.ts",
+      "sha256": "023904d6b1d36b8cc8a3d84b462f0ed5e13f3ab39ff91ba401b6309b5e4e9c4a"
+    },
+    {
+      "path": "src/context-archive.ts",
+      "sha256": "44740434b96528206ede016ce67c03623d659aa40b53548950630c42cd168450"
+    },
+    {
       "path": "src/context-memory.ts",
-      "sha256": "807f5b33919cff96aa43421b1066e03ea5764f4ec13544074ee3f54e9f8e3d13"
+      "sha256": "5866580573903d02d1cebfeedc698ff1a1b2bf491c0031f87049562391c2dc97"
     },
     {
       "path": "src/coordination.ts",
@@ -55,11 +63,11 @@
     },
     {
       "path": "src/evidence.ts",
-      "sha256": "5d9d80a599b1475394132121704bafab325ff249fb48109651e56d775b018613"
+      "sha256": "87ac63d664a282dd0f9c9a53a7124e5b1753d8a3b0f76d04a19085b34600a1bf"
     },
     {
       "path": "src/index.ts",
-      "sha256": "b618e7ee2fe45365295bd14bb7a3890e5468ffdcf23e59880aa1ec2f9ed5dd8a"
+      "sha256": "6cafa6d0e231e835fa5aa540604585a3752db711208b891919a5171784eeb812"
     },
     {
       "path": "src/jev.ts",
@@ -79,19 +87,19 @@
     },
     {
       "path": "src/knowledge-store.ts",
-      "sha256": "794cef861b384b7acee29e03bc51841fc4c5c28f63a9748ce3f26d1a62109bf0"
+      "sha256": "ffa9466d63fce7d61e416e7f51d7b45be2b0e1cac300896805b5989e60b705eb"
     },
     {
       "path": "src/memory-host.ts",
-      "sha256": "fc297a4e9411a354096aa01f67cc83343d2e0862b540897d8b48bbf31087b0c4"
+      "sha256": "e1a800752fd2544e28783dd82171fc714743884b5b18dcc9dae3fa9c1b9b2f21"
     },
     {
       "path": "src/memory-plugin.ts",
-      "sha256": "076285e0b0f48c6ca3bf69d51b303655be30592f34e5ae9431b3371baba7abde"
+      "sha256": "da6e578fba1e186259b54f9c5f17d5f62391216930ccfd46384d985b8fdefc4d"
     },
     {
       "path": "src/memory-tools.ts",
-      "sha256": "fa9d024a013893077d03d14003ab37e359ae17a6d8e04ad5e76a1fab3662b36f"
+      "sha256": "a5c2aacbdefee4511f7c527234ce976e1dee381b569f07850067edc536c8d274"
     },
     {
       "path": "src/model-pool-audit.ts",
@@ -115,7 +123,7 @@
     },
     {
       "path": "src/runtime.ts",
-      "sha256": "c8255fb84c1e339b3c855e6b0d7a65da00c7d8cf4a1ed11ff100ae1d7476b007"
+      "sha256": "201b53eef1ba2e96be52751b80484828eb77d7b432fb9f5746feafc82b4f0005"
     },
     {
       "path": "src/ultra.ts",
@@ -124,7 +132,7 @@
   ],
   "package": {
     "name": "@dsh-external/dsh-ultra-mode",
-    "version": "0.6.0-dev.3"
+    "version": "0.6.0"
   },
   "buildEntry": "src/index.ts"
 }

@@ -1,14 +1,14 @@
 # 自由选择完整包与附属插件
 
-本地开发检查点提供三个安装包。主包仍保留完整能力；两个附属包让普通 DSH 用户按需安装记忆或协作决策能力，不要求先安装 Ultra。三个 TGZ 一起提供于 [v0.6.0-dev.3](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0-dev.3)；文件名、SHA256、自动测试与原生离线验收结果见[发布验证](releases/0.6.0-dev.3.md)。
+v0.6.0正式交付提供三个安装包。主包仍保留完整能力；两个附属包让普通 DSH 用户按需安装记忆或协作决策能力，不要求先安装 Ultra。三个 TGZ 一起提供于 [v0.6.0](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0)；文件名、SHA256、自动测试与原生离线验收结果见[发布验证](releases/0.6.0.md)。
 
 ## 选择安装组合
 
 | 包与源码位置 | 本轮版本 | 能力及默认行为 |
 | --- | --- | --- |
-| `@dsh-external/dsh-ultra-mode`，仓库根目录 | `0.6.0-dev.3` | 完整 Ultra：关闭／辅助／手动 2～5 路、Team、普通协作模型池、意图／诊断／验收治理、项目证据／上下文及显式授权全局知识。既有模式和默认值保留 |
-| `@dsh-external/dsh-ultra-memory`，[packages/dsh-ultra-memory/](../packages/dsh-ultra-memory/README.md) | `0.1.0-dev.1` | 普通项目的原始证据、按需 search/get、可选原生历史压缩与同 profile 显式授权知识库。不创建模型或 Ultra 路线；压缩和全局知识默认关闭 |
-| `@dsh-external/dsh-ultra-decision`，[packages/dsh-ultra-decision/](../packages/dsh-ultra-decision/README.md) | `0.1.0-dev.1` | 普通子代理 Team 六工具、协作多模型池，以及只读 decision 旁路和可选意图／诊断／验收。额外 decision 默认关闭，显式 `/decision on` 才开启；没有 Max 手动多路线入口 |
+| `@dsh-external/dsh-ultra-mode`，仓库根目录 | `0.6.0` | 完整 Ultra：关闭／辅助／手动 2～5 路、Team、普通协作模型池、意图／诊断／验收治理、项目证据／上下文及显式授权全局知识。既有模式和默认值保留 |
+| `@dsh-external/dsh-ultra-memory`，[packages/dsh-ultra-memory/](../packages/dsh-ultra-memory/README.md) | `0.1.0` | 普通项目的原始证据、按需 search/get、可选原生历史压缩与同 profile 显式授权知识库。不创建模型或 Ultra 路线；压缩和全局知识默认关闭 |
+| `@dsh-external/dsh-ultra-decision`，[packages/dsh-ultra-decision/](../packages/dsh-ultra-decision/README.md) | `0.1.0` | 普通子代理 Team 六工具、协作多模型池，以及只读 decision 旁路和可选意图／诊断／验收。额外 decision 默认关闭，显式 `/decision on` 才开启；没有 Max 手动多路线入口 |
 
 支持 Ultra 独立、Memory 独立、Decision 独立、Memory＋Decision、Ultra＋Memory。Memory＋Decision 让普通主 Agent 使用独立记忆和协作决策；Ultra＋Memory 由完整 Ultra 协调，Memory 统一管理证据配置。
 
@@ -28,7 +28,7 @@ Ultra 和 Decision 可同时安装，但在同一 scope 只能启用一个协调
 | `src/index.ts` | 附属包入口源码 |
 | `core-src/`、`SOURCE-MANIFEST.json` | 构建时共同核心的可读副本及来源 SHA256，用于核对同源；改算法应回到仓库根 `src/` |
 
-源码 ZIP 用于开发与核对，不能代替安装 TGZ。独立附属包不需要额外服务、密钥、embedding 或数据库。Memory 不启动模型；Decision 的 Team 子任务和显式开启的辅助仍使用 DSH 已配置的模型与凭据，模型运行会按宿主正常计费，本轮只进行离线脚本验证。
+源码 ZIP 用于开发与核对，不能代替安装 TGZ。独立附属包不需要额外服务、密钥、embedding 或数据库。Memory 不启动模型；Decision 的 Team 子任务和显式开启的辅助仍使用 DSH 已配置的模型与凭据，模型运行会按宿主正常计费。本页的安装配置本身不启动在线模型；另行授权的 OCG 实机实验与离线脚本分开报告。
 
 ## 安装到独立 profile
 
@@ -64,7 +64,21 @@ Ultra 和 Decision 可同时安装，但在同一 scope 只能启用一个协调
 
 停用或卸载一个插件只释放自己的 lease，剩余插件继续使用共享服务。释放当前配置权威时，服务取消并排空旧配置的在途知识操作，再选择下一份配置；最后一个 lease 释放后才清理共享服务。lease 与配置权威变化不删除项目 `.dsh-ultra/v1`、宿主 JSONL 或 profile 的 `.dsh-ultra-knowledge/v1`。
 
+## 可选高效压缩
+
+完整 Ultra 和独立 Memory 使用同一套上下文实现。组合安装时，在上述活动证据权威中配置，不重复开启两套 compactor。默认仍为 `contextCompression:false`、`contextTargetTokens:30000`、近期窗口 8、最小结果 4,096 字符、单次最多 16 次替换、预览 320 字符；新增精简定位和检索收据默认均关闭，不为这些能力启动模型。
+
+`contextTriggerTokens` 可单独设置压缩触发包络，省略时沿用 target，运行时也要求 trigger ≥ target。其余新增字段为 `contextMinResultChars`、`contextMaxPrunes`、`contextPreviewChars`、`contextCompactLocators` 和 `contextRetrievalReceipts`。本轮高效实验显式采用 trigger 420K／target 30K、近期 2、最小 64 字符、最多 256 次、预览 0，并开启两个布尔选项；输出 8,192 与后续工具 2,048 预留均计入触发和 500K 总包络，不改变产品默认。
+
+精简格式不在每条工具返回中重复项目状态、共享 ID 和预览；必要约束与状态仍通过恢复入口提供。已配对纯文本短结果可按持久来源读回，本地 `ultra_memory_search/get` 的返回可使用 host-only context receipt：只保存定位、长度、SHA 和调用身份，不复制或递归索引正文。收据不进入共享事实、默认搜索、语义、项目状态、MD 或知识发布；`ultra_memory_get` 继续执行原项目／会话权限、返回预算与完整性校验。`ultra_knowledge_*` 返回不压缩，避免改变知识撤权边界。
+
+用户原话、assistant 消息、工具配对、近期或 rich 内容和原始宿主日志保留。30K 为软目标，受保护内容或来源缺口会阻止继续收缩。当前离线 95 项与旧读取器 5 项检查不能替代真实高效组的 30 轮结论。完整字段、独立实验配置与比较口径见[压缩效率说明](experiments/compression-efficiency.zh.md)，默认 patch 参考[证据配置示例](evidence-config.example.yml)。
+
 ## 升级与回滚
+
+三包共用默认关闭的 `contextArchiveCompletedTurns`，同一配置权威内使用，不能安装多包就启动多个 compactor。完整旧阶段归档的 profile 示例、原文恢复入口及暂停条件见[安装说明](installation.md#完整旧阶段归档与-130k-验收配置)。`arc_` 清单不是知识条目或事实引用；原始事实继续用 `src_`／`chunk_` 核验。官方 Web 暂无通用归档开关表单，本轮显式文件配置与实际状态显示分开验证。
+
+已有活动 `arc_` 会话须保留兼容读取器、证据服务、当前授权的 `ultra_memory_get` 和至少 1,024 字符读取预算；换权威、停用 Memory 或关闭归档创建不会解除这项恢复边界。持久化不确定时暂停后续执行，不能把停止增强当作跨角色检查点已经回滚。
 
 升级前停止任务及发布、等待清理并完整退出，再对 profile、项目证据及知识目录做静止备份。三个包应来自同一交付清单，避免混装不兼容的共享服务协议；包内来源清单用于核对实际构建来源，不能替代 TGZ 哈希。
 
@@ -72,8 +86,10 @@ Ultra 和 Decision 可同时安装，但在同一 scope 只能启用一个协调
 
 回滚旧版前保留当前文件，按目标旧版移除它不认识的配置，恢复已保留的 TGZ 及必要 profile 配置。更换 `package.json`／锁文件时使用宿主原来的包管理方式同步依赖。保留证据与知识目录，不在活动任务中删除它们；旧版不会因为目录存在而自动取得知识授权。
 
+若已使用高效压缩，降级前同时关闭 `contextCompression`、`contextCompactLocators`、`contextRetrievalReceipts`。旧读取器可读取新增记录但不理解 context receipt 分类，可能将其列入普通来源统计或 MD，旧语义校验也缺少新版排除规则。关闭选项后再按旧版删除不认识的字段；保留新增元数据、恢复收据及原始日志，不作自动抹除或反向迁移，恢复当前版本后可恢复正确分类。
+
 ## 本轮验证口径
 
 需分别验证三个最终 TGZ 的独立原生加载、Memory＋Decision 两种加载顺序、Ultra＋Memory、重复协调入口拒绝、配置权威切换、单 lease 释放后继续工作与最后 lease 排空，以及捕获和请求计数不重复。项目来源、权限、撤权、压缩和知识来源验证仍按原边界检查。
 
-本页不预先填写通过数或宣告原生验收成功。最终包哈希及每层通过／跳过／失败见本轮交付报告；执行方法见[测试指南](testing.md)。原生 CLI 离线脚本和 JSONL 只能证明接线及断言，不能证明真实模型质量、费用改善或完整 Electron UI。本轮不运行在线模型，不安装日常环境，不 push 或发布。
+本页不预先填写最终包通过数或宣告原生验收成功。最终包哈希及每层通过／跳过／失败见本轮交付报告；执行方法见[测试指南](testing.md)。原生 CLI 离线脚本和 JSONL 只能证明接线及断言，不能证明真实模型质量、费用改善或完整 Electron UI。在线实验在另外授权的独立 profile 中执行，日常环境不参与安装或写入；GitHub 更新与发布状态以交付报告为准。

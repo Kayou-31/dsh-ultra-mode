@@ -1,8 +1,8 @@
 # 架构、配置与运行边界
 
-本页描述 **0.5.0-rc.3 预发布版**。多路线研究、同一 decision 的规划／协调／实施、Agent＋只读辅助、普通子代理协作、持久证据与项目状态、按需检索、路线入口装配和可选压缩由同一 Ultra bundle 提供；不需要再外接另一套记忆插件。配置与迁移见 [证据与上下文管理](evidence-context.md)，当前验收见 [分层记录](evidence-verification.md) 与 [公开档案](../verification/0.5.0-rc.3/README.md)。
+本页描述当前三包共用核心。多路线研究、同一 decision 的规划／协调／实施、Agent＋只读辅助、普通子代理模型池、持久证据与项目状态、按需检索、路线入口和可选压缩由完整 Ultra 提供；Memory 和 Decision 是可独立安装的派生包，路径及组合见[附属插件](companion-plugins.md)。配置与迁移见[证据与上下文管理](evidence-context.md)，本轮分层证据见[OCG 实验](OCG-EXPERIMENTS.md)。
 
-目标宿主为 DSH Desktop / Host 0.2.0-rc.2。本轮使用本机安装构建 04f392c9ddd144fa426da2045178797da6db6c11 的独立 profile；公开 tag 对应 639ed015397290b3745d163aafe02ffee4aa3f84，两者分别记录，不以远端 alpha 推断兼容。历史 v0.4／v0.3 的 UI 或任务成绩继续归各自版本，不能替代本版的桌面验收。安装及回滚见 [0.5.0-rc.3预发布版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.5.0-rc.3) 与 [安装指南](installation.md)；本轮验收未安装到日常环境。
+主验收宿主为官方 DSH **0.2.1-rc.2**，旧 **0.2.0-rc.2** 单列 SDK／原生离线回归，接口声明范围不等于每项新能力的实测范围。本轮使用独立 CLI／Web profile，不安装到日常环境；当前桌面内核 0.1.2-alpha.1 低于支持范围。历史 0.5.0-rc.3 的两个宿主 commit 与 naizhi 结果保留在[原验收](evidence-verification.md)，不移给本轮。安装、精确版本及回滚见[指南](installation.md)。
 
 ## 统一证据路径
 
@@ -47,6 +47,8 @@ flowchart TD
 
 ## 代码入口
 
+三个插件在宿主根 context 通过 lease 共用唯一 EvidenceSupport；活动配置权威为 Memory > Ultra > Decision，项目授权不取并集。`records/` 保存版本化索引／状态，主题 MD 只读派生；宿主 JSONL 保留原始会话。`archives/` 只保存恢复清单，不成为语义事实或全局知识。完整旧阶段归档使用官方本地模板 summary，读回、失败暂停和降级边界见[归档协议](evidence-context.md#已完成阶段归档)。
+
 | 文件 | 职责 |
 | --- | --- |
 | `src/index.ts` | 插件入口、会话事件、命令及自动任务接入 |
@@ -61,6 +63,11 @@ flowchart TD
 | `src/capture-memory.ts` | 工具结果在保留与进展截断前的来源捕获 |
 | `src/memory-host.ts` | 原生日志增量审计、会话授权、恢复、请求用量与预算 |
 | `src/context-memory.ts` | 路线入口装配、原生工具正文替换、checkpoint 与补偿恢复 |
+| `src/context-archive.ts`、`src/context-archive-store.ts` | 已完成阶段的原生模板归档、元数据清单、公开事件核验和预算内分页恢复 |
+| `src/evidence-support.ts` | 多插件 lease、唯一证据权威及配置切换；不合并项目授权 |
+| `src/model-pool.ts`、`src/model-pool-settings.ts`、`src/model-pool-audit.ts` | 普通子代理候选、持久配置、实例快照与实际调用审计；创建接线复用 collaboration-host |
+| `src/decision-governance.ts` | 现有 decision 的意图、诊断与基于来源的模型验收 |
+| `src/knowledge-store.ts`、`src/knowledge-host.ts` | 同 profile 项目授权、版本化发布、撤销和独立来源核验 |
 | `src/report-memory.ts` | 报告的证据引用、候选提炼与状态入口 |
 | `src/jev.ts` | 默认关闭的可选 Jev 请求与响应校验 |
 | `src/client/index.ts` | 输入框按钮、实色菜单与会话列表兼容桥 |
@@ -102,7 +109,7 @@ flowchart TD
 
 用户要求某一路真实派子代理时，其他路线或父路线自行算出的正确数值不能替代该子代理的实际创建与完成证据。规划、降级或最终收敛均须保留这个区别。
 
-内部路线有独立、持久化的 DSH 审计日志，但不在普通会话列表中展示。客户端使用针对 0.2.0-rc.2 的会话列表兼容桥，仅过滤 `ultra-route-` 前缀的内部记录，不改原快照或子代理 origin；卸载恢复原读取函数。升级宿主版本前应重新验证这条桥。
+内部路线有独立、持久化的 DSH 审计日志，但不在普通会话列表中展示。客户端兼容桥仅过滤 `ultra-route-` 前缀的内部记录，不改原快照或普通子代理 origin；卸载恢复原读取函数。新旧 SDK 的回归分开记录，升级到未验证宿主前应重新检查这条桥。
 
 主会话接收的是内部交付的文本结果，不是内部 decision 思考内容的逐字记录。持久化审计日志与主界面逐路可见性是两件事：日志存在不能写成用户能在会话框中实时看见各路全过程。
 
@@ -112,9 +119,9 @@ planningMaxTokens／researchMaxTokens／decisionMaxTokens／coordinationMaxToken
 
 contextTargetTokens 默认 30000，是单 Agent 工作上下文软目标，不是硬上限或整个任务账单。系统、全部工具定义、消息、检索返回、输出与工具预留都计入装配预算；最近的大工具结果与用户约束可能让实际请求明显超额。本轮大请求多次超过目标，不能由配置声称已控制到30K。
 
-contextCompression 默认关闭；启用时须核对宿主 token-meter、持久化与 checkpoint 能力，并确保同一上下文只有一个压缩管理者。先保存、校验证据与恢复入口，再提交原生 prune／工具结果 surface replace；提交前失败保留原文，提交后失败使用相邻补偿事件恢复，恢复失败则停止，不虚报成功。默认 compactor 或另一个插件不能同时管理相同历史。
+contextCompression 默认关闭；启用时须核对宿主 token-meter、持久化与 checkpoint 能力，并确保同一上下文只有一个压缩管理者。先保存、校验证据与恢复入口，再提交原生 prune／工具正文 replace；其单角色提交失败可尝试原生补偿，恢复失败则停止。可选完整阶段归档跨角色使用 start／summary／user replace／end，已提交后持久化不确定时暂停后续调用，不能套用普通正文补偿并虚称精确回滚。默认 compactor 或另一个插件不能同时管理相同历史。
 
-本轮长测是确定性替换较早工具正文，保留用户原话、工具配对、近期消息、附件及原始 append-only 事件；不是递归生成摘要。多次压缩、取消和冷恢复的机械证据与模型最终是否正确找回、解释和引用证据分别评价。约32%的下降是装配输入估算样本中位数，不是 provider 账单节省。
+正文 pruner 与可选阶段归档都采用确定性处理，保留必要用户原话、调用配对、近期消息、受保护附件及原始 append-only 日志；归档使用本地模板，不递归生成模型摘要。多次压缩、取消和冷恢复的机械证据与模型能否正确找回、解释和引用分开评价。500K／420K／130K的独立实验、动态报告量、实际用量和耗时见[效率说明](experiments/compression-efficiency.zh.md)，不把上下文缩小幅度当作等工作量账单节省。
 
 ## 配置
 

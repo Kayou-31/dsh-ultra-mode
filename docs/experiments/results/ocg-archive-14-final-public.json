@@ -1,0 +1,785 @@
+{
+  "schema": "ocg-accepted-partial-delivery/v1",
+  "deliveryLabel": "PARTIAL/FAILED",
+  "userAcceptedPartial": true,
+  "experimentPassed": false,
+  "releaseScope": {
+    "qualifiedCycles": 14,
+    "targetCycles": 30,
+    "fullThirtyVerified": false,
+    "fullVirtualDayVerified": false,
+    "actual24HourDurabilityVerified": false,
+    "archiveDeepReadbackPrepared": false,
+    "archiveDeepReadbackRun": false
+  },
+  "candidateSha256": "bf1235637d999d50421d33107a23ce61958652e1b385461c7caff121247f1092",
+  "host": "0.2.1-rc.2",
+  "provider": "opencode-go",
+  "model": "deepseek-v4.1-flash",
+  "accounting": {
+    "uniqueCombinedRequests": 239,
+    "inheritedRequests": 44,
+    "newRequests": 195,
+    "nativeSettlementsVerified": 239,
+    "unknownFailedUsage": 0,
+    "duplicateSuccessfulCommits": 0,
+    "cap500KViolations": 0,
+    "reportedUsage": {
+      "inputTokens": {
+        "reportedSum": 11602304,
+        "knownRequests": 239,
+        "missingRequests": 0
+      },
+      "outputTokens": {
+        "reportedSum": 118391,
+        "knownRequests": 239,
+        "missingRequests": 0
+      },
+      "totalTokens": {
+        "reportedSum": 20132215,
+        "knownRequests": 239,
+        "missingRequests": 0
+      },
+      "cacheReadTokens": {
+        "reportedSum": 8411520,
+        "knownRequests": 227,
+        "missingRequests": 12
+      },
+      "cacheWriteTokens": {
+        "reportedSum": null,
+        "knownRequests": 0,
+        "missingRequests": 239
+      },
+      "reasoningTokens": {
+        "reportedSum": null,
+        "knownRequests": 0,
+        "missingRequests": 239
+      }
+    },
+    "missingFieldsRemainUnknown": true,
+    "providerWireCountVerified": false,
+    "costActual": null
+  },
+  "elapsed": {
+    "controllerCombinedMs": 2602382,
+    "wrapperCombinedMs": 2625490,
+    "qualifiedVirtualMinutes": 650,
+    "committedVirtualMinutes": 700
+  },
+  "qualifiedFirstActualPosts": [
+    {
+      "phase": 1,
+      "firstPostRequest": 10,
+      "selectedConsistentPostRequest": 10,
+      "actualInputTokens": 12360,
+      "actualInputAndReserves": 22600,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 2,
+      "firstPostRequest": 26,
+      "selectedConsistentPostRequest": 27,
+      "actualInputTokens": 10793,
+      "actualInputAndReserves": 21033,
+      "cacheBucketsConsistent": null,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 3,
+      "firstPostRequest": 37,
+      "selectedConsistentPostRequest": 37,
+      "actualInputTokens": 15713,
+      "actualInputAndReserves": 25953,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 4,
+      "firstPostRequest": 51,
+      "selectedConsistentPostRequest": 52,
+      "actualInputTokens": 21084,
+      "actualInputAndReserves": 31324,
+      "cacheBucketsConsistent": null,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 5,
+      "firstPostRequest": 62,
+      "selectedConsistentPostRequest": 62,
+      "actualInputTokens": 23042,
+      "actualInputAndReserves": 33282,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 6,
+      "firstPostRequest": 86,
+      "selectedConsistentPostRequest": 86,
+      "actualInputTokens": 28076,
+      "actualInputAndReserves": 38316,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 7,
+      "firstPostRequest": 101,
+      "selectedConsistentPostRequest": 101,
+      "actualInputTokens": 27889,
+      "actualInputAndReserves": 38129,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 8,
+      "firstPostRequest": 115,
+      "selectedConsistentPostRequest": 115,
+      "actualInputTokens": 31795,
+      "actualInputAndReserves": 42035,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 9,
+      "firstPostRequest": 132,
+      "selectedConsistentPostRequest": 132,
+      "actualInputTokens": 35609,
+      "actualInputAndReserves": 45849,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 10,
+      "firstPostRequest": 144,
+      "selectedConsistentPostRequest": 144,
+      "actualInputTokens": 40678,
+      "actualInputAndReserves": 50918,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 11,
+      "firstPostRequest": 159,
+      "selectedConsistentPostRequest": 159,
+      "actualInputTokens": 42799,
+      "actualInputAndReserves": 53039,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 12,
+      "firstPostRequest": 199,
+      "selectedConsistentPostRequest": 199,
+      "actualInputTokens": 46449,
+      "actualInputAndReserves": 56689,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 13,
+      "firstPostRequest": 213,
+      "selectedConsistentPostRequest": 213,
+      "actualInputTokens": 48218,
+      "actualInputAndReserves": 58458,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    },
+    {
+      "phase": 14,
+      "firstPostRequest": 224,
+      "selectedConsistentPostRequest": 224,
+      "actualInputTokens": 52662,
+      "actualInputAndReserves": 62902,
+      "cacheBucketsConsistent": true,
+      "nativeUsageVerified": true,
+      "within130K": true
+    }
+  ],
+  "phase15": {
+    "countedAsQualifiedCycle": false,
+    "gradeChecksPassed": 11,
+    "gradeChecksTotal": 11,
+    "committed": true,
+    "duplicate": false,
+    "before": [
+      {
+        "request": 233,
+        "actualInputTokens": 443470,
+        "actualInputAndReserves": 453710,
+        "cacheReadTokens": null,
+        "cacheBucketsConsistent": null
+      },
+      {
+        "request": 234,
+        "actualInputTokens": 433793,
+        "actualInputAndReserves": 444033,
+        "cacheReadTokens": null,
+        "cacheBucketsConsistent": null
+      }
+    ],
+    "postActualInputTokens": 55424,
+    "postActualInputAndReserves": 65664,
+    "failureClass": "missing-cache-bucket-consistency-unknown"
+  },
+  "toolRejections": {
+    "schema": "ocg-retrieval-rework/v1",
+    "coverage": "tool-results-only",
+    "coveredTools": [
+      "ultra_memory_search",
+      "ultra_memory_get",
+      "workflow_commit"
+    ],
+    "totalRejectedToolResults": 37,
+    "unattributedRejectedResults": 0,
+    "phases": [
+      {
+        "phase": 1,
+        "retrievalRejections": 5,
+        "commitRejections": 1,
+        "categories": {
+          "return-budget": 4,
+          "quote-range": 1,
+          "whole-row-required": 1,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 87,
+          "endResultSeq": 122,
+          "observedRequests": 7,
+          "nativeElapsedMs": 44422,
+          "reportedStreamElapsedMs": 43797
+        },
+        "commitWindow": {
+          "startResultSeq": 87,
+          "endResultSeq": 127,
+          "observedRequests": 8,
+          "nativeElapsedMs": 48899,
+          "reportedStreamElapsedMs": 48099
+        },
+        "errors": [
+          {
+            "resultSeq": 87,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          },
+          {
+            "resultSeq": 92,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 97,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 102,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 107,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 112,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 3,
+        "retrievalRejections": 2,
+        "commitRejections": 0,
+        "categories": {
+          "return-budget": 2,
+          "quote-range": 0,
+          "whole-row-required": 0,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 261,
+          "endResultSeq": 271,
+          "observedRequests": 2,
+          "nativeElapsedMs": 9004,
+          "reportedStreamElapsedMs": 8632
+        },
+        "commitWindow": {
+          "startResultSeq": 261,
+          "endResultSeq": 281,
+          "observedRequests": 4,
+          "nativeElapsedMs": 17492,
+          "reportedStreamElapsedMs": 16632
+        },
+        "errors": [
+          {
+            "resultSeq": 261,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 266,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 5,
+        "retrievalRejections": 3,
+        "commitRejections": 0,
+        "categories": {
+          "return-budget": 2,
+          "quote-range": 1,
+          "whole-row-required": 0,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 470,
+          "endResultSeq": 490,
+          "observedRequests": 4,
+          "nativeElapsedMs": 33701,
+          "reportedStreamElapsedMs": 32999
+        },
+        "commitWindow": {
+          "startResultSeq": 470,
+          "endResultSeq": 500,
+          "observedRequests": 6,
+          "nativeElapsedMs": 42086,
+          "reportedStreamElapsedMs": 40987
+        },
+        "errors": [
+          {
+            "resultSeq": 470,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 480,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 485,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 6,
+        "retrievalRejections": 3,
+        "commitRejections": 2,
+        "categories": {
+          "return-budget": 3,
+          "quote-range": 0,
+          "whole-row-required": 2,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 568,
+          "endResultSeq": 598,
+          "observedRequests": 6,
+          "nativeElapsedMs": 40686,
+          "reportedStreamElapsedMs": 39555
+        },
+        "commitWindow": {
+          "startResultSeq": 568,
+          "endResultSeq": 603,
+          "observedRequests": 7,
+          "nativeElapsedMs": 45744,
+          "reportedStreamElapsedMs": 44335
+        },
+        "errors": [
+          {
+            "resultSeq": 568,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          },
+          {
+            "resultSeq": 578,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          },
+          {
+            "resultSeq": 583,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 588,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 593,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 7,
+        "retrievalRejections": 0,
+        "commitRejections": 1,
+        "categories": {
+          "return-budget": 0,
+          "quote-range": 0,
+          "whole-row-required": 1,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": null,
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 678,
+          "endResultSeq": 693,
+          "observedRequests": 3,
+          "nativeElapsedMs": 18652,
+          "reportedStreamElapsedMs": 17820
+        },
+        "commitWindow": {
+          "startResultSeq": 678,
+          "endResultSeq": 698,
+          "observedRequests": 4,
+          "nativeElapsedMs": 38027,
+          "reportedStreamElapsedMs": 36902
+        },
+        "errors": [
+          {
+            "resultSeq": 678,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          }
+        ]
+      },
+      {
+        "phase": 8,
+        "retrievalRejections": 5,
+        "commitRejections": 0,
+        "categories": {
+          "return-budget": 3,
+          "quote-range": 2,
+          "whole-row-required": 0,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 766,
+          "endResultSeq": 801,
+          "observedRequests": 7,
+          "nativeElapsedMs": 48451,
+          "reportedStreamElapsedMs": 46821
+        },
+        "commitWindow": {
+          "startResultSeq": 766,
+          "endResultSeq": 806,
+          "observedRequests": 8,
+          "nativeElapsedMs": 55267,
+          "reportedStreamElapsedMs": 53338
+        },
+        "errors": [
+          {
+            "resultSeq": 766,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 771,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 776,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 786,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 796,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 9,
+        "retrievalRejections": 0,
+        "commitRejections": 1,
+        "categories": {
+          "return-budget": 0,
+          "quote-range": 0,
+          "whole-row-required": 1,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": null,
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 872,
+          "endResultSeq": 877,
+          "observedRequests": 1,
+          "nativeElapsedMs": 12221,
+          "reportedStreamElapsedMs": 11895
+        },
+        "commitWindow": {
+          "startResultSeq": 872,
+          "endResultSeq": 882,
+          "observedRequests": 2,
+          "nativeElapsedMs": 35351,
+          "reportedStreamElapsedMs": 34721
+        },
+        "errors": [
+          {
+            "resultSeq": 872,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          }
+        ]
+      },
+      {
+        "phase": 10,
+        "retrievalRejections": 2,
+        "commitRejections": 0,
+        "categories": {
+          "return-budget": 2,
+          "quote-range": 0,
+          "whole-row-required": 0,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 945,
+          "endResultSeq": 970,
+          "observedRequests": 5,
+          "nativeElapsedMs": 67747,
+          "reportedStreamElapsedMs": 66119
+        },
+        "commitWindow": {
+          "startResultSeq": 945,
+          "endResultSeq": 975,
+          "observedRequests": 6,
+          "nativeElapsedMs": 110025,
+          "reportedStreamElapsedMs": 108059
+        },
+        "errors": [
+          {
+            "resultSeq": 945,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 965,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      },
+      {
+        "phase": 11,
+        "retrievalRejections": 5,
+        "commitRejections": 3,
+        "categories": {
+          "return-budget": 2,
+          "quote-range": 3,
+          "whole-row-required": 3,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "chunk",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 1043,
+          "endResultSeq": 1188,
+          "observedRequests": 29,
+          "nativeElapsedMs": 194082,
+          "reportedStreamElapsedMs": 185147
+        },
+        "commitWindow": {
+          "startResultSeq": 1043,
+          "endResultSeq": 1193,
+          "observedRequests": 30,
+          "nativeElapsedMs": 198301,
+          "reportedStreamElapsedMs": 188965
+        },
+        "errors": [
+          {
+            "resultSeq": 1043,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 1058,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 1063,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 1083,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          },
+          {
+            "resultSeq": 1148,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 1163,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          },
+          {
+            "resultSeq": 1173,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 1183,
+            "tool": "workflow_commit",
+            "category": "whole-row-required",
+            "errorSha256": "beed314e51d0ceb2cbf55fd88424c18d731b6d13f12ecbf39d8ea8e569f4e9d5"
+          }
+        ]
+      },
+      {
+        "phase": 12,
+        "retrievalRejections": 4,
+        "commitRejections": 0,
+        "categories": {
+          "return-budget": 3,
+          "quote-range": 1,
+          "whole-row-required": 0,
+          "source-identity": 0,
+          "other": 0
+        },
+        "firstRetrievalIdKind": "source",
+        "successfulRetrievalIdKind": "source",
+        "sourceReadbackWindow": {
+          "startResultSeq": 1256,
+          "endResultSeq": 1276,
+          "observedRequests": 4,
+          "nativeElapsedMs": 48121,
+          "reportedStreamElapsedMs": 46875
+        },
+        "commitWindow": {
+          "startResultSeq": 1256,
+          "endResultSeq": 1281,
+          "observedRequests": 5,
+          "nativeElapsedMs": 52279,
+          "reportedStreamElapsedMs": 50607
+        },
+        "errors": [
+          {
+            "resultSeq": 1256,
+            "tool": "ultra_memory_get",
+            "category": "quote-range",
+            "errorSha256": "e148b4db501d1909a0337da35ccfe043ffaa27c2ae3a1fe417c4dd6317769117"
+          },
+          {
+            "resultSeq": 1261,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 1266,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          },
+          {
+            "resultSeq": 1271,
+            "tool": "ultra_memory_get",
+            "category": "return-budget",
+            "errorSha256": "8772cbe1b3640d9ce7180c118c115db4891d5d78d0c8db942bae299cf42bbc94"
+          }
+        ]
+      }
+    ],
+    "rawTextExported": false,
+    "causalExtraCostClaim": false,
+    "windowScope": "observed-native-recovery-window"
+  },
+  "sourceHashes": {
+    "result.json": "4b5eef6a8ac98ae977dcb0ac94a98deb2c2023bb0907e4be3247bfc690eb72cc",
+    "state.json": "27ebf392bc2f64b6bdbdf6fcbf2da432f2f9b2250725545f9b8d76481eb253ac",
+    "outcome.json": "82eb7c1f2ecfa68ccdde655389c310ff0d9e67fbc6ec009fedb79063b335db43",
+    "independent-audit.json": "b3854ce9436fe6af7fa96a378c90b80667e29718b1117ca5c3331b187e6a1297",
+    "native-session-inventory.json": "1ebc881d53397f0c22ee5346d298f004be9da3ba09669744b97949fb8e5c5735",
+    "prepared.json": "7dd83b8e66bb6d689b7420eacb0c4d22070eb96215b42d38a7e2a88c90c88b8b"
+  },
+  "rawPrivateDataExported": false,
+  "rawReasoningExported": false
+}

@@ -2,11 +2,20 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import type { SessionEvent } from '@deepseek-ai/dsh-session';
 import { EvidenceStore, type EvidenceAccess, type EvidenceAttachment, type EvidenceQuery, type EvidenceHostRef } from './evidence.js';
+import { ContextArchiveStore } from './context-archive-store.js';
 export interface MemoryConfig {
     evidenceEnabled?: boolean;
     memorySearchChars?: number;
     memoryGetChars?: number;
     contextTargetTokens?: number;
+    contextTriggerTokens?: number;
+    contextRetainRecentMessages?: number;
+    contextMinResultChars?: number;
+    contextMaxPrunes?: number;
+    contextPreviewChars?: number;
+    contextCompactLocators?: boolean;
+    contextRetrievalReceipts?: boolean;
+    contextArchiveCompletedTurns?: boolean;
     contextOutputReserveTokens?: number;
     contextToolReserveTokens?: number;
     contextCompression?: boolean;
@@ -60,6 +69,7 @@ export declare class UltraMemoryHost {
     persistence(): Persistence | undefined;
     readEvents(sessionId: string, from?: number, length?: number): Promise<readonly SessionEvent[]>;
     resolve(ref: EvidenceHostRef): Promise<{
+        callId?: string | undefined;
         text: string;
         attachments: EvidenceAttachment[];
     } | undefined>;
@@ -74,9 +84,10 @@ export declare class UltraMemoryHost {
         maxChars?: number;
         neighbors?: number;
         quote?: string;
-    }): Promise<import("./evidence.js").EvidenceGetResult>;
+    }): Promise<import("./evidence.js").EvidenceGetResult | import("./context-archive-store.js").ContextArchiveGetResult>;
     status(sessionId: string): Record<string, unknown> | undefined;
     mainContext(agent: Agent): string | undefined;
+    private assertArchiveBinding;
     beforeStep(agent: Agent, pendingMessages?: readonly unknown[], signal?: AbortSignal): Promise<void>;
     capture(session: Agent['session'], event: SessionEvent): void;
     observeRequest(options: {
@@ -109,6 +120,9 @@ export declare class MemoryRun {
     private operationSources;
     private toolCalls;
     private retrievalCalls;
+    private localRetrievalCalls;
+    /** State of the durable scan prefix only; live event observers never mutate it. */
+    private pendingScanRetrievals;
     private coverageGaps;
     private routeStates;
     private boundaries;
@@ -129,6 +143,12 @@ export declare class MemoryRun {
     private suspensionPersistenceFailed;
     private checkpointing;
     private authoritySignal;
+    private archiveStore?;
+    private archiveState;
+    private archiveRecoveryPending;
+    private archiveCapsules;
+    private archiveCheckedGeneration;
+    private archiveCheckedSignature;
     active: boolean;
     retrievals: number;
     constructor(host: UltraMemoryHost, parent: Agent, runId: string, project: {
@@ -136,6 +156,14 @@ export declare class MemoryRun {
         projectId: string;
     }, store: EvidenceStore);
     access(): EvidenceAccess;
+    get needsArchiveRecovery(): boolean;
+    /** A committed surface keeps depending on its scoped recovery reader, even
+     * when creation is switched off or evidence authority changes later. */
+    assertArchiveRecoveryAccess(agent: Agent): void;
+    /** Lazy and metadata-only; constructing or reading an archive does not create files. */
+    archives(): ContextArchiveStore;
+    private verifyActiveArchives;
+    private assertArchiveSnapshot;
     /** Keep prior evidence; never backfill events emitted while the authority was off. */
     setSuspended(suspended: boolean): void;
     private enabled;
@@ -149,6 +177,10 @@ export declare class MemoryRun {
     private ledger;
     rollback(): void;
     private callFor;
+    private rememberRetrieval;
+    private updatePendingRetrievals;
+    private restorePendingRetrievals;
+    private classifyResumedResult;
     captureEvent(session: Agent['session'], event: SessionEvent): string[];
     captureTool(agent: Agent, callId: string, name: string, result: {
         content: readonly ContentBlock[];
@@ -163,6 +195,7 @@ export declare class MemoryRun {
     private indexStoredSession;
     prepareSeed(parent: Agent): Promise<readonly SessionEvent[]>;
     private stateText;
+    private withRecoveryTypes;
     private indexEntry;
     reportInstructions(): string;
     entry(sessionId?: string): string;
@@ -175,6 +208,11 @@ export declare class MemoryRun {
         }[];
         [key: string]: unknown;
     }): void;
+    /** Local retrieval wrappers are recoverable host material, not fresh semantic evidence.
+     * Build only a verified metadata receipt; never copy or recursively index their body.
+     * Global knowledge wrappers remain protected by their original reader/revocation rules.
+     */
+    private retrievalReceipt;
     beforeStep(agent: Agent, pendingMessages?: readonly unknown[], signal?: AbortSignal): Promise<void>;
     private resources;
     private disabledCoverageGaps;

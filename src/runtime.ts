@@ -94,8 +94,9 @@ interface RouteState {
   maxTokens?: number
   reportSubmission?: boolean
   planningOnly?: boolean
-  steeringDeliveries: Map<string, { text: string; meta: SteeringMetadata; admitted: boolean; visible: boolean }>
+  steeringDeliveries: Map<string, { text: string; meta?: SteeringMetadata; admitted: boolean; visible: boolean }>
   submittedReport?: { text: string; evidenceIds: string[]; uncertainties: string[]; conflicts: string[] }
+  reportClosureFailure?: Error
 }
 
 interface PresetService {
@@ -248,7 +249,21 @@ function installReportSubmission(state: RouteState, limit: number): () => void {
   let pending: { callId: string; report: NonNullable<RouteState['submittedReport']> } | undefined
   const releaseResult = agent.ctx.on('tools/result', (exec, result) => {
     if (exec.agent === agent && exec.name === REPORT_TOOL && exec.callId === pending?.callId && !result.isError && result.concludesTurn === true &&
-      state.running && state.reportSubmission && !state.signal.aborted) state.submittedReport = pending.report
+      state.running && state.reportSubmission && !state.signal.aborted) {
+      // Native concludesTurn still drains racing next-step input. Retire only
+      // this worker's unadmitted feedback before that boundary can claim it.
+      state.acceptingSteering = false
+      try {
+        for (const [sourceId, delivery] of state.steeringDeliveries) {
+          if (!delivery.admitted) agent.inbox.remove(sourceId as Parameters<Agent['inbox']['remove']>[0])
+        }
+        state.submittedReport = pending.report
+      } catch (error) {
+        // tools/result observers cannot veto the native result. Propagate the
+        // failure at pre-step or run settlement rather than hiding it there.
+        state.reportClosureFailure = error instanceof Error ? error : new Error(String(error))
+      }
+    }
     return undefined
   })
   let releaseTool: (() => void) | undefined
@@ -505,7 +520,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       const delivery = state.steeringDeliveries.get(event.data.id)
       if (delivery && !delivery.admitted) {
         delivery.admitted = true
-        try { delivery.meta.onDelivery?.('admitted', event.data.id) } catch { /* Observers cannot fail native admission. */ }
+        try { delivery.meta?.onDelivery?.('admitted', event.data.id) } catch { /* Observers cannot fail native admission. */ }
       }
     }
     if (session.id === options.id && event.type === 'turn/end') {
@@ -526,12 +541,12 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
     if (request.sessionId === options.id && Array.isArray(request.messages)) {
       for (const [sourceId, delivery] of state.steeringDeliveries) {
         const visible = request.messages.some(message => Array.isArray(message.content) && message.content.some((block: { type?: string; text?: string }) => block.type === 'text' && block.text === delivery.text))
-        if (visible && !delivery.visible && delivery.meta.isCurrent?.() === false) {
+        if (visible && !delivery.visible && delivery.meta?.isCurrent?.() === false) {
           throw new Error(`Ultra expired or superseded steering ${sourceId} was already admitted; refusing the model request without rewriting its recorded history`)
         }
         if (!delivery.visible && delivery.admitted && visible) {
           delivery.visible = true
-          try { delivery.meta.onDelivery?.('request-visible', sourceId) } catch { /* Observer only. */ }
+          try { delivery.meta?.onDelivery?.('request-visible', sourceId) } catch { /* Observer only. */ }
         }
       }
     }
@@ -539,8 +554,9 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
   }, { prepend: true })
   const stopExpiredSteering = (parent.ctx.root as unknown as RuntimeEvents).on('agent/pre-step', async (payload, next) => {
     if (payload.agent === state.agent) {
+      if (state.reportClosureFailure) throw state.reportClosureFailure
       for (const [sourceId, delivery] of state.steeringDeliveries) {
-        if (!delivery.visible && delivery.meta.isCurrent?.() === false) state.agent?.inbox.remove(sourceId as Parameters<Agent['inbox']['remove']>[0])
+        if (!delivery.visible && delivery.meta?.isCurrent?.() === false) state.agent?.inbox.remove(sourceId as Parameters<Agent['inbox']['remove']>[0])
       }
     }
     return next()
@@ -629,7 +645,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       return () => { state.progressListeners.delete(listener) }
     },
     steer(instruction, meta) {
-      if (!active || !state.acceptingSteering || options.signal.aborted || disposal !== undefined ||
+      if (!active || !state.acceptingSteering || state.submittedReport || options.signal.aborted || disposal !== undefined ||
         child.status !== 'running' || typeof instruction !== 'string' || instruction.trim() === '') return false
       // Public native next-step delivery keeps the same driver/turn and is
       // durably recorded by the loop even when the current request ends in text.
@@ -639,7 +655,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
         content: [{ type: 'text', text: `Ultra 决策研究改向：不扩权、原任务优先。以下仅为下一步研究反馈，继续遵守现有工具、权限和委派深度限制。\n${instruction.trim().slice(0, meta ? 4000 : 2000)}` }],
         source: { kind: 'ultra-steering', form: 'feedback', summary: 'Ultra 运行中研究方向反馈' },
       })
-      if (meta) state.steeringDeliveries.set(feedback.id, { text: feedback.content.filter(block => block.type === 'text').map(block => block.text).join(''), meta, admitted: false, visible: false })
+      state.steeringDeliveries.set(feedback.id, { text: feedback.content.filter(block => block.type === 'text').map(block => block.text).join(''), ...(meta ? { meta } : {}), admitted: false, visible: false })
       try { child.steer(feedback) } catch (error) { state.steeringDeliveries.delete(feedback.id); throw error }
       try { meta?.onDelivery?.('queued', feedback.id) } catch { /* Observer only. */ }
       state.memory?.recordDelivery?.(feedback.id, child.id, 'queued')
@@ -676,6 +692,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
       state.reportSubmission = runOptions.reportSubmission === true
       state.planningOnly = runOptions.planningOnly === true
       state.submittedReport = undefined
+      state.reportClosureFailure = undefined
       state.acceptingSteering = true
       state.sequence = 0
       let releaseReport: (() => void) | undefined
@@ -683,6 +700,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
         if (state.reportSubmission) releaseReport = installReportSubmission(state, Math.min(12000, Math.max(1000, config.reportChars ?? 12000)))
         child.followup(createUserMessage({ content: prompt, source: { kind: 'ultra-route-task', summary: options.label } }))
         await child.whenIdle()
+        if (state.reportClosureFailure) throw state.reportClosureFailure
         return identities(outcomeOf(child, boundary, options.label, options.signal.aborted, state.submittedReport))
       } catch (error) {
         return identities({ ok: false, text: '', sessionId: child.id, error: `${options.label}: ${error instanceof Error ? error.message : String(error)}` })
@@ -693,6 +711,7 @@ export async function createRoute(parent: Agent, options: RouteOptions, config: 
         state.reportSubmission = false
         state.planningOnly = false
         state.submittedReport = undefined
+        state.reportClosureFailure = undefined
         state.acceptingSteering = false
       }
     },

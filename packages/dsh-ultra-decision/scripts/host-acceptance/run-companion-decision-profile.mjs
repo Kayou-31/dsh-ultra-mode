@@ -29,7 +29,7 @@ export function claimFreshWork(filename, forbidden = []) {
   fs.writeFileSync(marker, JSON.stringify(next, null, 2)); return next
 }
 export function assertDecisionManifest(manifest) {
-  if (manifest.name !== '@dsh-external/dsh-ultra-decision' || manifest.version !== '0.1.0-dev.1' || manifest.main !== './lib/index.js' || manifest.dsh?.bundle?.patch !== './cordis.patch.yml') throw new Error('Exact Decision companion identity/entry is required')
+  if (manifest.name !== '@dsh-external/dsh-ultra-decision' || !['0.1.0-dev.1', '0.1.0-dev.2', '0.1.0'].includes(manifest.version) || manifest.main !== './lib/index.js' || manifest.dsh?.bundle?.patch !== './cordis.patch.yml') throw new Error('Exact Decision companion identity/entry is required')
   for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (name.startsWith('@dsh-external/') || /^(?:file:|link:|workspace:|\.\.?[/\\]|[/\\])/u.test(version)) throw new Error('Decision must be self contained without repository or companion dependencies')
 }
 /** Successful native tool results must match an earlier native call and source. */
