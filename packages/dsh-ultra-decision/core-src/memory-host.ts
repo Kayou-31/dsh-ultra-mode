@@ -10,8 +10,9 @@ import { assembleRouteContext, compactSession, ContextCompactionFailure, estimat
 import { ingestReport, REPORT_EVIDENCE_INSTRUCTIONS } from './report-memory.js'
 import { archiveSession, ContextArchiveFailure } from './context-archive.js'
 import { ContextArchiveStore } from './context-archive-store.js'
+import { buildTaskMemory, taskMemorySettings, type TaskMemoryConfig, type TaskMemoryPacket } from './task-memory.js'
 
-export interface MemoryConfig {
+export interface MemoryConfig extends TaskMemoryConfig {
   evidenceEnabled?: boolean
   memorySearchChars?: number
   memoryGetChars?: number
@@ -35,7 +36,7 @@ interface StoredHandle { header: { id: string; cwd?: string; parentSession?: str
 interface Persistence { open(id: string, access: 'read'): Promise<StoredHandle>; flush?(): Promise<void> }
 interface Ownership { projectId: string; rootId: string; sessions: Record<string, { parent?: string; routeId: string; runId?: string }>; disabledRanges?: Record<string, { from: number; to: number | null }[]> }
 interface PendingRetrievalCall { name: string; callId: string; seq: number }
-const retrievalTool = (name: unknown): name is string => typeof name === 'string' && ['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(name)
+const retrievalTool = (name: unknown): name is string => typeof name === 'string' && ['ultra_memory_search', 'ultra_memory_get', 'ultra_memory_status', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(name)
 function archiveIdOf(event: SessionEvent): string | undefined {
   const source = event.type === 'user/message' ? (event.data as any).source : undefined
   return source?.kind === 'compact-checkpoint' && typeof source.compactionId === 'string' && /^arc_[a-f0-9]{64}$/u.test(source.compactionId) ? source.compactionId : undefined
@@ -71,8 +72,11 @@ export function memoryFor(agent: Agent): MemoryRun | undefined {
 /** Only public text blocks; provider streams, reasoning and private tool metadata are never indexed. */
 export function publicEvidence(event: SessionEvent): { text: string; attachments: EvidenceAttachment[] } | undefined {
   const data = event.data as unknown as Record<string, any>
-  if (event.type === 'tool/call') return ['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(data.name) ? undefined : { text: JSON.stringify({ name: data.name, arguments: data.arguments }), attachments: [] }
+  if (event.type === 'tool/call') return retrievalTool(data.name) ? undefined : { text: JSON.stringify({ name: data.name, arguments: data.arguments }), attachments: [] }
   const message = event.type === 'user/message' ? data : data.message
+  // Native dynamic context is a derived snapshot, not new user intent or a
+  // primary source. Indexing it would recursively recall our own memory packet.
+  if (event.type === 'user/message' && message?.source?.kind === 'runtime-context') return undefined
   if (!['user/message', 'assistant/message', 'tool/result', 'developer/message'].includes(event.type) || !message) return undefined
   const blocks = message.content as readonly Record<string, any>[] | undefined
   if (!Array.isArray(blocks)) return undefined
@@ -117,6 +121,8 @@ export class UltraMemoryHost {
   private closeTask?: Promise<void>
   private liveSessions = new Map<string, Agent['session']>()
   private statuses = new Map<string, Record<string, unknown>>()
+  private taskPackets = new WeakMap<Agent, { run: MemoryRun; settings: string; packet: TaskMemoryPacket }>()
+  private taskQueries = new WeakMap<Agent, string>()
   constructor(readonly ctx: HostContext, readonly config: MemoryConfig) {}
   get evidenceEnabled(): boolean { return !this.closed && this.config.evidenceEnabled !== false }
   refreshAuthority(): void {
@@ -210,6 +216,67 @@ export class UltraMemoryHost {
     const run = this.access(agent); run.retrievals++
     return run.store.search(run.access(), { ...query, maxChars: Math.min(query.maxChars ?? Infinity, this.config.memorySearchChars ?? 6000) })
   }
+  private taskQuery(agent: Agent, pending: readonly unknown[] = []): string {
+    const messages = [...(agent.session.deriveMessages?.() ?? []), ...pending] as { source?: { kind?: string }; content?: readonly { type?: string; text?: string }[] }[]
+    const current = messages.filter(message => message.source?.kind === 'user').at(-1)
+    const text = current?.content?.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n').slice(0, 4096)
+    if (text) this.taskQueries.set(agent, text)
+    return text || this.taskQueries.get(agent) || ''
+  }
+  get nativeTaskContext(): boolean {
+    const prompt = this.ctx.get('systemPrompt') as { context?: unknown; refreshContext?: unknown } | undefined
+    return typeof prompt?.context === 'function' && typeof prompt?.refreshContext === 'function'
+  }
+  async prepareTaskMemory(agent: Agent, pending: readonly unknown[] = []): Promise<TaskMemoryPacket | undefined> {
+    const settings = taskMemorySettings(this.config)
+    if (!settings.enabled || !this.nativeTaskContext || !this.evidenceEnabled) { this.taskPackets.delete(agent); return undefined }
+    const run = runs.get(agent)
+    if (!run?.active || run.host !== this) return undefined
+    this.access(agent)
+    const packet = await buildTaskMemory({ store: run.store, access: run.access(), rootSessionId: run.parent.id, query: this.taskQuery(agent, pending), config: settings })
+    if (this.access(agent) !== run || JSON.stringify(taskMemorySettings(this.config)) !== JSON.stringify(settings)
+      || run.store.projectState(run.access())?.revision !== packet.stateRevision) throw new Error('Task memory changed during preparation; retry against current state')
+    this.taskPackets.set(agent, { run, settings: JSON.stringify(settings), packet })
+    return packet
+  }
+  taskContext(agent?: Agent): string {
+    if (!agent || !this.evidenceEnabled || !taskMemorySettings(this.config).enabled) return ''
+    try {
+      const run = this.access(agent), saved = this.taskPackets.get(agent)
+      if (!saved || saved.run !== run || !run.active || saved.settings !== JSON.stringify(taskMemorySettings(this.config))) return ''
+      if (run.store.projectState(run.access())?.revision !== saved.packet.stateRevision) return 'Ultra 工程记忆版本已变化，请用 ultra_memory_status 查看当前进度；旧注入不代表当前状态。'
+      return saved.packet.text
+    } catch { return '' }
+  }
+  async taskStatus(agent: Agent, options: { query?: string; depth?: string; sinceRevision?: string; revision?: string; offset?: number; maxChars?: number } = {}) {
+    const run = this.access(agent), settings = taskMemorySettings(this.config)
+    const depth = options.depth ?? 'overview', offset = options.offset ?? 0, maxChars = options.maxChars ?? this.config.memoryGetChars ?? 12000
+    if (!['overview', 'association', 'evidence'].includes(depth) || !Number.isSafeInteger(offset) || offset < 0
+      || !Number.isSafeInteger(maxChars) || maxChars < 256 || maxChars > 64000 || options.query !== undefined && (typeof options.query !== 'string' || options.query.length > 4096)
+      || [options.sinceRevision, options.revision].some(value => value !== undefined && !/^[a-f0-9]{64}$/u.test(value))) throw new TypeError('Invalid task memory query or page')
+    const packet = await buildTaskMemory({ store: run.store, access: run.access(), rootSessionId: run.parent.id, query: options.query ?? this.taskQuery(agent), config: settings })
+    if (this.access(agent) !== run || run.store.projectState(run.access())?.revision !== packet.stateRevision) throw new Error('Task memory changed while reading; retry from offset 0')
+    if (options.revision !== undefined && options.revision !== packet.revision) throw new Error('Task memory revision changed; restart pagination from offset 0')
+    run.retrievals++
+    const common = { schema: packet.schema, revision: packet.revision, projectId: packet.projectId, stateId: packet.stateId, stateRevision: packet.stateRevision, freshness: packet.freshness }
+    if (options.sinceRevision === packet.revision && offset === 0) return { ...common, unchanged: true, text: '', offset: 0 }
+    const details: Record<string, unknown> = { ...packet, warning: '状态来自记录；不会扫描当前工作区，不代表当前文件或测试已复验。记录的 verified 状态不等同于此刻通过。' }
+    if (depth === 'overview') { delete details.entries; delete details.sourceChecks }
+    else details.state = run.store.projectState(run.access())
+    if (depth === 'evidence') {
+      const samples = []
+      for (const source of packet.sourceChecks.slice(0, 6)) {
+        try { samples.push({ id: source.id, ...await run.store.get(run.access(), source.id, { maxChars: 256 }) }) }
+        catch { samples.push({ id: source.id, status: 'unavailable' }) }
+      }
+      details.evidence = samples
+    }
+    if (this.access(agent) !== run || run.store.projectState(run.access())?.revision !== packet.stateRevision
+      || JSON.stringify(taskMemorySettings(this.config)) !== JSON.stringify(settings)) throw new Error('Task memory changed while reading; retry from offset 0')
+    const body = JSON.stringify(details), limit = Math.min(maxChars, this.config.memoryGetChars ?? 12000)
+    return { ...common, unchanged: false, depth, offset, text: body.slice(offset, offset + limit), totalChars: body.length,
+      ...(offset + limit < body.length ? { nextOffset: offset + limit } : {}), pagination: 'Pass revision and the same query/depth with nextOffset; changed snapshots reject mixed pages.' }
+  }
   async get(agent: Agent, id: string, options: { offset?: number; maxChars?: number; neighbors?: number; quote?: string } = {}) {
     const run = this.access(agent); run.retrievals++
     if (/^arc_[a-f0-9]{64}$/u.test(id)) {
@@ -223,6 +290,7 @@ export class UltraMemoryHost {
   status(sessionId: string): Record<string, unknown> | undefined { return this.last.get(sessionId)?.status() ?? this.statuses.get(sessionId) }
   mainContext(agent: Agent): string | undefined {
     if (this.config.evidenceEnabled === false) return undefined
+    if (this.nativeTaskContext && taskMemorySettings(this.config).enabled) return undefined
     const run = runs.get(agent)
     if (!run?.active || run.host !== this || agent !== run.parent) return undefined
     return run.mainContext(agent.session.surface?.replaceGeneration ?? 0)
@@ -234,6 +302,7 @@ export class UltraMemoryHost {
     if (!run?.active || run.host !== this) throw new Error('Active archive has no bound recovery run; restore evidence initialization before model admission')
   }
   async beforeStep(agent: Agent, pendingMessages: readonly unknown[] = [], signal?: AbortSignal): Promise<void> {
+    this.taskQuery(agent, pendingMessages)
     this.assertArchiveBinding(agent)
     const pendingRun = runs.get(agent)
     if (pendingRun?.host === this) {
@@ -551,7 +620,7 @@ export class MemoryRun {
     }
     const key = `${session.id}:${event.seq}`
     const data = event.data as unknown as Record<string, any>
-    if (event.type === 'tool/call' && ['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(data.name)) {
+    if (event.type === 'tool/call' && ['ultra_memory_search', 'ultra_memory_get', 'ultra_memory_status', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(data.name)) {
       this.rememberRetrieval(session.id, data.callId, data.name)
     }
     if (event.type === 'tool/result' && !this.retrievalCalls.has(session.id + ':' + data.message?.source?.callId)) {
@@ -611,14 +680,21 @@ export class MemoryRun {
       if (event.type === 'assistant/message') this.reportSources.set(session.id + ':' + digest(content.text), record.id)
       if (event.type === 'tool/result' && !data.message?.isError && callId) this.recordOperation(session.id, callId, record.id)
       // Exact user text is stored as a requirement with provenance. It is not reclassified as a new authorization.
-      if (event.type === 'user/message' && data.source?.kind === 'user' && content.text) this.store.addSemantic({ id: 'requirement_' + record.id, projectId: this.projectId, kind: 'requirement', text: content.text, sourceIds: [record.id], topics: ['用户要求'] })
+      if (event.type === 'user/message' && data.source?.kind === 'user' && content.text) {
+        this.store.addSemantic({ id: 'requirement_' + record.id, projectId: this.projectId, kind: 'requirement', text: content.text, sourceIds: [record.id], topics: ['用户要求'] })
+        // Ordinary Memory turns have no Ultra task coordinator. Seed only from
+        // the root human message; later steering remains source-backed recall.
+        if (session.id === this.parent.id && !this.store.projectState(this.access())) {
+          this.store.updateProjectState(this.access(), { goal: content.text, progress: ['已接收对话目标，尚未验证完成'], sourceIds: [record.id] })
+        }
+      }
       return this.remember(session.id, [record.id])
     } catch (error) { this.errors.add(String(error)); return [] }
   }
   captureTool(agent: Agent, callId: string, name: string, result: { content: readonly ContentBlock[]; isError?: boolean }): string[] {
     if (!this.enabled()) return []
     if (!this.active || !Object.hasOwn(this.ownership.sessions, agent.id) || !callId) return []
-    if (['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(name)) {
+    if (['ultra_memory_search', 'ultra_memory_get', 'ultra_memory_status', 'ultra_knowledge_search', 'ultra_knowledge_get'].includes(name)) {
       this.retrievalCalls.add(agent.id + ':' + callId)
       if (['ultra_memory_search', 'ultra_memory_get'].includes(name)) this.localRetrievalCalls.set(agent.id + ':' + callId, name)
       return []
@@ -883,19 +959,23 @@ export class MemoryRun {
     const resources = this.resources()
     if (this.host.config.memoryMaxRequests && this.attempts >= this.host.config.memoryMaxRequests) throw new Error('Ultra request budget exhausted before the next step')
     if (this.host.config.memoryMaxTokens && resources.measuredTokens >= this.host.config.memoryMaxTokens) throw new Error('Ultra observed token budget exhausted before the next step')
+    const taskPacket = await this.host.prepareTaskMemory(agent, pendingMessages)
+    // Conservatively reserve the refreshed runtime context in addition to the
+    // current native pressure. Admission refresh supplies the actual snapshot.
+    const budgetMessages = taskPacket ? [...pendingMessages, { role: 'user', content: [{ type: 'text', text: taskPacket.text }] }] : pendingMessages
     const header = agent.session.requestHeader?.()
     const meter = agent.ctx.get('tokenMeter') as { estimateMessage?: (message: any) => number; measure?: (session: Agent['session'], header?: unknown) => { totalTokens: number } } | undefined
     // Native pressure is usage-anchored when possible and otherwise estimated.
     // It already includes current system/tools; count only unadmitted input here.
-    const pendingEstimate = estimateRequestBudget({ messages: pendingMessages, outputReserveTokens: 0, toolReserveTokens: 0 }).inputTokens
+    const pendingEstimate = estimateRequestBudget({ messages: budgetMessages, outputReserveTokens: 0, toolReserveTokens: 0 }).inputTokens
     const measureInputTokens = this.host.config.contextCompression && meter?.measure ? () => {
       const measured = meter.measure!(agent.session, header).totalTokens
       if (!Number.isSafeInteger(measured) || measured < 0) throw new TypeError('Invalid official token meter pressure')
       return measured + pendingEstimate
     } : undefined
-    this.requestEstimate = estimateRequestBudget({ messages: [...(agent.session.deriveMessages?.() ?? []), ...pendingMessages], tools: header?.tools ?? [], targetTokens: this.host.config.contextTargetTokens ?? 30000,
+    this.requestEstimate = estimateRequestBudget({ messages: [...(agent.session.deriveMessages?.() ?? []), ...budgetMessages], tools: header?.tools ?? [], targetTokens: this.host.config.contextTargetTokens ?? 30000,
       nativeInputEstimate: measureInputTokens?.(), outputReserveTokens: this.host.config.contextOutputReserveTokens ?? 4096, toolReserveTokens: this.host.config.contextToolReserveTokens ?? 2048 })
-    if (!this.host.config.contextCompression || (this.requestEstimate as { totalTokens: number }).totalTokens <= triggerTokens) { this.assertArchiveSnapshot(agent); return }
+    if (taskPacket?.blocked || !this.host.config.contextCompression || (this.requestEstimate as { totalTokens: number }).totalTokens <= triggerTokens) { this.assertArchiveSnapshot(agent); return }
     if (Object.values(this.ownership.disabledRanges ?? {}).some(ranges => ranges.some(range => range.to === null || range.to > range.from))) return
     const nativeCompaction = agent.ctx.get('compaction')
     try { this.compression = await compactSession({ session: agent.session,
@@ -915,7 +995,7 @@ export class MemoryRun {
         minResultChars: this.host.config.contextMinResultChars, maxPrunes: this.host.config.contextMaxPrunes, previewChars: this.host.config.contextPreviewChars, compactLocators: this.host.config.contextCompactLocators,
         outputReserveTokens: this.host.config.contextOutputReserveTokens ?? 4096, toolReserveTokens: this.host.config.contextToolReserveTokens ?? 2048 },
       estimateMessage: meter?.estimateMessage, measureInputTokens,
-      tools: header?.tools ?? [], pendingMessages, signal: signal ? AbortSignal.any([signal, this.authoritySignal.signal]) : this.authoritySignal.signal,
+      tools: header?.tools ?? [], pendingMessages: budgetMessages, signal: signal ? AbortSignal.any([signal, this.authoritySignal.signal]) : this.authoritySignal.signal,
       authority: { protocol: 'dsh-0.2.0-rc.2', soleOwner: !nativeCompaction }, nativeCompaction,
       getCompactionOwner: () => agent.ctx.get('compaction') }) }
     catch (error) {
@@ -937,7 +1017,7 @@ export class MemoryRun {
         this.archiveState = await archiveSession({ session: agent.session,
           readEvents: () => this.indexSession(agent.session, true), checkpoint: () => this.checkpoint(),
           prepare: events => this.archives().prepare(this.access(), { sessionId: agent.id, events, currentStateText: this.stateText(), signal }),
-          estimateMessage: meter.estimateMessage, measureInputTokens, tools: header?.tools ?? [], pendingMessages,
+          estimateMessage: meter.estimateMessage, measureInputTokens, tools: header?.tools ?? [], pendingMessages: budgetMessages,
           authority: { protocol: 'dsh-0.2.1-rc.2', soleOwner: !nativeCompaction }, getCompactionOwner: () => agent.ctx.get('compaction'),
           config: { enabled: true, targetTokens, triggerTokens: targetTokens, retainRecentMessages: this.host.config.contextRetainRecentMessages ?? 8,
             outputReserveTokens: this.host.config.contextOutputReserveTokens ?? 4096, toolReserveTokens: this.host.config.contextToolReserveTokens ?? 2048 },

@@ -6,6 +6,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, constants, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import { isTaskMemorySnapshot } from './task-memory-context.js'
 
 export interface ContextArchiveAccess { projectId: string; sessionIds: readonly string[] }
 export interface ContextArchiveStoreOptions {
@@ -322,7 +323,7 @@ export class ContextArchiveStore {
       const projected = publicProjection(original)
       if (projected.rich) throw new Error('Unsupported rich input or attachment: retain original context')
       const ids = sourceIds(this.options.sourceIdsFor?.(sessionId, original) ?? [])
-      const entry = metadata(projected.event, ids, original.type !== 'tool/result' && original.type !== 'tool/call' && !omitNotice(original))
+      const entry = metadata(projected.event, ids, original.type !== 'tool/result' && original.type !== 'tool/call' && !omitNotice(original) && !isTaskMemorySnapshot(original))
       const existing = entries.get(entry.seq)
       if (existing && canonical(existing) !== canonical(entry)) throw new Error('Archive integrity: conflicting canonical event')
       entries.set(entry.seq, entry); originals.set(entry.seq, original)

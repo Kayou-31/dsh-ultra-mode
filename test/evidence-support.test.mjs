@@ -181,11 +181,12 @@ test('provider feature changes register and dispose global tools through native 
 test('memory-only ordinary assembly creates one evidence run with global knowledge disabled', async t => {
   const f = await fixture(t), m = await f.mount(first, 'memory', { globalKnowledge: { enabled: false } })
   // Native assembly dispatch executes the real integration bootstrap middleware.
-  await f.ctx.get('systemPrompt').assemble({ agent: f.parent, signal: new AbortController().signal })
+  const assembly = await f.ctx.get('systemPrompt').assemble({ agent: f.parent, signal: new AbortController().signal })
   const run = second.memoryFor(f.parent)
   assert.ok(run)
   const decision = await f.ctx.waterfall('agent/pre-step', { agent: f.parent, messages: [], signal: new AbortController().signal }, async () => ({ kind: 'enter', messages: [] }))
-  assert.match(decision.messages[0].content[0].text, /项目证据入口/)
+  assert.equal(decision.messages.length, 0, 'native runtime context replaces repeated recovery messages')
+  assert.match(assembly.contexts.find(context => context.name === 'ultra-task-memory').text, /Ultra 工程记忆/)
   const child = f.agent('child', f.parent.id)
   await f.ctx.serial('agent/created', { agent: child })
   assert.equal(second.memoryFor(child), run)
@@ -210,6 +211,76 @@ test('shared fallback observes each request once and yields to the active orches
   await m.fork.dispose()
 })
 
+test('native task context refresh and typed progress query share one scoped state without recapturing the reply', async t => {
+  const f = await fixture(t), mounted = await f.mount(first, 'memory')
+  const request = { agent: f.parent, signal: new AbortController().signal }
+  const prompt = f.ctx.get('systemPrompt')
+  const { createUserMessage } = await sdkImport('dsh-llm')
+  f.parent.session.append('user/message', createUserMessage({ content: [{type:'text',text:'Implement payment retry; preserve original API'}], source: {kind:'user'} }), {surfaceOp:'append'})
+  await prompt.assemble(request)
+  const run = first.memoryFor(f.parent)
+  assert.ok(run)
+  const before = run.store.stats(run.access()).raw.sources
+  const assembly = await prompt.assemble(request)
+  const contexts = assembly.contexts.filter(context => context.name === 'ultra-task-memory')
+  assert.equal(contexts.length, 1)
+  assert.match(contexts[0].text, /Implement payment retry/)
+  assert.ok(Buffer.byteLength(contexts[0].text) <= 8192)
+  const response = await f.ctx.get('tools').execute({ agent: f.parent, name: 'ultra_memory_status', arguments: {depth:'association',maxChars:6000}, callId:'progress-native', signal:new AbortController().signal })
+  assert.equal(response.isError, false)
+  const page = JSON.parse(response.content[0].text)
+  assert.equal(page.freshness, 'recorded-evidence-only')
+  assert.match(page.text, /Implement payment retry/)
+  assert.equal(JSON.parse(page.text).state.goal, 'Implement payment retry; preserve original API')
+  assert.equal(run.store.stats(run.access()).raw.sources, before)
+  run.store.updateProjectState(run.access(), {...run.store.projectState(run.access()),next:['Recheck edited retry code']})
+  const changed = await prompt.assemble(request)
+  assert.match(changed.contexts.find(context => context.name === 'ultra-task-memory').text, /Recheck edited retry code/)
+  await mounted.fork.dispose()
+  assert.equal(f.schemas().includes('ultra_memory_status'), false)
+  assert.equal((await prompt.assemble(request)).contexts.some(context => context.name === 'ultra-task-memory'), false)
+})
+
+test('native assistant tool calls can page a stable progress document without invalidating themselves', async t => {
+  const f = await fixture(t), mounted = await f.mount(first, 'memory')
+  const {createUserMessage,createAssistantMessage,createToolResultMessage,ToolCallId}=await sdkImport('dsh-llm')
+  const session=f.parent.session, signal=new AbortController().signal
+  session.append('user/message',createUserMessage({content:[{type:'text',text:'Implement payment retry'}],source:{kind:'user'}}),{surfaceOp:'append'})
+  await f.ctx.get('systemPrompt').assemble({agent:f.parent,signal})
+  let index=0
+  const execute=async args=>{
+    const id=ToolCallId('status-page-'+index++)
+    session.append('assistant/message',{turn:1,step:index,stream:[],message:createAssistantMessage({content:[{type:'tool-call',id,name:'ultra_memory_status',arguments:JSON.stringify(args)}],source:{provider:'offline',model:'fixture'}})},{surfaceOp:'append'})
+    session.append('tool/call',{turn:1,step:index,name:'ultra_memory_status',callId:id,arguments:JSON.stringify(args)})
+    await f.ctx.get('systemPrompt').assemble({agent:f.parent,signal})
+    const result=await f.ctx.get('tools').execute({agent:f.parent,name:'ultra_memory_status',arguments:args,callId:id,signal})
+    assert.equal(result.isError,false,JSON.stringify(result))
+    session.append('tool/result',{turn:1,step:index,message:createToolResultMessage({callId:id,content:result.content,isError:false})},{surfaceOp:'append'})
+    return JSON.parse(result.content[0].text)
+  }
+  let page=await execute({depth:'association',maxChars:256}), text=page.text, revision=page.revision
+  while(page.nextOffset!==undefined){page=await execute({depth:'association',maxChars:256,offset:page.nextOffset,revision});text+=page.text}
+  assert.equal(JSON.parse(text).state.goal,'Implement payment retry')
+  assert.equal((await execute({sinceRevision:revision})).unchanged,true)
+  await mounted.fork.dispose()
+})
+
+test('mandatory user instructions over budget retain original native history',async t=>{
+  const f=await fixture(t),mounted=await f.mount(first,'memory',{contextCompression:true,taskMemoryMaxBytes:2048})
+  const {createUserMessage}=await sdkImport('dsh-llm')
+  f.parent.session.append('user/message',createUserMessage({content:[{type:'text',text:'Never remove originals. '.repeat(240)}],source:{kind:'user'}}),{surfaceOp:'append'})
+  const request={agent:f.parent,signal:new AbortController().signal}
+  await f.ctx.get('systemPrompt').assemble(request)
+  const run=first.memoryFor(f.parent), generation=f.parent.session.surface.replaceGeneration, nodes=[...f.parent.session.surface.nodes]
+  const result=await run.host.taskStatus(f.parent,{depth:'association',maxChars:12000})
+  assert.equal(JSON.parse(result.text).blocked,true)
+  await run.host.beforeStep(f.parent)
+  assert.equal(f.parent.session.surface.replaceGeneration,generation)
+  assert.deepEqual(f.parent.session.surface.nodes,nodes)
+  assert.match(run.host.taskContext(f.parent),/暂停新增压缩/)
+  await mounted.fork.dispose()
+})
+
 test('shared pretruncation capture remains exactly once across bundle leases and unload', async t => {
   const f = await fixture(t), m = await f.mount(first, 'memory'), d = await f.mount(second, 'decision')
   const run = await first.beginMemoryRun(f.parent, 'tool-captures')
@@ -226,7 +297,7 @@ test('shared pretruncation capture remains exactly once across bundle leases and
 test('standalone Memory plugin defaults expose evidence without any coordination tools', async t => {
   const f = await fixture(t), fork = f.ctx.plugin(first.memoryPlugin, {})
   await fork.await()
-  assert.deepEqual(f.schemas().filter(name => name.startsWith('ultra_')).sort(), ['ultra_memory_get', 'ultra_memory_search'])
+  assert.deepEqual(f.schemas().filter(name => name.startsWith('ultra_')).sort(), ['ultra_memory_get', 'ultra_memory_search', 'ultra_memory_status'])
   await f.ctx.get('systemPrompt').assemble({ agent: f.parent, signal: new AbortController().signal })
   assert.ok(second.memoryFor(f.parent))
   assert.equal(f.ctx.get('ultraEvidenceSupport').memory.config.contextCompression, false)

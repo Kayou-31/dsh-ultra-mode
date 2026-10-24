@@ -1,11 +1,11 @@
 # DSH Ultra Decision
 
-> **0.6.1 兼容更新**：三包加入 DSH 0.2.1-rc.3；新测试结果见[本版发布报告](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.1.md)。下文涉及真实模型、14/30 或旧 CLI 数字的内容属于 0.6.0 历史证据，不计入本次验证。
+> **0.7.0 兼容更新**：三包加入 DSH 0.2.1-rc.3；新测试结果见[本版发布报告](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.7.0.md)。下文涉及真实模型、14/30 或旧 CLI 数字的内容属于 0.6.0 历史证据，不计入本次验证。
 
-> 本包与完整 Ultra 一起提供于 [v0.6.1 正式版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1)。安装组合、实测范围与限制见[发布记录](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.1.md)。
+> 本包与完整 Ultra 一起提供于 [v0.7.0 正式版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.7.0)。安装组合、实测范围与限制见[发布记录](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.7.0.md)。
 
 
-`@dsh-external/dsh-ultra-decision` **0.1.1** 是可独立安装的正式包。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
+`@dsh-external/dsh-ultra-decision` **0.2.0** 是可独立安装的正式包。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
 
 提供普通子代理 Team 六工具、协作多模型池，以及只读 decision 辅助和可选原文意图、运行诊断、最终验收治理。额外 decision 默认关闭；显式 `/decision on` 后才为后续任务开启一条只读旁路。没有 Max 手动 2～5 路的工具、命令或 RPC 入口。
 

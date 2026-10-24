@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { createHash } from 'node:crypto'
 import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
+import ts from 'typescript'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -30,10 +31,10 @@ test('both companion distributions contain only native external imports and matc
     const directory = path.join(root, 'packages', `dsh-ultra-${variant}`)
     const manifest = JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8'))
     assert.equal(manifest.name, `@dsh-external/dsh-ultra-${variant}`)
-    assert.equal(manifest.version, '0.1.1')
+    assert.equal(manifest.version, '0.2.0')
     assert.equal(Object.keys(manifest.dependencies ?? {}).length, 0)
     const bundle = await readFile(path.join(directory, 'lib/index.js'), 'utf8')
-    const externals = [...bundle.matchAll(/(?:from\s*|import\s*\()(["'])([^"']+)\1/gu)].map(match => match[2])
+    const externals = ts.preProcessFile(bundle, true, true).importedFiles.map(item => item.fileName)
     assert.ok(externals.length > 0)
     assert.ok(externals.every(name => name.startsWith('@deepseek-ai/') || name.startsWith('node:')), externals.join(', '))
     assert.ok(!bundle.includes('require('), 'ESM distribution cannot need a hidden CommonJS loader')
@@ -43,7 +44,7 @@ test('both companion distributions contain only native external imports and matc
     assert.equal(standalone.name, manifest.name, 'only the bundled entry and native host peers are needed to load')
     const inventory = JSON.parse(await readFile(path.join(directory, 'SOURCE-MANIFEST.json'), 'utf8'))
     assert.equal(inventory.package.name, manifest.name)
-    assert.equal(inventory.root.version, '0.6.1')
+    assert.equal(inventory.root.version, '0.7.0')
     assert.equal(inventory.runtime.sha256, sha256(Buffer.from(bundle)))
     assert.ok(inventory.coreSources.length > 25)
     for (const source of inventory.coreSources) {

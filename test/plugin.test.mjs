@@ -58,6 +58,7 @@ function boot({ runner, assistRunner, config, variant, lateConnection = false, c
     } },
     './knowledge-integration.js': { installKnowledgeIntegration: () => undefined },
     './knowledge-settings.js': { GlobalKnowledgeSchema: schema },
+    './task-memory-settings.js': { TaskMemoryFields: {} },
     './decision-governance.js': governance,
     './model-pool-settings.js': poolSettings,
     './model-pool-audit.js': { readCollaborationAudit: async () => [] },

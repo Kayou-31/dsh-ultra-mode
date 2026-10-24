@@ -1,5 +1,7 @@
 # Ultra 持久证据与上下文管理
 
+> 0.7.0 新增工程记忆与主动进度查询；最新功能、默认开关和证据边界见 [Memory README](../packages/dsh-ultra-memory/README.md) 与 [0.7.0 发布报告](releases/0.7.0.md)。下文 OCG、rc.2 实验与“本轮”措辞属于 0.6.0 历史文档，不计入新版本验证。
+
 本页说明当前完整 Ultra、独立 Memory 和 Decision 共用的证据底座；包路径及组合见[附属插件](companion-plugins.md)，安装见[安装与回滚](installation.md)。本轮主验收宿主为官方 DSH **0.2.1-rc.2**，旧 **0.2.0-rc.2** 的 SDK／原生回归单列，不将声明兼容范围当作全部能力实测。OCG 结果、原生／模拟／真实模型分层及失败记录见[本轮实验](OCG-EXPERIMENTS.md)，本轮没有安装到日常环境。历史 0.5.0-rc.3／naizhi 成绩保留在[原验收报告](evidence-verification.md)，不作为当前构建成绩。
 
 ## 使用

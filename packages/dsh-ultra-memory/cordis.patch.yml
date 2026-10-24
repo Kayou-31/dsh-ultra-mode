@@ -3,6 +3,10 @@
       name: '@dsh-external/dsh-ultra-memory'
       config:
         evidenceEnabled: true
+        taskMemoryEnabled: true
+        taskMemoryMaxBytes: 8192
+        taskMemoryConditionalRecall: true
+        taskMemoryRecallLimit: 6
         contextCompression: false
         globalKnowledge:
           enabled: false

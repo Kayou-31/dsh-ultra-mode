@@ -3,7 +3,8 @@ import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import type { SessionEvent } from '@deepseek-ai/dsh-session';
 import { EvidenceStore, type EvidenceAccess, type EvidenceAttachment, type EvidenceQuery, type EvidenceHostRef } from './evidence.js';
 import { ContextArchiveStore } from './context-archive-store.js';
-export interface MemoryConfig {
+import { type TaskMemoryConfig, type TaskMemoryPacket } from './task-memory.js';
+export interface MemoryConfig extends TaskMemoryConfig {
     evidenceEnabled?: boolean;
     memorySearchChars?: number;
     memoryGetChars?: number;
@@ -61,6 +62,8 @@ export declare class UltraMemoryHost {
     private closeTask?;
     private liveSessions;
     private statuses;
+    private taskPackets;
+    private taskQueries;
     constructor(ctx: HostContext, config: MemoryConfig);
     get evidenceEnabled(): boolean;
     refreshAuthority(): void;
@@ -79,6 +82,42 @@ export declare class UltraMemoryHost {
     releaseSessionRef(session: Agent['session']): void;
     access(agent: Agent): MemoryRun;
     search(agent: Agent, query: EvidenceQuery): Promise<import("./evidence.js").EvidenceSearchResult>;
+    private taskQuery;
+    get nativeTaskContext(): boolean;
+    prepareTaskMemory(agent: Agent, pending?: readonly unknown[]): Promise<TaskMemoryPacket | undefined>;
+    taskContext(agent?: Agent): string;
+    taskStatus(agent: Agent, options?: {
+        query?: string;
+        depth?: string;
+        sinceRevision?: string;
+        revision?: string;
+        offset?: number;
+        maxChars?: number;
+    }): Promise<{
+        unchanged: boolean;
+        text: string;
+        offset: number;
+        schema: "ultra-task-memory/v1";
+        revision: string;
+        projectId: string;
+        stateId: string | undefined;
+        stateRevision: number | undefined;
+        freshness: "recorded-evidence-only";
+    } | {
+        pagination: string;
+        nextOffset?: number | undefined;
+        unchanged: boolean;
+        depth: string;
+        offset: number;
+        text: string;
+        totalChars: number;
+        schema: "ultra-task-memory/v1";
+        revision: string;
+        projectId: string;
+        stateId: string | undefined;
+        stateRevision: number | undefined;
+        freshness: "recorded-evidence-only";
+    }>;
     get(agent: Agent, id: string, options?: {
         offset?: number;
         maxChars?: number;

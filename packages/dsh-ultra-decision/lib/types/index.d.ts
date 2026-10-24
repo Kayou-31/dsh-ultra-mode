@@ -3,6 +3,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { type RunConfig } from './orchestrator.js';
 import type { CoordinationSummary } from './coordination.js';
+import type { TaskMemoryConfig } from './task-memory.js';
 declare module '@deepseek-ai/dsh-llm' {
     interface MessageSourceMap {
         'ultra-mode': {
@@ -185,6 +186,10 @@ export declare const ConfigFields: {
     jevModel: z<string, string, "defined">;
     jevBaseUrl: z<string, string, "defined">;
     jevTimeoutMs: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 };
 export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     toolName: z<string, string, "defined">;
@@ -353,6 +358,10 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     jevModel: z<string, string, "defined">;
     jevBaseUrl: z<string, string, "defined">;
     jevTimeoutMs: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     toolName: z<string, string, "defined">;
     concurrency: z<number, number, "defined">;
@@ -520,8 +529,12 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     jevModel: z<string, string, "defined">;
     jevBaseUrl: z<string, string, "defined">;
     jevTimeoutMs: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, "plain">;
-export interface Config extends RunConfig {
+export interface Config extends RunConfig, TaskMemoryConfig {
     concurrency: number;
     sectionOrder: number;
     maxSessions: number;

@@ -1,16 +1,16 @@
 # 自由选择完整包与附属插件
 
-> **0.6.1 兼容更新**：三包加入 DSH 0.2.1-rc.3；新测试结果见[本版发布报告](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.1.md)。下文涉及真实模型、14/30 或旧 CLI 数字的内容属于 0.6.0 历史证据，不计入本次验证。
+> **0.7.0 兼容更新**：三包加入 DSH 0.2.1-rc.3；新测试结果见[本版发布报告](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.7.0.md)。下文涉及真实模型、14/30 或旧 CLI 数字的内容属于 0.6.0 历史证据，不计入本次验证。
 
-v0.6.1正式交付提供三个安装包。主包仍保留完整能力；两个附属包让普通 DSH 用户按需安装记忆或协作决策能力，不要求先安装 Ultra。三个 TGZ 一起提供于 [v0.6.1](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1)；文件名、SHA256、自动测试与原生离线验收结果见[发布验证](releases/0.6.1.md)。
+v0.7.0正式交付提供三个安装包。主包仍保留完整能力；两个附属包让普通 DSH 用户按需安装记忆或协作决策能力，不要求先安装 Ultra。三个 TGZ 一起提供于 [v0.7.0](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.7.0)；文件名、SHA256、自动测试与原生离线验收结果见[发布验证](releases/0.7.0.md)。
 
 ## 选择安装组合
 
 | 包与源码位置 | 当前版本 | 能力及默认行为 |
 | --- | --- | --- |
-| `@dsh-external/dsh-ultra-mode`，仓库根目录 | `0.6.1` | 完整 Ultra：关闭／辅助／手动 2～5 路、Team、普通协作模型池、意图／诊断／验收治理、项目证据／上下文及显式授权全局知识。既有模式和默认值保留 |
-| `@dsh-external/dsh-ultra-memory`，[packages/dsh-ultra-memory/](../packages/dsh-ultra-memory/README.md) | `0.1.1` | 普通项目的原始证据、按需 search/get、可选原生历史压缩与同 profile 显式授权知识库。不创建模型或 Ultra 路线；压缩和全局知识默认关闭 |
-| `@dsh-external/dsh-ultra-decision`，[packages/dsh-ultra-decision/](../packages/dsh-ultra-decision/README.md) | `0.1.1` | 普通子代理 Team 六工具、协作多模型池，以及只读 decision 旁路和可选意图／诊断／验收。额外 decision 默认关闭，显式 `/decision on` 才开启；没有 Max 手动多路线入口 |
+| `@dsh-external/dsh-ultra-mode`，仓库根目录 | `0.7.0` | 完整 Ultra：关闭／辅助／手动 2～5 路、Team、普通协作模型池、意图／诊断／验收治理、项目证据／上下文及显式授权全局知识。既有模式和默认值保留 |
+| `@dsh-external/dsh-ultra-memory`，[packages/dsh-ultra-memory/](../packages/dsh-ultra-memory/README.md) | `0.2.0` | 普通项目的原始证据、按需 search/get、可选原生历史压缩与同 profile 显式授权知识库。不创建模型或 Ultra 路线；压缩和全局知识默认关闭 |
+| `@dsh-external/dsh-ultra-decision`，[packages/dsh-ultra-decision/](../packages/dsh-ultra-decision/README.md) | `0.2.0` | 普通子代理 Team 六工具、协作多模型池，以及只读 decision 旁路和可选意图／诊断／验收。额外 decision 默认关闭，显式 `/decision on` 才开启；没有 Max 手动多路线入口 |
 
 支持 Ultra 独立、Memory 独立、Decision 独立、Memory＋Decision、Ultra＋Memory。Memory＋Decision 让普通主 Agent 使用独立记忆和协作决策；Ultra＋Memory 由完整 Ultra 协调，Memory 统一管理证据配置。
 
@@ -94,4 +94,4 @@ Ultra 和 Decision 可同时安装，但在同一 scope 只能启用一个协调
 
 需分别验证三个最终 TGZ 的独立原生加载、Memory＋Decision 两种加载顺序、Ultra＋Memory、重复协调入口拒绝、配置权威切换、单 lease 释放后继续工作与最后 lease 排空，以及捕获和请求计数不重复。项目来源、权限、撤权、压缩和知识来源验证仍按原边界检查。
 
-最终包哈希及每层通过／跳过／失败见[本版发布报告](releases/0.6.1.md)和 Release 附件；执行方法见[测试指南](testing.md)。原生 SDK 与 CLI 离线检查只能证明接线及断言，不能证明真实模型质量、费用改善或完整 Electron UI。0.6.0 的在线实验单独保留，本版没有新增在线模型实验，也没有改写日常 profile。
+最终包哈希及每层通过／跳过／失败见[本版发布报告](releases/0.7.0.md)和 Release 附件；执行方法见[测试指南](testing.md)。原生 SDK 与 CLI 离线检查只能证明接线及断言，不能证明真实模型质量、费用改善或完整 Electron UI。0.6.0 的在线实验单独保留，本版没有新增在线模型实验，也没有改写日常 profile。

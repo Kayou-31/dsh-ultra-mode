@@ -3,10 +3,12 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { GlobalKnowledgeSchema } from './knowledge-settings.js'
 import { acquireEvidenceSupport, type EvidenceSupportConfig } from './evidence-support.js'
+import { TaskMemoryFields } from './task-memory-settings.js'
 
 export const name = '@dsh-external/dsh-ultra-memory'
 export const inject = ['agents', 'tools', 'systemPrompt']
 export const Config = z.object({
+  ...TaskMemoryFields,
   evidenceEnabled: z.boolean().default(true),
   globalKnowledge: GlobalKnowledgeSchema,
   memorySearchChars: z.number().step(1).min(256).max(32000).default(6000),

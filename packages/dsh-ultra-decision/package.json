@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-ultra-decision",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "DSH普通子代理协作、模型池与可选只读Decision辅助",
   "type": "module",
   "private": false,

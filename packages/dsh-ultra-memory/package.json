@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-ultra-memory",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "DSH独立项目证据、上下文管理与显式授权全局知识库",
   "type": "module",
   "private": false,
@@ -42,7 +42,7 @@
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kayou-31/dsh-ultra-mode.git"
+    "url": "git+https://github.com/Kayou-31/Ultra-Memory.git"
   },
   "engines": {
     "dsh": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",

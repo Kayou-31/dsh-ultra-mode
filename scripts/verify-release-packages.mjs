@@ -28,7 +28,7 @@ for (const name of (await fs.readdir(path.join(sdk, '@deepseek-ai'))).filter(n =
   sdkInventory.push({ name: manifest.name, version: manifest.version, manifestSha256: sha(bytes) })
 }
 const entries = {}, inventories = []
-for (const [variant, version] of [['mode', '0.6.1'], ['memory', '0.1.1'], ['decision', '0.1.1']]) {
+for (const [variant, version] of [['mode', '0.7.0'], ['memory', '0.2.0'], ['decision', '0.2.0']]) {
   const filename = `dsh-external-dsh-ultra-${variant}-${version}.tgz`, archive = path.join(packages, filename)
   const list = spawnSync('tar', ['-tzf', archive], { encoding: 'utf8', windowsHide: true })
   assert.equal(list.status, 0, list.stderr)
@@ -43,7 +43,7 @@ for (const [variant, version] of [['mode', '0.6.1'], ['memory', '0.1.1'], ['deci
   await fs.symlink(sdk, path.join(root, 'node_modules'), 'junction')
   for (const file of [manifest.main, manifest.types, manifest.dsh.bundle.patch, 'README.md', 'LICENSE']) await fs.access(path.join(root, file))
   const provenance = await read(path.join(root, 'SOURCE-MANIFEST.json'))
-  assert.equal(provenance.package.version, version); assert.equal(provenance.root.version, '0.6.1')
+  assert.equal(provenance.package.version, version); assert.equal(provenance.root.version, '0.7.0')
   for (const source of provenance.coreSources) {
     const file = variant === 'mode' ? source.path : 'core-src/' + source.path.slice(4)
     assert.equal(sha(await fs.readFile(path.join(root, file))), source.sha256, file)
@@ -88,6 +88,7 @@ for (const order of [['mode'], ['memory'], ['decision'], ['memory','mode'], ['mo
     const service = ctx.get('ultraEvidenceSupport'), names = ctx.get('tools').schemas().map(t => t.name)
     assert.equal(names.filter(n => n === 'ultra_memory_search').length, 1)
     assert.equal(names.filter(n => n === 'ultra_memory_get').length, 1)
+    assert.equal(names.filter(n => n === 'ultra_memory_status').length, 1)
     assert.equal(names.includes('ultra_task'), order.includes('mode'))
     assert.equal(service.status().owner, expectedOwner(order))
     // Remove in installation order: verify surviving authority and registration.

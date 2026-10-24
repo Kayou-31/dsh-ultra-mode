@@ -57,6 +57,10 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     contextCompression: z<boolean, boolean, "defined">;
     memoryMaxRequests: z<number, number, "defined">;
     memoryMaxTokens: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     evidenceEnabled: z<boolean, boolean, "defined">;
     globalKnowledge: z<NoInfer<Schemastery.ObjectS<NoInfer<{
@@ -110,6 +114,10 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     contextCompression: z<boolean, boolean, "defined">;
     memoryMaxRequests: z<number, number, "defined">;
     memoryMaxTokens: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, "plain">;
 export type Config = EvidenceSupportConfig;
 export declare function apply(ctx: Context, config: Config): Promise<void>;

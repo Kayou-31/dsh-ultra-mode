@@ -83,8 +83,18 @@ class EvidenceSupport {
         if (!service.closed && !service.orchestrationOwned()) service.memory.observeRequest(options)
         yield* next()
       }) as never)
-      yield ctx.on('system-prompt/assemble', (async (_assembly: unknown, _request: unknown, next: () => Promise<unknown>) => {
-        await service.ready(); return next()
+      const prompt = ctx.get('systemPrompt') as { context?(value: unknown): () => void; refreshContext?(assembly: unknown, request: unknown): unknown } | undefined
+      if (typeof prompt?.context === 'function' && typeof prompt.refreshContext === 'function') yield prompt.context({
+        name: 'ultra-task-memory', order: 118, required: true, interpolate: false,
+        text: (request: { agent?: Agent }) => service.memory.taskContext(request.agent),
+      })
+      yield ctx.on('system-prompt/assemble', (async (_assembly: unknown, request: { agent?: Agent; signal?: AbortSignal }, next: () => Promise<unknown>) => {
+        await service.ready()
+        const accepted = await next()
+        if (!request.agent || !service.memory.nativeTaskContext) return accepted
+        await service.memory.prepareTaskMemory(request.agent)
+        request.signal?.throwIfAborted()
+        return prompt!.refreshContext!(accepted, request)
       }) as never)
       yield ctx.on('agent/pre-step', (async (payload: { agent: Agent; messages: readonly unknown[]; signal: AbortSignal }, next: () => Promise<any>) => {
         await service.ready()

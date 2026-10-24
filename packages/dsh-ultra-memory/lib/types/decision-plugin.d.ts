@@ -170,6 +170,10 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     jevModel: z<string, string, "defined">;
     jevBaseUrl: z<string, string, "defined">;
     jevTimeoutMs: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     decisionAssistEnabled: z<boolean, boolean, "defined">;
     collaborationEnabled: z<boolean, boolean, "defined">;
@@ -336,6 +340,10 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     jevModel: z<string, string, "defined">;
     jevBaseUrl: z<string, string, "defined">;
     jevTimeoutMs: z<number, number, "defined">;
+    taskMemoryEnabled: z<boolean, boolean, "defined">;
+    taskMemoryMaxBytes: z<number, number, "defined">;
+    taskMemoryConditionalRecall: z<boolean, boolean, "defined">;
+    taskMemoryRecallLimit: z<number, number, "defined">;
 }>>, "plain">;
 export interface Config extends Omit<UltraConfigValue, 'toolName' | 'concurrency'> {
     decisionAssistEnabled?: boolean;

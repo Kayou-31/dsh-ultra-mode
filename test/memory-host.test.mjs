@@ -56,8 +56,40 @@ async function pendingRetrievalFixture(t, name, prefixEvents = 0) {
 }
 test('exports the host-owned evidence adapter', () => assert.equal(typeof api.UltraMemoryHost, 'function'))
 
+test('active progress queries are scoped, versioned, paginated and distinguish executed from verified', enabled, async t => {
+  const f = fixture(t), run = await f.host.begin(f.root, 'progress-query')
+  assert.ok(run); run.recordTask('Implement retry without deleting baseline')
+  const first = await f.host.taskStatus(f.root, { depth: 'association', maxChars: 256 })
+  assert.equal(first.freshness, 'recorded-evidence-only')
+  assert.equal(first.offset, 0); assert.ok(first.nextOffset > 0)
+  assert.equal(first.text.length <= 256, true)
+  const unchanged = await f.host.taskStatus(f.root, { sinceRevision: first.revision })
+  assert.equal(unchanged.unchanged, true)
+  run.store.updateProjectState(run.access(), { ...run.store.projectState(run.access()), next: ['Recheck retry after an additional edit'] })
+  const changed = await f.host.taskStatus(f.root, { sinceRevision: first.revision })
+  assert.equal(changed.unchanged, false); assert.notEqual(changed.revision, first.revision)
+  await assert.rejects(() => f.host.taskStatus(f.root, { revision: first.revision, offset: first.nextOffset }), /revision changed/)
+  await assert.rejects(() => f.host.taskStatus(f.agent('foreign'), {}), /not bound|denied/)
+  f.host.config.evidenceEnabled = false
+  await assert.rejects(() => f.host.taskStatus(f.root, {}), /disabled/)
+})
+
+test('progress query wrappers never become new facts or operation receipts', enabled, async t => {
+  const f = fixture(t), run = await f.host.begin(f.root, 'progress-no-recursion')
+  assert.ok(run)
+  const call = f.event(f.root, 'tool/call', { name: 'ultra_memory_status', callId: 'status-call', arguments: '{}' })
+  run.captureEvent(f.root.session, call)
+  const result = f.event(f.root, 'tool/result', { message: { toolCallId: 'status-call', source: { kind: 'tool', callId: 'status-call' }, content: [{type:'text',text:'NOT_A_NEW_FACT status wrapper'}] } })
+  run.captureEvent(f.root.session, result)
+  assert.equal((await run.store.search(run.access(), {query:'NOT_A_NEW_FACT'})).total, 0)
+  const snapshot = f.event(f.root, 'user/message', { source: {kind:'runtime-context'}, content:[{type:'text',text:'DERIVED_CONTEXT_NOT_A_FACT'}] })
+  assert.equal(api.publicEvidence(snapshot), undefined)
+  run.captureEvent(f.root.session, snapshot)
+  assert.equal((await run.store.search(run.access(), {query:'DERIVED_CONTEXT_NOT_A_FACT'})).total, 0)
+})
+
 test('cold cursor between retrieval call and result never creates local or knowledge wrapper evidence', enabled, async t => {
-  for (const name of ['ultra_memory_search', 'ultra_memory_get', 'ultra_knowledge_search', 'ultra_knowledge_get']) for (const durableCallRecord of [false, true]) {
+  for (const name of ['ultra_memory_search', 'ultra_memory_get', 'ultra_memory_status', 'ultra_knowledge_search', 'ultra_knowledge_get']) for (const durableCallRecord of [false, true]) {
     const f = await pendingRetrievalFixture(t, name), run = await f.host.begin(f.root, 'before-pending-result')
     assert.ok(run)
     if (durableCallRecord) run.store.capture({ projectId: run.projectId, runId: run.runId, sessionId: 'root', routeId: 'main', eventId: 'seq:' + f.call.seq,

@@ -7,17 +7,17 @@
 面向 DSH 的多代理协作、项目记忆与决策辅助插件<br>
 让不同路线交换线索，让长任务保留进度，让结论有原文可查。
 
-[![Ultra 0.6.1](https://img.shields.io/badge/Ultra-0.6.1-167d8d)](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1)
-[![Memory 0.1.1](https://img.shields.io/badge/Memory-0.1.1-526d82)](packages/dsh-ultra-memory/README.md)
-[![Decision 0.1.1](https://img.shields.io/badge/Decision-0.1.1-7061a5)](packages/dsh-ultra-decision/README.md)
+[![Ultra 0.7.0](https://img.shields.io/badge/Ultra-0.7.0-167d8d)](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.7.0)
+[![Memory 0.2.0](https://img.shields.io/badge/Memory-0.2.0-526d82)](packages/dsh-ultra-memory/README.md)
+[![Decision 0.2.0](https://img.shields.io/badge/Decision-0.2.0-7061a5)](packages/dsh-ultra-decision/README.md)
 [![DSH rc.3](https://img.shields.io/badge/DSH_0.2.1-rc.2_%7C_rc.3-43853d)](package.json)
 [![BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-737373)](LICENSE)
 
-[下载三个插件包](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1) · [完整源码](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.1/dsh-ultra-mode-0.6.1-source.zip) · [中文发布说明与验证](docs/releases/0.6.1.md) · [更新记录](CHANGELOG.md)
+[下载三个插件包](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.7.0) · [完整源码](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.7.0/dsh-ultra-mode-0.7.0-source.zip) · [中文发布说明与验证](docs/releases/0.7.0.md) · [更新记录](CHANGELOG.md)
 
 </div>
 
-**当前版本：Ultra 0.6.1 / Memory 0.1.1 / Decision 0.1.1。** 本次适配 DSH `0.2.1-rc.3`，保留 `0.2.1-rc.2` 与旧 `0.2.0-rc.2` 的明确版本声明。三包从同一套核心源码构建，功能分工和默认开关保持原有行为。
+**当前版本：Ultra 0.7.0 / Memory 0.2.0 / Decision 0.2.0。** 本次适配 DSH `0.2.1-rc.3`，加入五层工程记忆、条件召回和模型主动进度查询。三包从同一套核心源码构建；[Ultra-Memory 独立仓库](https://github.com/Kayou-31/Ultra-Memory) 同时发布完全相同的 Memory TGZ。历史压缩、阶段归档和跨项目知识仍默认关闭。
 
 [认识项目](#这是什么) · [选择安装包](#选择安装包) · [功能一览](#功能一览) · [快速开始](#快速开始) · [常用命令](#常用命令) · [升级与兼容](#升级与兼容) · [常见问题](#常见问题) · [开发文档](#开发文档)
 
@@ -38,9 +38,9 @@ Ultra 把协作、项目状态和原文检索放在同一个任务里。主 Agen
 
 | 安装包 | 适合你，如果…… | 包含的能力 |
 | --- | --- | --- |
-| **[Ultra 0.6.1](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.1/dsh-external-dsh-ultra-mode-0.6.1.tgz)** | 想在一个入口使用完整协作与研究流程 | Team、模型池、决策辅助、手动 2～5 路、项目证据、上下文管理及可选知识库 |
-| **[Memory 0.1.1](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.1/dsh-external-dsh-ultra-memory-0.1.1.tgz)** | 主要需要长任务的证据检索与进度管理 | 项目证据、可选压缩与阶段归档、显式授权知识库；不创建模型或子代理 |
-| **[Decision 0.1.1](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.6.1/dsh-external-dsh-ultra-decision-0.1.1.tgz)** | 想保留普通主 Agent，再增加协作与复核 | Team、模型池、可选只读 decision 辅助及证据支持；没有手动多路线入口 |
+| **[Ultra 0.7.0](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.7.0/dsh-external-dsh-ultra-mode-0.7.0.tgz)** | 想在一个入口使用完整协作与研究流程 | Team、模型池、决策辅助、手动 2～5 路、项目证据、上下文管理及可选知识库 |
+| **[Memory 0.2.0](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.7.0/dsh-external-dsh-ultra-memory-0.2.0.tgz)** | 主要需要长任务的证据检索与进度管理 | 项目证据、可选压缩与阶段归档、显式授权知识库；不创建模型或子代理 |
+| **[Decision 0.2.0](https://github.com/Kayou-31/dsh-ultra-mode/releases/download/v0.7.0/dsh-external-dsh-ultra-decision-0.2.0.tgz)** | 想保留普通主 Agent，再增加协作与复核 | Team、模型池、可选只读 decision 辅助及证据支持；没有手动多路线入口 |
 
 支持单包、**Memory＋Decision** 和 **Ultra＋Memory**。Ultra 与 Decision 可以同时安装，但同一 scope 只能主动启用一个协调插件。`/ultra off` 或 `/decision off` 只关闭任务模式，不能替代停用重复 bundle。
 
@@ -55,6 +55,8 @@ Ultra 把协作、项目状态和原文检索放在同一个任务里。主 Agen
 | 决策辅助 | 普通主 Agent 负责执行，独立只读旁路提供建议 |
 | 多路线研究 | 手动选择 2～5 个 Max worker，由额外一个 Max decision 规划、协调和实施 |
 | 项目状态 | 保存目标、限制、进度、阻塞、决策和下一步，区分计划与验证 |
+| 工程记忆 | 目标约束、当前进度、决策、历史证据和未完成事项分层注入；关键词条件召回与来源追踪 |
+| 主动查看 | `ultra_memory_status` 提供概览、关联、证据三级读取，支持版本比较和分页 |
 | 原文检索 | 关键词搜索、分页读回、连续引文校验；来源不完整时明确标注 |
 | 可选上下文管理 | 先持久化证据与恢复入口，再替换旧工具正文；可显式开启已完成阶段归档 |
 | 可选知识库 | 同一 profile 下按真实项目目录授权发布、读取与撤销，默认不跨项目共享 |
@@ -67,7 +69,7 @@ Ultra 把协作、项目状态和原文检索放在同一个任务里。主 Agen
 ### 1. 下载并安装
 
 1. 确认 DSH Host 为 `0.2.1-rc.3`、`0.2.1-rc.2` 或 `0.2.0-rc.2`。新版能力建议使用 0.2.1 系列。
-2. 从 [发布页](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1) 选择所需 TGZ，核对同页 `SHA256SUMS.txt`。源码 ZIP 用于开发。
+2. 从 [发布页](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.7.0) 选择所需 TGZ，核对同页 `SHA256SUMS.txt`。源码 ZIP 用于开发。
 3. 在宿主插件管理页通过本地包入口安装，启用对应 bundle。升级前结束运行任务，保留旧 TGZ 和 profile 配置。
 4. 完整退出并重启 DSH，让 Host 与客户端一起加载新版本。
 
@@ -120,7 +122,7 @@ Memory 通过模型工具 `ultra_memory_search`、`ultra_memory_get` 检索。Te
 
 ## 升级与兼容
 
-本版扩展三包 `engines.dsh` 和原生 peer 范围，以官方 rc.3 SDK 构建和验证。**没有更改证据存储格式、增加后台功能或自动迁移历史。** 精确结果见 [本版验证报告](docs/releases/0.6.1.md)。
+本版扩展三包 `engines.dsh` 和原生 peer 范围，以官方 rc.3 SDK 构建和验证。**没有更改证据存储格式、增加后台功能或自动迁移历史。** 精确结果见 [本版验证报告](docs/releases/0.7.0.md)。
 
 全局知识仍要求原生 `profileContext.dir`。压缩和阶段归档要求原生持久化、恢复工具与唯一管理者；缺少能力时拒绝相应操作。旧宿主的基础兼容不等于具备所有新版能力。
 
@@ -134,7 +136,7 @@ Memory 通过模型工具 `ultra_memory_search`、`ultra_memory_get` 检索。Te
 
 **Ultra Memory 和 Memory-Continuity 有什么区别？**
 
-Ultra Memory 面向工程任务的证据、上下文与项目进度；[Memory-Continuity](https://github.com/Kayou-31/Memory-Continuity) 面向人物、经历、关系、承诺和人工成长审阅。它们是独立产品。后续可借鉴 M-C 的分层、条件注入与可追溯结构，在压缩插件内部加强主动进度查询，见[设计复用建议](docs/proposals/memory-continuity-context.md)。这不是合并插件，也不要求安装 M-C。本次尚未实现该设计，也没有验证两个插件最新版共同管理同一会话的兼容性。
+Ultra Memory 面向工程任务的证据、上下文与项目进度；[Memory-Continuity](https://github.com/Kayou-31/Memory-Continuity) 面向人物、经历、关系、承诺和人工成长审阅。本版借鉴其分层、条件选择和可追溯结构，在工程记忆中独立实现；不连接运行时、不合并存储，也不要求安装 M-C。详见 [Ultra-Memory 使用说明](packages/dsh-ultra-memory/README.md)。自动召回为关键词匹配，查询返回记录状态；本轮没有验证真实模型收益或两个插件共同管理同一会话的兼容性。
 
 **会默认调用更多模型吗？**
 

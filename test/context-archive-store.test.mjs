@@ -6,6 +6,7 @@ import path from 'node:path'
 import vm from 'node:vm'
 import { createRequire } from 'node:module'
 import ts from 'typescript'
+import { isTaskMemorySnapshot } from '../lib/task-memory-context.js'
 
 const require = createRequire(import.meta.url)
 function load(overrides = {}) {
@@ -13,7 +14,7 @@ function load(overrides = {}) {
   const source = new URL('../src/context-archive-store.ts', import.meta.url)
   if (fs.existsSync(source)) vm.runInNewContext(ts.transpileModule(fs.readFileSync(source, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
-  }).outputText, { exports, require: name => overrides[name] ?? require(name), Buffer, structuredClone, AbortSignal, Set, Map, Error, TypeError, Number, Math, JSON, process })
+  }).outputText, { exports, require: name => overrides[name] ?? (name === './task-memory-context.js' ? { isTaskMemorySnapshot } : require(name)), Buffer, structuredClone, AbortSignal, Set, Map, Error, TypeError, Number, Math, JSON, process })
   return exports
 }
 const { ContextArchiveStore, verifyArchiveEnvelope } = load()
@@ -34,6 +35,23 @@ function fixture(t, events, Class = ContextArchiveStore, extra = {}) {
 const unpack = value => JSON.parse(JSON.stringify(value))
 
 test('archive store exposes durable metadata-only preparation and read-through pagination', () => assert.equal(typeof ContextArchiveStore, 'function'))
+
+test('only exact Ultra native snapshots leave capsules while raw and mixed contexts remain recoverable',enabled,async t=>{
+  const text='OLD_TASK_SNAPSHOT_451', prefix='Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n'
+  const own=human(0,prefix+text,{kind:'runtime-context',form:'snapshot',sections:[{name:'ultra-task-memory',text}]})
+  const mixed=human(1,'Mixed context must remain',{kind:'runtime-context',form:'snapshot',sections:[{name:'ultra-task-memory',text},{name:'other-plugin',text:'Keep other context'}]})
+  const forged=human(2,'Metadata does not match this body',{kind:'runtime-context',form:'snapshot',sections:[{name:'ultra-task-memory',text}]})
+  const events=[own,mixed,forged,human(3,'Never delete originals')],f=fixture(t,events)
+  assert.equal(isTaskMemorySnapshot(own),true)
+  assert.equal(isTaskMemorySnapshot(mixed),false)
+  assert.equal(isTaskMemorySnapshot(forged),false)
+  const receipt=await f.store.prepare(access,{sessionId:'session-a',events,currentStateText:'Current state'})
+  assert.equal(receipt.text.includes(prefix+text),false)
+  for(const value of ['Mixed context must remain','Metadata does not match this body','Never delete originals']) assert.ok(receipt.text.includes(value))
+  let full='',offset=0
+  do {const page=await f.store.get(access,receipt.id,{offset,maxChars:4000});full+=page.text;offset=page.nextOffset}while(offset!==undefined)
+  assert.match(full,/OLD_TASK_SNAPSHOT_451/)
+})
 
 test('preparation preserves literal user/control/public assistant text and original tools only in read-through', enabled, async t => {
   const events = [human(0, 'Never publish.\nKeep "literal" text.\\path'), assistant(1), result(2, 'call-1', 'TOOL_BODY_TAIL '.repeat(1000)), human(3, 'New constraint: offline only.', { kind: 'host-notice' })]

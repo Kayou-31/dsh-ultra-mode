@@ -5,6 +5,7 @@
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import { estimateRequestBudget, type RequestBudget } from './context-memory.js'
+import { isTaskMemorySnapshot } from './task-memory-context.js'
 
 export interface ContextArchiveReceipt {
   id: string
@@ -193,7 +194,7 @@ export async function archiveSession(context: ContextArchiveOptions): Promise<Co
     if (receipt?.durable !== true || receipt.sessionId !== session.id || !/^arc_[a-f0-9]{64}$/u.test(receipt.id)
       || typeof receipt.text !== 'string' || !receipt.text.trim() || !Array.isArray(receipt.sourceSeqs)
       || receipt.sourceSeqs.length !== selected.length || receipt.sourceSeqs.some((node, index) => node !== selected[index].seq)) return refuse('limited', 'Sealed same-session archive receipt is missing or does not match the selected source nodes.')
-    for (const event of selected) if ((event.type === 'user/message' || event.type === 'assistant/message') && !ownArchive(event) && !ownNotice(event)) {
+    for (const event of selected) if ((event.type === 'user/message' || event.type === 'assistant/message') && !ownArchive(event) && !ownNotice(event) && !isTaskMemorySnapshot(event)) {
       for (const block of blocks(event)) if (block.type === 'text' && typeof block.text === 'string' && block.text
         && !receipt.text.includes(block.text) && !receipt.text.includes(JSON.stringify(block.text))) return refuse('limited', 'Archive capsule does not preserve exact human/public assistant text.')
     }

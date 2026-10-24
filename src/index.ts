@@ -12,6 +12,8 @@ import { routeCount, modeCount, resolveSessionKey, snapshotOf, renderUltraSectio
 import type { CoordinationSummary } from './coordination.js'
 import { installCollaboration, COLLABORATION_TOOLS, type CollaborationHostHandle } from './collaboration-host.js'
 import { acquireEvidenceSupport } from './evidence-support.js'
+import { TaskMemoryFields } from './task-memory-settings.js'
+import type { TaskMemoryConfig } from './task-memory.js'
 import { ModelPoolSchema, createModelPoolSettings } from './model-pool-settings.js'
 import type { TeamSnapshot } from './collaboration.js'
 import { readCollaborationAudit } from './model-pool-audit.js'
@@ -25,6 +27,7 @@ declare module '@deepseek-ai/dsh-llm' {
 export const name = '@dsh-external/dsh-ultra-mode'
 export const inject = ['agents', 'tools', 'systemPrompt']
 export const ConfigFields = {
+  ...TaskMemoryFields,
   toolName: z.string().default('ultra_task'),
   concurrency: z.number().step(1).min(1).max(5).default(3),
   collaborationEnabled: z.boolean().default(false),
@@ -69,7 +72,7 @@ export const ConfigFields = {
   jevTimeoutMs: z.number().step(1).min(100).max(120000).default(15000),
 }
 export const Config = z.object(ConfigFields)
-export interface Config extends RunConfig { concurrency: number; sectionOrder: number; maxSessions: number; evidenceEnabled?: boolean; globalKnowledge?: unknown; memorySearchChars?: number; memoryGetChars?: number; contextTargetTokens?: number; contextTriggerTokens?: number; contextRetainRecentMessages?: number; contextMinResultChars?: number; contextMaxPrunes?: number; contextPreviewChars?: number; contextCompactLocators?: boolean; contextRetrievalReceipts?: boolean; contextArchiveCompletedTurns?: boolean; contextOutputReserveTokens?: number; contextToolReserveTokens?: number; contextCompression?: boolean; memoryMaxRequests?: number; memoryMaxTokens?: number }
+export interface Config extends RunConfig, TaskMemoryConfig { concurrency: number; sectionOrder: number; maxSessions: number; evidenceEnabled?: boolean; globalKnowledge?: unknown; memorySearchChars?: number; memoryGetChars?: number; contextTargetTokens?: number; contextTriggerTokens?: number; contextRetainRecentMessages?: number; contextMinResultChars?: number; contextMaxPrunes?: number; contextPreviewChars?: number; contextCompactLocators?: boolean; contextRetrievalReceipts?: boolean; contextArchiveCompletedTurns?: boolean; contextOutputReserveTokens?: number; contextToolReserveTokens?: number; contextCompression?: boolean; memoryMaxRequests?: number; memoryMaxTokens?: number }
 interface PreStep {
   agent: Agent
   step: number
@@ -134,7 +137,7 @@ export function apply(ctx: Context, config: Config, variant: 'ultra' | 'decision
     return closing
   }
   const runConfigFor = (state: UltraState): RunConfig => ({ ...config, collaborationEnabled: state.collaborationEnabled === true,
-    researchTools: [...new Set([...config.researchTools, ...(state.collaborationEnabled ? COLLABORATION_TOOLS : []), ...(memory.config?.evidenceEnabled === false ? [] : ['ultra_memory_search', 'ultra_memory_get']), ...evidence.readTools])] })
+    researchTools: [...new Set([...config.researchTools, ...(state.collaborationEnabled ? COLLABORATION_TOOLS : []), ...(memory.config?.evidenceEnabled === false ? [] : ['ultra_memory_search', 'ultra_memory_get', 'ultra_memory_status']), ...evidence.readTools])] })
   const stateFor = (id: string, create = false): UltraState | undefined => {
     const existing = sessions.get(id)
     if (existing !== undefined) { sessions.delete(id); sessions.set(id, existing); return existing }
