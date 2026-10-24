@@ -273,7 +273,9 @@ test('native SDK preflight drives the same Team script through actual typed Tool
   assert.ok(['0.2.1-rc.2', '0.2.1-rc.3'].includes(preflightSdkVersion), 'Explicit companion preflight requires the complete pinned new SDK')
   const names = ['cordis', 'cordis-plugin-loader', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-agent-loop', 'dsh-session-persistence-jsonl', 'dsh-session-query', 'dsh-agent-preset-registry', 'dsh-agent-preset', 'dsh-fs-local', 'dsh-working-directory', 'dsh-subagent', 'dsh-subagent-spawn-in-process', 'dsh-scope']
   const sdk = Object.fromEntries(await Promise.all(names.map(async name => [name, await import(pathToFileURL(path.resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai', name, 'lib/index.js')).href)])))
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'companion-sdk-preflight-')), projectDir = path.join(root, 'project'), logs = path.join(root, 'jsonl')
+  // Windows CI may expose TEMP through an 8.3 alias. Use the same canonical
+  // root as the acceptance gate before deriving absolute child paths.
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'companion-sdk-preflight-'))), projectDir = path.join(root, 'project'), logs = path.join(root, 'jsonl')
   fs.mkdirSync(projectDir)
   const ctx = new sdk.cordis.Context(), handles = [], owners = [], sessions = new Map(), plans = new Map(), requests = [], toolExecutions = []; let verified = false
   t.after(async () => { for (const owner of owners.toReversed()) await owner.close(); for (const handle of handles.toReversed()) await handle.dispose(); await ctx.fiber.dispose(); if (verified) fs.rmSync(root, { recursive: true, force: true }); else t.diagnostic('Failed SDK preflight preserved: ' + root) })
