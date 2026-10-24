@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-ultra-mode",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "DSH Ultra：协作与decision调度、证据检索、上下文管理及显式授权的profile全局知识库",
   "keywords": [
     "deepseek",
@@ -48,7 +48,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 --test-timeout=120000 test/*.test.mjs",
     "test:benchmarks": "node scripts/benchmarks.mjs selftest",
     "benchmark": "node scripts/benchmarks.mjs",
     "prepack": "npm run build",
@@ -57,15 +57,15 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4",
-    "@deepseek-ai/dsh-agent": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-api-session-controller": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-locale": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-scope": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-session": "0.2.0-rc.2 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-rc.2",
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-locale": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-scope": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
     "@deepseek-ai/schemastery": "~3.18.4",
     "react": ">=18.2.0 <20"
   },
@@ -87,22 +87,36 @@
     }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "~4.0.4",
-    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-api-remotes": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-sandbox": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-scope": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-session": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-user-approval": "0.2.0-rc.2",
-    "@deepseek-ai/schemastery": "~3.18.4",
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-api-remotes": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-sandbox": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-scope": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-user-approval": "0.2.1-rc.3",
+    "@deepseek-ai/schemastery": "3.18.5",
     "@types/node": "^24.13.3",
     "@types/react": "~18.3.1",
     "esbuild": "^0.25.12",
     "react": "^18.2.0",
-    "typescript": "^5.9.3"
+    "semver": "7.7.3",
+    "typescript": "^5.9.3",
+    "@deepseek-ai/dsh-agent-loop": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-agent-preset": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session-query": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session-persistence-jsonl": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-subagent": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-subagent-spawn-in-process": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-fs-local": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-commands": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-token-meter": "0.2.1-rc.3",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6"
   },
   "dsh": {
     "bundle": {
@@ -124,6 +138,7 @@
     "url": "git+https://github.com/Kayou-31/dsh-ultra-mode.git"
   },
   "engines": {
-    "dsh": "0.2.0-rc.2 || 0.2.1-rc.2"
+    "dsh": "0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "node": ">=22"
   }
 }

@@ -50,7 +50,9 @@ test('compression probe is explicit standalone Memory only and enables finite na
   for (const value of [{ target: 'ultra', 'compression-probe': true }, { target: 'memory', companion: 'decision.tgz', 'companion-sha256': 'a'.repeat(64), 'compression-probe': true }]) assert.throws(() => knowledgePackageSelection(value), /compression-probe/)
 })
 
-const nativeRuntime = path.resolve(fileURLToPath(new URL('..', import.meta.url)), '..', 'decision-loop-host-runtime')
+const nativeRuntime = process.env.DSH_ULTRA_TEST_SDK
+  ? path.dirname(path.resolve(process.env.DSH_ULTRA_TEST_SDK))
+  : path.resolve(fileURLToPath(new URL('..', import.meta.url)), '..', 'decision-loop-host-runtime')
 test('pinned native SDK accepts both compression fixture rounds and reads original sources after later system assemblies', { skip: !fs.existsSync(path.join(nativeRuntime, 'package.json')) }, async t => {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-compression-sdk-'))
   t.after(() => fs.rmSync(work, { recursive: true, force: true }))

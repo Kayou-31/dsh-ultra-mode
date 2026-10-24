@@ -4,17 +4,28 @@
 
 ## 运行检查
 
-使用 Node.js 24。在源码根目录运行：
+建议使用 Node.js 22；0.6.1 在 22.23.3 上验证，锁文件固定官方 DSH 0.2.1-rc.3 SDK。在源码根目录运行：
 
 ```powershell
-npm ci --ignore-scripts --legacy-peer-deps
+npm ci --ignore-scripts
 npm run build
 npm run typecheck
+$env:DSH_ULTRA_TEST_SDK = (Resolve-Path node_modules).Path
 npm test
 npm run test:benchmarks
 ```
 
-GitHub Actions 的 [verify 工作流](../.github/workflows/verify.yml) 在 Linux / Node 24 上执行这些命令。`test:benchmarks` 只运行离线案例，不请求付费模型。只使用业务案例工具时无需安装 SDK，参见 [案例使用说明](../benchmarks/README.md)。
+GitHub Actions 的 [verify 工作流](../.github/workflows/verify.yml) 配置为 Ubuntu／Windows、Node 22.23.3，并为原生 SDK 测试指定 `DSH_ULTRA_TEST_SDK`。是否通过以对应提交的 Actions 结果为准。`test:benchmarks` 只运行离线案例，不请求付费模型。只使用业务案例工具时无需安装 SDK，参见 [案例使用说明](../benchmarks/README.md)。
+
+0.6.1 本机完整回归为 730 项：728 通过、0 失败、2 项因 Windows 符号链接权限跳过；版本门控的原生用例已执行。构建、类型检查与 66 项参考业务检查通过。详见[本版发布报告](releases/0.6.1.md)。下文 0.3.2、0.6.0 的数字、JIT 排查与真实实验均为历史记录，不能计入当前版本。
+
+最终 TGZ 可在全新目录验证原生 Loader、唯一工具注册和组合卸载（`--sdk` 指向该版本完整 `node_modules`）：
+
+```text
+node scripts/verify-release-packages.mjs --sdk <native-node_modules> --packages <three-tgz-directory> --work <fresh-directory>
+```
+
+此脚本的 agents 为惰性夹具，不运行 CLI、桌面或真实模型。它只从指定 SDK 加载服务和解包后的入口；整套 `npm test` 中还有直接导入项目依赖的测试，因此不能仅切换环境变量就将整套结果称为另一个 SDK 版本的全量回归。
 
 ## 证据层次
 

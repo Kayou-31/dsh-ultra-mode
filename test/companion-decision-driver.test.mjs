@@ -270,7 +270,7 @@ test('persisted companion acceptance requires both actual distinct model readbac
 
 const preflightSdkVersion = process.env.DSH_ULTRA_TEST_SDK ? JSON.parse(fs.readFileSync(path.resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai/dsh-agent/package.json'), 'utf8')).version : undefined
 test('native SDK preflight drives the same Team script through actual typed ToolRuntime and matched JSONL', { skip: !preflightSdkVersion ? 'Set DSH_ULTRA_TEST_SDK for focused native SDK protocol preflight' : preflightSdkVersion === '0.2.0-rc.2' ? 'Companion CLI preflight targets exact native 0.2.1-rc.2; existing model-pool-sdk suite covers 0.2.0-rc.2' : false, timeout: 20000 }, async t => {
-  assert.equal(preflightSdkVersion, '0.2.1-rc.2', 'Explicit companion preflight requires the complete pinned new SDK')
+  assert.ok(['0.2.1-rc.2', '0.2.1-rc.3'].includes(preflightSdkVersion), 'Explicit companion preflight requires the complete pinned new SDK')
   const names = ['cordis', 'cordis-plugin-loader', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-agent-loop', 'dsh-session-persistence-jsonl', 'dsh-session-query', 'dsh-agent-preset-registry', 'dsh-agent-preset', 'dsh-fs-local', 'dsh-working-directory', 'dsh-subagent', 'dsh-subagent-spawn-in-process', 'dsh-scope']
   const sdk = Object.fromEntries(await Promise.all(names.map(async name => [name, await import(pathToFileURL(path.resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai', name, 'lib/index.js')).href)])))
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'companion-sdk-preflight-')), projectDir = path.join(root, 'project'), logs = path.join(root, 'jsonl')

@@ -26,7 +26,7 @@ async function fixture(t, enabled = true) {
   let modelCalls = 0, writes = 0, callNumber = 0
   await ctx.plugin(sdk['dsh-session'].SessionStore).await()
   await ctx.plugin(sdk['dsh-system-prompt'].SystemPrompt, { includeHarnessIdentity: false, includeRuntimeContext: false }).await()
-  await ctx.plugin(sdk['dsh-tools'].ToolRuntime, { mode: 'both' }).await()
+  await ctx.plugin(sdk['dsh-tools'].ToolRuntime, { mode: 'native' }).await()
   ctx.on('session/flush', session => durable.set(session.id, { header: structuredClone(session.header), events: structuredClone(session.snapshotEvents()) }))
   ctx.provide('sessionPersistence', { async open(id, access) {
     assert.equal(access, 'read')

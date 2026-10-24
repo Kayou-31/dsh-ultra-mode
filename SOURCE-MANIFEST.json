@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "root": {
     "name": "@dsh-external/dsh-ultra-mode",
-    "version": "0.6.0"
+    "version": "0.6.1"
   },
   "coreSources": [
     {
@@ -132,7 +132,7 @@
   ],
   "package": {
     "name": "@dsh-external/dsh-ultra-mode",
-    "version": "0.6.0"
+    "version": "0.6.1"
   },
   "buildEntry": "src/index.ts"
 }

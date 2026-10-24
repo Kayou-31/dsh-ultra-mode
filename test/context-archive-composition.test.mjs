@@ -10,8 +10,8 @@ const require = createRequire(import.meta.url), sdkRoot = process.env.DSH_ULTRA_
 let reason
 try {
   const file = sdkRoot ? path.join(sdkRoot, '@deepseek-ai/dsh-session/package.json') : require.resolve('@deepseek-ai/dsh-session/package.json')
-  if (JSON.parse(fs.readFileSync(file)).version !== '0.2.1-rc.2') reason = 'Experimental archive requires verified official 0.2.1-rc.2; skipped, not a compatibility pass.'
-} catch { reason = 'Official 0.2.1-rc.2 SDK unavailable.' }
+  if (!['0.2.1-rc.2', '0.2.1-rc.3'].includes(JSON.parse(fs.readFileSync(file)).version)) reason = 'Experimental archive requires verified official 0.2.1-rc.2 / rc.3; skipped, not a compatibility pass.'
+} catch { reason = 'Official 0.2.1-rc.2 / rc.3 SDK unavailable.' }
 const native = { skip: reason }, sha = text => createHash('sha256').update(text).digest('hex')
 const load = name => sdkRoot ? import(pathToFileURL(path.join(sdkRoot, '@deepseek-ai', name, 'lib/index.js'))) : import('@deepseek-ai/' + name)
 async function fixture(t) {

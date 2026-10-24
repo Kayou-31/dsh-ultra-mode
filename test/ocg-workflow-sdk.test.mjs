@@ -10,13 +10,13 @@ import * as gatePlugin from '../scripts/host-acceptance/real-model-global-limit.
 
 const sdkRoot = process.env.DSH_ULTRA_TEST_SDK
 const names = ['cordis', 'cordis-plugin-loader', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-agent-loop', 'dsh-session-persistence-jsonl', 'dsh-session-query', 'dsh-agent-preset-registry', 'dsh-agent-preset', 'dsh-fs-local', 'dsh-working-directory', 'dsh-commands', 'dsh-token-meter']
-let unavailable = !sdkRoot && 'Set DSH_ULTRA_TEST_SDK to a complete official 0.2.1-rc.2 runtime for this version-specific integration proof.'
+let unavailable = !sdkRoot && 'Set DSH_ULTRA_TEST_SDK to a complete official 0.2.1-rc.2 / rc.3 runtime for this version-specific integration proof.'
 if (sdkRoot) {
   try {
     const version = JSON.parse(await fs.readFile(path.join(sdkRoot, '@deepseek-ai/dsh-agent/package.json'), 'utf8')).version
-    if (version !== '0.2.1-rc.2') unavailable = 'This workflow integration proof requires official 0.2.1-rc.2; selected SDK is ' + version + '. Skipped, not a compatibility pass.'
+    if (!['0.2.1-rc.2', '0.2.1-rc.3'].includes(version)) unavailable = 'This workflow integration proof requires official 0.2.1-rc.2 / rc.3; selected SDK is ' + version + '. Skipped, not a compatibility pass.'
     else for (const name of names) await fs.access(path.join(sdkRoot, '@deepseek-ai', name, 'lib/index.js'))
-  } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ERR_MODULE_NOT_FOUND') throw error; unavailable = 'Selected SDK lacks a required official 0.2.1-rc.2 workflow module. Skipped, not a compatibility pass.' }
+  } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ERR_MODULE_NOT_FOUND') throw error; unavailable = 'Selected SDK lacks a required official 0.2.1-rc.2 / rc.3 workflow module. Skipped, not a compatibility pass.' }
 }
 const textOf = message => (message?.content ?? []).filter(block => block.type === 'text').map(block => block.text).join('\n')
 const parse = message => JSON.parse(message.content.find(block => block.type === 'text').text)

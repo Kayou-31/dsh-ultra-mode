@@ -18,10 +18,10 @@ let sdk, unavailable, sdkVersion
 try {
   if (!process.env.DSH_ULTRA_TEST_SDK) unavailable = 'Set DSH_ULTRA_TEST_SDK to a complete pinned rc.2 runtime node_modules; never use a partial peer installation for this integration.'
   else {
-    const supported = new Set(['0.2.0-rc.2', '0.2.1-rc.2'])
+    const supported = new Set(['0.2.0-rc.2', '0.2.1-rc.2', '0.2.1-rc.3'])
     sdkVersion = JSON.parse(readFileSync(path.resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai/dsh-agent/package.json'), 'utf8')).version
-    assert.ok(supported.has(sdkVersion), 'native integration supports only the two explicitly verified official releases')
-    if (sdkVersion === '0.2.1-rc.2') names.push('dsh-fs-local', 'dsh-working-directory')
+    assert.ok(supported.has(sdkVersion), 'native integration supports only the explicitly verified official releases')
+    if (sdkVersion !== '0.2.0-rc.2') names.push('dsh-fs-local', 'dsh-working-directory')
     for (const name of names.filter(name => name.startsWith('dsh-'))) {
       const manifest = JSON.parse(readFileSync(path.resolve(process.env.DSH_ULTRA_TEST_SDK, '@deepseek-ai', name, 'package.json'), 'utf8'))
       assert.equal(manifest.version, sdkVersion, `native integration requires every DSH package at the same pinned release: ${name}`)
@@ -63,7 +63,7 @@ async function fixture(t, { initial = config(), script, parentOptions, maxDepth 
     ['dsh-system-prompt', { includeHarnessIdentity: false, includeRuntimeContext: false }], ['dsh-tools', { mode: 'native' }],
     ['dsh-agent'], ['dsh-agent-loop', { agents: [] }], ['dsh-session-persistence-jsonl', { root: logs, compression: 'none' }], ['dsh-session-query'],
     ['dsh-agent-preset-registry', { default: 'pool-offline' }], ['dsh-agent-preset', { id: 'pool-offline', plugins: [] }],
-    ...(sdkVersion === '0.2.1-rc.2' ? [['dsh-fs-local'], ['dsh-working-directory', { defaultDirectory: project }]] : []),
+    ...(sdkVersion !== '0.2.0-rc.2' ? [['dsh-fs-local'], ['dsh-working-directory', { defaultDirectory: project }]] : []),
     ['dsh-subagent', { maxDepth, maxActiveSubagents: 2 }], ['dsh-subagent-spawn-in-process', { providerName: 'spawn' }],
   ]) await ctx.plugin(sdk[name].default ?? sdk[name], options).await()
   class Offline extends sdk['dsh-llm'].LlmAdapter {
@@ -222,7 +222,7 @@ test('native SDK cold-evicted child followup keeps target defaults clear instead
   const original = f.ctx.agents.get(child.id)
   assert.ok(original)
   await f.ctx.sessions.flush(original.session)
-  await f.ctx.agents.withInitiator(f.parent, () => sdkVersion === '0.2.1-rc.2' ? f.ctx.subagents.drainChildren(f.parent, [child.id]) : f.ctx.subagents.drainContinuableChildren(f.parent, [child.id]))
+  await f.ctx.agents.withInitiator(f.parent, () => sdkVersion !== '0.2.0-rc.2' ? f.ctx.subagents.drainChildren(f.parent, [child.id]) : f.ctx.subagents.drainContinuableChildren(f.parent, [child.id]))
   assert.equal(f.ctx.agents.get(child.id), undefined, 'native activation and Agent must actually be absent before testing cold reconstruction')
   await f.execute(f.parent, 'ultra_followup_task', { target: child.id, message: 'Resume the same child after native eviction and perform another permitted local read.' })
   const resumed = await f.wait(child.id, first.cursor)

@@ -12,12 +12,12 @@ const require = createRequire(import.meta.url), sdkRoot = process.env.DSH_ULTRA_
 let unavailable, foldSurface, deriveEventMessage, TokenMeter
 try {
   const file = sdkRoot ? path.join(sdkRoot, '@deepseek-ai/dsh-session/package.json') : require.resolve('@deepseek-ai/dsh-session/package.json')
-  if (JSON.parse(await fs.readFile(file, 'utf8')).version !== '0.2.1-rc.2') unavailable = 'Native template summary proof requires official 0.2.1-rc.2; skipped, not a compatibility pass.'
+  if (!['0.2.1-rc.2', '0.2.1-rc.3'].includes(JSON.parse(await fs.readFile(file, 'utf8')).version)) unavailable = 'Native template summary proof requires official 0.2.1-rc.2 / rc.3; skipped, not a compatibility pass.'
   else {
     const load = name => sdkRoot ? import(pathToFileURL(path.join(sdkRoot, '@deepseek-ai', name, 'lib/index.js'))) : import('@deepseek-ai/' + name)
     ;({ foldSurface, deriveEventMessage } = await load('dsh-session')); ({ TokenMeter } = await load('dsh-token-meter'))
   }
-} catch { unavailable = 'Official 0.2.1-rc.2 proof modules unavailable; skipped, not a compatibility pass.' }
+} catch { unavailable = 'Official 0.2.1-rc.2 / rc.3 proof modules unavailable; skipped, not a compatibility pass.' }
 const estimateMessage = message => TokenMeter.prototype.estimateMessage(message)
 const assessC = input => assessWorkflowCycle130k(input, assessWorkflowCycle)
 const fixture = postInput => ({ phase: 1,

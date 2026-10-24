@@ -1,9 +1,11 @@
 # DSH Ultra Memory
 
-> 本包与完整 Ultra 一起提供于 [v0.6.0 正式版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.0)。安装组合、实测范围与限制见[发布记录](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.0.md)。
+> **0.6.1 兼容更新**：三包加入 DSH 0.2.1-rc.3；新测试结果见[本版发布报告](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.1.md)。下文涉及真实模型、14/30 或旧 CLI 数字的内容属于 0.6.0 历史证据，不计入本次验证。
+
+> 本包与完整 Ultra 一起提供于 [v0.6.1 正式版](https://github.com/Kayou-31/dsh-ultra-mode/releases/tag/v0.6.1)。安装组合、实测范围与限制见[发布记录](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/releases/0.6.1.md)。
 
 
-`@dsh-external/dsh-ultra-memory` **0.1.0** 是可独立安装的正式包。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
+`@dsh-external/dsh-ultra-memory` **0.1.1** 是可独立安装的正式包。普通 DSH 可单独安装本 TGZ，无需安装完整 Ultra。
 
 提供项目原始证据、`ultra_memory_search`／`ultra_memory_get` 按需检索、可选原生历史压缩，以及同 profile 显式授权的知识发布／读取。Memory 不创建任何模型、子代理或 Ultra 路线，不需要额外服务、密钥、embedding 或数据库。原始宿主日志与项目证据仍是来源权威，摘要和知识结论不等于事实验证。
 
@@ -24,7 +26,7 @@
 
 开启知识时还须明确配置真实项目目录、`read`、`publish`、`shareWith`；首次切换启用状态后重载插件或重启。每次操作重查当前授权、profile、来源和发布时读者快照，新增读者不追溯扩大旧发布。知识位于原生 `profileContext.dir/.dsh-ultra-knowledge/v1`，项目证据保留在各自 `.dsh-ultra/v1` 与宿主日志。
 
-目标宿主精确为 `0.2.0-rc.2 || 0.2.1-rc.2`。全局知识另需原生 `profileContext.dir`，本轮知识闭环验证目标为 `0.2.1-rc.2`；旧 `0.2.0-rc.2` 的原模式／SDK 回归不能证明知识兼容，缺服务时失败关闭。压缩须确认原生持久化及 token-meter 能力，并确保同一历史只有一个压缩管理者。
+目标宿主精确为 `0.2.0-rc.2 || 0.2.1-rc.2 || 0.2.1-rc.3`。全局知识另需原生 `profileContext.dir`，0.6.0 历史验收中知识闭环验证目标为 `0.2.1-rc.2`；旧 `0.2.0-rc.2` 的原模式／SDK 回归不能证明知识兼容，缺服务时失败关闭。压缩须确认原生持久化及 token-meter 能力，并确保同一历史只有一个压缩管理者。
 
 ## 组合与回滚
 
@@ -42,4 +44,4 @@ Memory 关闭证据时，已有运行暂停捕获、请求观察、恢复入口�
 
 三个正式包的SHA、源码／运行时对应关系及独立／组合原生验收见Release验证附件。真实OCG实验主要使用完整Ultra的冻结开发候选，附属包通过共同源码、运行字节和原生矩阵核对，不能声称各自又跑过真实30轮。
 
-归档实测按14/30收尾，约65K级为本案例压后含预留体积；30轮、一天跨度和额外归档冷读回未完成。压缩与阶段归档默认关闭；已有arc_检查点须保留兼容读取器、证据服务、原始日志与项目归档清单，不能直接交给不理解它的旧版续作。详细配置与迁移见[安装说明](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/installation.md)。未安装日常环境；离线脚本不证明所有模型、业务或完整Electron UI效果。
+0.6.0 历史归档实测按14/30收尾，约65K级为本案例压后含预留体积；30轮、一天跨度和额外归档冷读回未完成。压缩与阶段归档默认关闭；已有arc_检查点须保留兼容读取器、证据服务、原始日志与项目归档清单，不能直接交给不理解它的旧版续作。详细配置与迁移见[安装说明](https://github.com/Kayou-31/dsh-ultra-mode/blob/main/docs/installation.md)。未安装日常环境；离线脚本不证明所有模型、业务或完整Electron UI效果。
